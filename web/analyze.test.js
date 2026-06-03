@@ -14,38 +14,52 @@ assert.strictEqual(b.count5, 1);
 assert.strictEqual(b.fives[0].pity, 6, 'pity counts the winning pull');
 assert.strictEqual(b.currentPity5, 0, 'reset after 5*');
 
-// ---- 50/50: loss -> guaranteed win -> contested win -> loss ----
-// standard char ids: 1003,1101 ; pickup ids: 9001,9002
+// ---- 50/50: loss -> guaranteed win -> contested win -> loss (LIMITED 기반) ----
+// standard char: 1003(Himeko),1101(Bronya) | limited(픽업): 1005(Kafka),1006(Silver Wolf)
 id = 5000n;
 const banner11 = [
-  r5(1003),  // contested LOSS -> guaranteed=true
-  r5(9001),  // guaranteed WIN
-  r5(9002),  // contested WIN
-  r5(1101),  // contested LOSS -> guaranteed=true
+  r5(1003),  // standard -> contested LOSS(픽뚫) -> guaranteed
+  r5(1005),  // guaranteed WIN(픽업)
+  r5(1006),  // contested WIN(픽승, 픽업)
+  r5(1101),  // standard -> contested LOSS(픽뚫) -> guaranteed
 ];
 const s = analyzeBanner(banner11, BANNERS['11']);
-assert.strictEqual(s.contested, 3, '3 contested 50/50s (#1,#3,#4)');
+assert.strictEqual(s.contested, 3, '3 contested (#1,#3,#4)');
 assert.strictEqual(s.cWins, 1, '1 contested win');
 assert.strictEqual(s.cLoss, 2, '2 contested losses');
 assert.strictEqual(s.gWins, 1, '1 guaranteed win');
-assert.strictEqual(s.pickupTotal, 2, 'featured obtained = contested wins + guaranteed wins');
+assert.strictEqual(s.pickupTotal, 2, 'featured = contested wins + guaranteed wins');
 assert.ok(Math.abs(s.win5050Rate - 1 / 3) < 1e-9, '50/50 win rate = 1/3');
-assert.strictEqual(s.currentGuaranteed, true, 'ends on a loss -> next is guaranteed');
+assert.strictEqual(s.currentGuaranteed, true, 'ends on loss -> next guaranteed');
 assert.deepStrictEqual(s.fives.map(f => f.result), ['loss', 'guaranteed', 'win', 'loss']);
 assert.deepStrictEqual(s.fives.map(f => f.isPickup), [false, true, true, false]);
+assert.strictEqual(s.unknown5, 0, 'all ids in LIMITED or STANDARD');
 
-// ---- light cone pool (banner 12) ----
+// ---- 미확인 5★: LIMITED·STANDARD 어디에도 없으면 contested loss + unidentified ----
+id = 5500n;
+const u = analyzeBanner([r5(9999)], BANNERS['11']);
+assert.strictEqual(u.fives[0].result, 'loss', 'unknown contested -> loss');
+assert.strictEqual(u.fives[0].isPickup, false);
+assert.strictEqual(u.fives[0].unidentified, true);
+assert.strictEqual(u.unknown5, 1);
+const std = analyzeBanner([r5(1003)], BANNERS['11']);
+assert.strictEqual(std.fives[0].unidentified, false, 'standard id is identified');
+assert.strictEqual(std.unknown5, 0);
+
+// ---- light cone pool (banner 12): standard 23002 -> loss, limited 23001 -> guaranteed ----
 const r5lc = (iid) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'z', item_type: 'L', time: '2025-03-01 00:00:00', gacha_type: '12' });
-const banner12 = [r5lc(23002) /*standard LC -> loss*/, r5lc(21001) /*pickup*/];
+const banner12 = [r5lc(23002) /*standard -> loss*/, r5lc(23001) /*limited -> guaranteed*/];
 const sl = analyzeBanner(banner12, BANNERS['12']);
-assert.deepStrictEqual(sl.fives.map(f => f.result), ['loss', 'guaranteed'], 'LC: loss then guaranteed pickup');
+assert.deepStrictEqual(sl.fives.map(f => f.result), ['loss', 'guaranteed'], 'LC: loss then guaranteed');
+assert.strictEqual(sl.unknown5, 0);
 
-// ---- luck ----
+// ---- luck (소프트천장/early 제거 확인) ----
 id = 6000n;
-const lucky = [r5(9001)]; // pity 1 -> very lucky
-const lk = analyzeBanner(lucky, BANNERS['11']);
+const lk = analyzeBanner([r5(1005)], BANNERS['11']); // Kafka pity 1 -> 픽승, 매우 행운
 assert.ok(lk.luckPct > 90, 'pity 1 is ~98% luckier than 62.5 avg');
-assert.strictEqual(lk.earlyCount, 1, 'pity 1 < soft pity 74');
+assert.strictEqual(lk.fives[0].result, 'win');
+assert.ok(!('earlyCount' in lk), 'soft-pity earlyCount removed');
+assert.ok(!('earlyRate' in lk), 'soft-pity earlyRate removed');
 
 // ---- monthly bucketing ----
 const mlist = [
@@ -63,10 +77,11 @@ assert.strictEqual(mo[1].month, '202502');
 
 // ---- analyze() integration ----
 id = 7000n;
-const data = { info: { uid: '1' }, list: [r5(1003), r5(9001), r34(3), { ...r5lc(23002) }] };
+const data = { info: { uid: '1' }, list: [r5(1003), r5(1005), r34(3), { ...r5lc(23002) }] };
 const A = analyze(data);
 assert.ok(A.banners.length >= 1);
 assert.strictEqual(A.count5, 3);
+assert.strictEqual(A.unknown5, 0, 'account-wide unknown5 exposed');
 assert.ok(A.luck.charBanner, 'char banner luck present');
 assert.ok(A.all5[0].time >= A.all5[A.all5.length - 1].time, 'all5 newest first');
 
