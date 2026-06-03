@@ -11,6 +11,9 @@ HSR_Warp_Dashboard.html
 hsr-warp.exe
 *.exe
 
+# goreleaser build output
+dist/
+
 # Runtime data and config (machine-specific)
 data/
 config.json

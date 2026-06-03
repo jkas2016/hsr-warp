@@ -1,0 +1,68 @@
+# goreleaser v2 — https://goreleaser.com
+# 릴리스 산출물: Windows용 hsr-warp.exe (단일 정적 바이너리)를 zip+checksum 으로 묶어
+# v* 태그 push 시 GitHub Actions 에서 GitHub Release 로 자동 발행한다.
+# 이 툴은 Windows 게임 캐시 전용이라 windows/amd64 만 빌드한다.
+version: 2
+
+project_name: hsr-warp
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: hsr-warp
+    main: .
+    binary: hsr-warp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - windows
+    goarch:
+      - amd64
+    # 버전은 main.version 으로 주입한다. main.go 구현 시 `var version = "dev"` 를 선언하면 자동 연결됨.
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: hsr-warp
+    formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+changelog:
+  use: git
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "Merge pull request"
+      - "Merge branch"
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: "Bug fixes"
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Refactors
+      regexp: '^.*?refactor(\([[:word:]]+\))??!?:.+$'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: jkas2016
+    name: hsr-warp
+  draft: false
+  prerelease: auto
