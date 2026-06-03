@@ -1,39 +1,47 @@
-# HSR 워프 대시보드 (자가 호스팅)
+# HSR 워프 대시보드 (자가 호스팅, 단일 실행파일)
 
-스타레일 전언(워프) 기록을 **증분 조회**해서 월별로 저장하고, **운·픽뚫 분석 대시보드**(데이터 내장 HTML)를 자동 생성합니다. 모든 처리는 내 PC에서만 일어나며 데이터는 외부로 전송되지 않습니다.
-
-## 구성 파일
-
-| 파일 | 역할 |
-|---|---|
-| `Update-HSRDashboard.ps1` | **메인.** 캐시에서 authkey 추출 → 신규 기록만 조회 → `data\warp_YYYYMM.json` 저장 → `HSR_Warp_Dashboard.html` 생성 |
-| `dashboard.template.html` | 대시보드 템플릿 (생성 입력, 직접 안 엶) |
-| `analyze.js` | 분석 로직 단일 소스 (천장·운·50/50·월별). 표준 풀이 바뀌면 상단 `STANDARD`만 수정 |
-| `Register-Schedule.ps1` | 매달 자동 실행 등록/해제 |
-| `HSR_Warp_Dashboard.html` | 생성 결과물 (지금 든 건 샘플 데이터). **이 파일을 더블클릭** |
-| `data\` | 월별 기록 저장 폴더 (자동 생성) |
-
-위 5개 파일을 같은 폴더에 두세요.
+스타레일 전언(워프) 기록을 **증분 조회**해서 월별로 저장하고, **운·픽뚫 분석 대시보드**를 로컬 웹 UI로 보여줍니다. 단일 실행파일(`hsr-warp.exe`) 하나만 실행하면 로컬 서버가 떠서 브라우저가 자동으로 열립니다. 모든 처리는 내 PC에서만 일어나며 데이터는 외부로 전송되지 않습니다.
 
 ## 사용법
 
-**1. 첫 실행 (전체 기록)**
-1. 게임에서 **전언 기록** 화면을 한 번 엽니다. (캐시에 인증 URL 기록 → authkey 확보)
-2. PowerShell에서:
-   ```
-   powershell -ExecutionPolicy Bypass -File .\Update-HSRDashboard.ps1
-   ```
-   게임 경로가 다르면 `-GamePath "D:\경로\Star Rail Games"` 추가.
-3. 생성된 `HSR_Warp_Dashboard.html` 을 엽니다.
+1. 게임에서 **전언 기록** 화면을 한 번 엽니다. (캐시에 인증 URL 기록 → authkey 확보, 최근 ~24시간 내)
+2. `hsr-warp.exe` 를 실행합니다. 콘솔에 주소가 뜨고 기본 브라우저가 `http://127.0.0.1:8787/dashboard.html` 로 자동 열립니다.
+3. 경로 입력란은 자동으로 채워집니다(마지막 사용 경로 → 없으면 자동탐지). 비어 있거나 다르면 게임 경로(`…\Star Rail Games`)를 입력합니다.
+4. **조회** 를 누르면 신규 기록만 실시간(SSE)으로 가져와 차트가 갱신됩니다.
+5. 종료는 콘솔 창에서 `Ctrl+C`.
 
-**2. 매달 자동 갱신**
-```
-powershell -ExecutionPolicy Bypass -File .\Register-Schedule.ps1
-```
-매달 1일 09:00 자동 실행. 두 번째 실행부터는 **저장 안 된 최신 기록만** 조회합니다.
-해제: `-Remove` / 주기 변경: `-Day 15 -Time 21:00`
+기존 데이터는 진입 시 바로 표시되므로, 조회하지 않아도 과거 기록을 볼 수 있습니다.
 
-> 자동 실행 시점에 유효한 authkey(최근 24시간 내 전언 기록 열람)가 없으면 조회는 그냥 실패합니다. 그땐 게임을 켠 뒤 수동 실행하세요.
+## 동작 방식
+
+- **백엔드(Go 정적 바이너리)** — 게임 캐시 `StarRail_Data\webCaches\<버전>\Cache\Cache_Data\data_2` 에서 정규식으로 authkey URL을 추출해 비공식 `getGachaLog` API를 **배너별 증분**(저장분보다 최신 id만) 호출합니다.
+- **저장** — SRGF v1.0 형식, 월별 분리(`data\warp_YYYYMM.json`). **이번 조회로 신규가 생긴 월 파일만** 병합·재작성하고(원자적 교체) 나머지 월은 보존합니다. authkey가 최근 기록만 줘도 과거 데이터가 사라지지 않습니다.
+- **프런트엔드** — `analyze.js`(분석 로직)와 `dashboard.html`은 exe에 `go:embed`로 내장돼 로컬 서버가 서빙합니다. 분석(천장·운·50/50·월별)은 전부 브라우저에서 실행됩니다.
+
+| 경로 | 역할 |
+|---|---|
+| `GET /dashboard.html` | 대시보드(내장 자산) |
+| `GET /analyze.js` | 분석 로직(내장 자산) |
+| `GET /api/data` | 저장된 전체 SRGF JSON |
+| `GET/POST /api/config` | 마지막 게임 경로 읽기/저장 |
+| `GET /api/detect` | 게임 경로 자동탐지 |
+| `GET /api/fetch?path=…` | 증분 조회 SSE 스트림(progress/error/done) |
+
+## 빌드 / 개발
+
+```powershell
+# 빌드 (정적 단일 exe, 런타임 의존 없음)
+go build -ldflags="-s -w" -o hsr-warp.exe .
+
+# 테스트
+go test ./...          # Go 단위 테스트 (collector / store / server)
+node analyze.test.js   # 브라우저 분석 로직(analyze.js) 단위 테스트
+
+# 합성 데이터 생성 (수동 확인용)
+node gen_sample.js
+```
+
+> `analyze.js` 는 루트(테스트용)와 `web\analyze.js`(서빙용) 두 곳에 있고 **내용이 동일해야** 합니다. 분석 로직을 바꾸면 둘 다 갱신하거나, 빌드 전에 `Copy-Item analyze.js web\analyze.js -Force` 를 실행하세요.
 
 ## 측정 지표
 
@@ -46,7 +54,7 @@ powershell -ExecutionPolicy Bypass -File .\Register-Schedule.ps1
 - **50/50 판정**: 한정 배너 5★의 `item_id`가 표준 풀이면 **픽패**, 아니면 **픽뚫**.
   - 표준 캐릭터(7): 히메코·벨트·브로냐·게파드·클라라·연경·백로
   - 표준 광추(7): 23000·23002·23003·23004·23005·23012·23013
-- 신규 "커스텀 50/50 풀"(구 한정 캐릭터를 풀에 넣는 기능)이나 콜라보 배너는 표준 풀 방식으로는 정확히 못 가립니다(픽뚫로 잡힐 수 있음). HoYo가 표준 풀을 바꾸면 `analyze.js`의 `STANDARD` 배열을 수정하세요.
+- 신규 "커스텀 50/50 풀"이나 콜라보 배너는 표준 풀 방식으로는 정확히 못 가립니다(픽뚫로 잡힐 수 있음). HoYo가 표준 풀을 바꾸면 `analyze.js`(및 `web\analyze.js`)의 `STANDARD` 배열을 수정하세요.
 - 공식 확률/천장: 캐릭터 0.6%/종합 1.6%/하드천장 90, 광추 0.8%/하드천장 80(75:25).
 
 ## 출처

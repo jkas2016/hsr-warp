@@ -4,48 +4,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-자가 호스팅 호요버스 스타레일(HSR) 워프(가챠) 기록 추적기. 게임 캐시에서 authkey를 추출해 비공식 `getGachaLog` API를 호출하고, 데이터를 SRGF v1.0 형식으로 저장한 뒤 데이터 내장형 단일 HTML 대시보드를 생성한다. 모든 처리는 로컬에서만 일어난다. 빌드 시스템·패키지 매니저 없음 — PowerShell 5.1+ 와 Node.js(프레임워크 없는 내장 `assert`)만 쓴다.
+자가 호스팅 호요버스 스타레일(HSR) 워프(가챠) 기록 추적기. 단일 Go 실행파일(`hsr-warp.exe`)이 게임 캐시에서 authkey를 추출해 비공식 `getGachaLog` API를 증분 호출하고, 데이터를 SRGF v1.0 형식으로 월별 저장한 뒤, 내장(`go:embed`) 대시보드를 로컬 HTTP로 서빙하고 SSE로 진행을 스트리밍한다. 분석은 브라우저의 `analyze.js`가 담당한다. 모든 처리는 로컬에서만 일어난다.
 
 ## Commands
 
 ```powershell
-# 테스트 (둘 다 평범한 node 스크립트, 통과 시 "OK ..." 출력 후 exit 0)
-node analyze.test.js        # analyze.js 단위 테스트
-node sim_incremental.js     # 증분 조회/병합/월별 분류 로직 검증
+# 빌드 (정적 단일 exe, 런타임 의존 없음). go 는 PATH 에 없을 수 있음 — 그 경우:
+#   $env:Path = 'C:\Program Files\Go\bin;' + $env:Path
+go build -ldflags="-s -w" -o hsr-warp.exe .
 
-# 합성 데이터 생성 → warp_data.sample.json (대시보드/분석 수동 확인용)
+# 실행 (빈 포트 8787~ 선택 → 브라우저 자동 오픈 → 조회는 UI에서)
+.\hsr-warp.exe
+
+# 테스트
+go test ./...          # Go 단위 테스트 (internal/collector, internal/store, internal/server)
+node analyze.test.js   # 브라우저 분석 로직(analyze.js) 단위 테스트, 통과 시 "OK ..." 후 exit 0
+
+# 합성 데이터 생성 → warp_data.sample.json (수동 확인용)
 node gen_sample.js
-
-# 메인 파이프라인: 증분 조회 → data\warp_YYYYMM.json → HSR_Warp_Dashboard.html
-powershell -ExecutionPolicy Bypass -File .\Update-HSRDashboard.ps1
-powershell -ExecutionPolicy Bypass -File .\Update-HSRDashboard.ps1 -GamePath "D:\경로\Star Rail Games"
-
-# 일회성 전체 덤프 → warp_data.json
-powershell -ExecutionPolicy Bypass -File .\Get-HSRWarp.ps1
-
-# 매달 자동 실행 등록/해제 (Windows 작업 스케줄러)
-powershell -ExecutionPolicy Bypass -File .\Register-Schedule.ps1
-powershell -ExecutionPolicy Bypass -File .\Register-Schedule.ps1 -Remove -Day 15 -Time 21:00
 ```
-
-테스트 러너가 없으므로 개별 테스트만 돌리려면 해당 `node <file>.js`를 실행한다. 두 테스트 파일 모두 평탄한 단언 스크립트로, 첫 실패에서 throw 후 종료한다.
 
 ## Architecture
 
-**`analyze.js` 가 분석 로직의 단일 소스이자 등시성(isomorphic) 핵심이다.** UMD 형태 IIFE로, 브라우저에서는 `window.WarpAnalyze`, Node에서는 `module.exports`를 노출한다. 이 파일은 두 곳에서 동시에 쓰인다: (1) `analyze.test.js` 가 `require`로 직접 테스트, (2) `Update-HSRDashboard.ps1` 이 파일 텍스트를 통째로 대시보드 HTML에 주입. **따라서 의존성이 없어야 하고 Node 전용/브라우저 전용 API를 써서는 안 된다.**
+Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천장·운·50/50·월별)은 브라우저 `analyze.js`가 한다.
 
-**중심 도메인 규칙 — 50/50 픽뚫 판정** (`analyzeBanner`): 한정 배너 5★의 `item_id`가 `STANDARD` 풀에 있으면 픽패(loss), 없으면 픽뚫(win). 픽패는 `guaranteed=true`를 세팅해 다음 5★를 확정 획득으로 만든다. HoYo가 표준 풀을 바꾸면 **`analyze.js` 상단의 `STANDARD` 배열만 수정**하면 된다 — 이것이 문서화된 유지보수 지점이다. `gacha_type` 코드: `11`=캐릭터, `12`=광추, `1`=일반(스텔라), `2`=출발.
+- **`internal/store`** — SRGF 타입(`Info`/`Record`/`SRGF`)과 저장 로직. `LoadAll`(월별 파일 병합·중복제거·정렬), `MaxIDByBanner`(증분 기준), `WriteAffectedMonths`(아래 핵심), `TZForRegion`. ID 비교는 `idLess`(math/big) — `Number`/float 금지.
+- **`internal/collector`** — `FindAuthContext`(캐시 `StarRail_Data\webCaches\<버전>\Cache\Cache_Data\data_2` 읽어 정규식으로 authkey URL 추출; 버전 디렉터리는 숫자 기반 `latestVersion`으로 최신 선택), `FetchIncremental`(배너 `1`/`2`/`11`/`12` 페이지네이션, 저장분보다 최신 id만 수집, retcode -101 → authkey 만료 에러).
+- **`internal/server`** — 라우팅과 핸들러. `/api/data`, `/api/config`, `/api/detect`, `/api/fetch`(SSE: progress/error/done). 자산은 main에서 `go:embed`한 `web/`를 `fs.Sub`로 주입.
+- **`main.go`** — `os.Executable()` 기준 baseDir, `data/`·`config.json` 경로, 빈 포트 선택, `go:embed web/dashboard.html web/analyze.js`, 브라우저 자동 오픈.
 
-**두 PowerShell 수집기는 동일한 authkey 추출 로직을 중복 구현한다.** 둘 다 게임 캐시의 `StarRail_Data\webCaches\<버전>\Cache\Cache_Data\data_2` 바이너리를 복사해 ASCII로 읽고 정규식으로 `authkey=` URL을 뽑아 API 파라미터를 구성한다.
-- `Get-HSRWarp.ps1` — 일회성 전체 덤프. `warp_data.json` 하나를 쓰고 끝(대시보드에 끌어다 놓는 용도).
-- `Update-HSRDashboard.ps1` — 메인 파이프라인. 배너별 최신 `id`를 추적해 **저장된 것보다 최신 기록만** 조회하고(증분), 전체를 월별 파일 `data\warp_YYYYMM.json`로 재작성한 뒤, `dashboard.template.html`의 마커 `/*__ANALYZE_JS__*/` 와 `/*__DATA__*/ null` 를 각각 analyze.js 텍스트·JSON 데이터로 치환해 자체포함 대시보드를 생성한다.
+**중심 도메인 규칙 — 50/50 픽뚫 판정** (`analyze.js`의 `analyzeBanner`): 한정 배너 5★의 `item_id`가 `STANDARD` 풀에 있으면 픽패(loss), 없으면 픽뚫(win). 픽패는 `guaranteed=true`로 다음 5★를 확정으로 만든다. HoYo가 표준 풀을 바꾸면 **`analyze.js` 상단의 `STANDARD` 배열만 수정**한다(문서화된 유지보수 지점). `gacha_type`: `11`=캐릭터, `12`=광추, `1`=일반(스텔라), `2`=출발.
 
-**`sim_incremental.js` 는 PowerShell 증분 로직의 JS 포팅이다.** PS 파이프라인 자체는 단위 테스트가 어렵기 때문에, 증분 조회(newer-than-stored)·병합·월별 분류 알고리즘을 JS로 충실히 옮겨 모의 서버로 검증한다. **PS 쪽 로직을 바꾸면 이 포팅도 손으로 동기화해야 한다** — 둘 사이에 공유 코드는 없다.
+**저장은 비파괴 부분 재작성이다.** `WriteAffectedMonths`는 이번 조회로 **신규가 생긴 월 파일만** 로드·병합·중복제거·정렬 후 원자적으로 재작성하고, 손대지 않은 월은 보존한다. authkey가 최근 기록만 줄 때 과거 월이 통째로 사라지는 것을 막는 핵심 보장이며, 테스트 `TestWriteAffectedMonths_PreservesUntouchedMonths`가 이를 강제한다. (구 PowerShell의 "전량 삭제 후 재작성"은 폐기됨.)
 
-**ID는 매우 큰 정수다.** 실제 경로에서 비교 시 `[decimal]`(PS) / `BigInt`(JS)로 다룬다 — `Number`로 비교하면 정밀도가 깨진다.
+**`analyze.js` 는 두 곳에 동일하게 존재한다.** 루트 `analyze.js`(= `analyze.test.js`가 require)와 `web/analyze.js`(서버가 `/analyze.js`로 서빙, exe에 내장). 분석 로직 변경 시 둘 다 동기화해야 한다(빌드 전 `Copy-Item analyze.js web\analyze.js -Force`). UMD IIFE로 브라우저=`window.WarpAnalyze`, Node=`module.exports` 노출. 의존성 없이 양쪽에서 동작해야 한다.
+
+**ID는 매우 큰 정수다.** 비교 시 Go는 `math/big.Int`(`idLess`/`idLessEq`), JS는 `BigInt`로 다룬다 — `Number`로 비교하면 정밀도가 깨진다.
 
 ## Gotchas
 
-- authkey는 게임에서 **전언 기록 화면을 최근 ~24시간 내 한 번 열어야** 유효하다. 스케줄 실행 시 유효 authkey가 없으면 조회는 그냥 실패하고 멈춘다(설계된 동작).
-- 데이터 형식·`gacha_type` 코드·표준 풀·확률은 외부 명세에 묶여 있다: SRGF v1.0(uigf.org), Prydwen(50/50 규칙·확률), StarRailRes(item_id 검증). 상수 변경 시 README의 출처를 따른다.
-- 월별 파일은 매 실행마다 전량 삭제 후 재작성된다(append 아님).
+- authkey는 게임에서 **전언 기록 화면을 최근 ~24시간 내 한 번 열어야** 유효하다. 유효 authkey가 없으면 조회는 SSE error 이벤트로 실패를 알린다(설계된 동작).
+- 데이터 형식·`gacha_type` 코드·표준 풀·확률은 외부 명세에 묶여 있다: SRGF v1.0(uigf.org), Prydwen(50/50·확률), StarRailRes(item_id 검증). 상수 변경 시 README의 출처를 따른다.
+- `hsr-warp.exe`, `data/`, `config.json`, `*.tmp`, 구 생성물 `HSR_Warp_Dashboard.html`은 gitignore 대상이다.
+- Go가 설치돼 있어도 PATH에 없을 수 있다(설치 후 셸 미갱신). 그 경우 `$env:Path` 에 `C:\Program Files\Go\bin` 을 prepend 한다.
