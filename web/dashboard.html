@@ -20,9 +20,6 @@
   h2{font-size:17px;margin-bottom:12px}
   h2 .note{font-size:12px;color:var(--muted);font-weight:400}
 
-  #drop{margin-top:26px;border:2px dashed var(--line);border-radius:16px;padding:48px 24px;text-align:center;background:var(--panel);cursor:pointer}
-  #drop:hover,#drop.over{border-color:var(--gold);background:var(--panel2)}
-  #drop b{color:var(--gold)}#drop .hint{color:var(--muted);font-size:13px;margin-top:10px}
   #app{display:none}
   .err{color:var(--red);margin-top:12px;font-size:14px}
 
@@ -75,11 +72,17 @@
     <div class="sub" id="subline">매달 자동 갱신 · 모든 분석은 로컬에서만 처리됩니다.</div>
   </div>
 
-  <div id="drop">
-    <div style="font-size:32px">📂</div>
-    <div style="margin-top:10px"><b>warp_data</b> JSON 을 끌어다 놓거나 클릭해서 선택</div>
-    <div class="hint">스크립트로 생성된 대시보드는 데이터가 내장돼 자동으로 표시됩니다.</div>
-    <input type="file" id="file" accept=".json,application/json" hidden>
+  <div id="panel" class="card" style="margin-top:20px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input id="path" type="text" placeholder="게임 경로 (…\Star Rail Games)"
+        style="flex:1;min-width:280px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-size:14px">
+      <button id="go" style="padding:10px 18px;border:0;border-radius:8px;background:var(--gold);color:#0d1018;font-weight:700;font-size:14px;cursor:pointer">조회</button>
+    </div>
+    <div class="hint" style="color:var(--muted);font-size:12.5px;margin-top:8px">
+      게임에서 <b>전언 기록</b> 화면을 최근 24시간 내 한 번 연 뒤 조회하세요. 기존 데이터는 안전하게 보존되며 신규만 추가됩니다.
+    </div>
+    <div id="progress" style="font-family:Consolas,monospace;font-size:12.5px;color:var(--muted);margin-top:10px;white-space:pre-line"></div>
+    <div id="summary" style="font-size:13px;margin-top:8px"></div>
     <div id="err" class="err"></div>
   </div>
 
@@ -90,31 +93,69 @@
     50/50 판정: 한정 배너 5★의 item_id가 표준 풀이면 '픽패', 아니면 '픽뚫'. 커스텀 풀/콜라보는 근사치일 수 있습니다.
   </div>
 
-<script>/*__ANALYZE_JS__*/</script>
-<script>window.__WARP_DATA__ = /*__DATA__*/ null;</script>
+<script src="/analyze.js"></script>
 <script>
 const $=s=>document.querySelector(s);
-const drop=$('#drop'),fileInput=$('#file'),err=$('#err'),app=$('#app');
+const err=$('#err'),app=$('#app');
 let charts=[];
 const num=n=>Math.round(n).toLocaleString('ko-KR');
 const pityColor=p=>p<60?'var(--green)':p<=80?'var(--orange)':'var(--red)';
 const resText={win:'픽뚫',loss:'픽패',guaranteed:'확정',null:'-'};
 const resClass={win:'win',loss:'loss',guaranteed:'guar'};
 
-drop.addEventListener('click',()=>fileInput.click());
-fileInput.addEventListener('change',e=>{if(e.target.files[0])readFile(e.target.files[0]);});
-['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');}));
-['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');}));
-drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)readFile(f);});
-function readFile(file){err.textContent='';const fr=new FileReader();
-  fr.onload=()=>{try{const d=JSON.parse(fr.result);if(!d||!Array.isArray(d.list))throw new Error('list 배열이 없습니다.');render(WarpAnalyze.analyze(d));}catch(ex){err.textContent='읽기 실패: '+ex.message;}};
-  fr.readAsText(file);}
+const pathInput=$('#path'),goBtn=$('#go'),progress=$('#progress'),summary=$('#summary');
+const bannerLabel={'11':'캐릭터','12':'광추','1':'일반','2':'출발'};
+
+// 기존 데이터가 있으면 화면에 즉시 표시(조회 안 해도 과거 기록 열람 가능).
+function loadStored(){
+  fetch('/api/data').then(r=>r.json()).then(d=>{
+    if(d&&Array.isArray(d.list)&&d.list.length)render(WarpAnalyze.analyze(d));
+  }).catch(()=>{});
+}
+// 경로 입력란 자동 채움: config(마지막 사용) 우선, 없으면 자동탐지.
+function fillPath(){
+  fetch('/api/config').then(r=>r.json()).then(c=>{
+    if(c&&c.game_path){pathInput.value=c.game_path;return;}
+    fetch('/api/detect').then(r=>r.json()).then(d=>{if(d&&d.path)pathInput.value=d.path;});
+  }).catch(()=>{});
+}
+
+function runFetch(){
+  const p=pathInput.value.trim();
+  err.textContent='';summary.innerHTML='';
+  if(!p){err.textContent='게임 경로를 입력하세요.';return;}
+  goBtn.disabled=true;goBtn.textContent='조회 중…';
+  progress.textContent='연결 중…';
+  const es=new EventSource('/api/fetch?path='+encodeURIComponent(p));
+  es.addEventListener('progress',e=>{
+    const d=JSON.parse(e.data);
+    progress.textContent=`${d.banner} +${d.added}건…`;
+  });
+  es.addEventListener('error',e=>{
+    es.close();goBtn.disabled=false;goBtn.textContent='조회';
+    if(e.data){try{err.textContent='조회 실패: '+JSON.parse(e.data).message;}catch{err.textContent='조회 실패';}}
+    else if(progress.textContent==='연결 중…'){err.textContent='서버 연결 실패';}
+    progress.textContent='';
+  });
+  es.addEventListener('done',e=>{
+    es.close();goBtn.disabled=false;goBtn.textContent='조회';progress.textContent='';
+    const d=JSON.parse(e.data),s=d.summary;
+    const parts=Object.keys(s.perBanner||{}).map(k=>`${bannerLabel[k]||k} +${s.perBanner[k]}`);
+    summary.innerHTML = s.newTotal
+      ? `<span style="color:var(--green)">신규 ${s.newTotal}건</span> · ${parts.join(' · ')} · 갱신 월: ${(s.updatedMonths||[]).map(m=>m.slice(0,4)+'.'+m.slice(4)).join(', ')}`
+      : '<span class="muted">변경 없음 (신규 기록 없음)</span>';
+    if(d.data&&Array.isArray(d.data.list))render(WarpAnalyze.analyze(d.data));
+  });
+}
+goBtn.addEventListener('click',runFetch);
+fillPath();
+loadStored();
 
 function statCard(k,v,small){return `<div class="card stat"><div class="k">${k}</div><div class="v">${v}${small?` <small>${small}</small>`:''}</div></div>`;}
 
 function render(A){
   charts.forEach(c=>c.destroy());charts=[];
-  drop.style.display='none';app.style.display='block';
+  app.style.display='block';
   const uid=A.info.uid||'-';
   const exp=A.info.export_timestamp?new Date(A.info.export_timestamp*1000).toLocaleString('ko-KR'):'';
   $('#subline').textContent=`UID ${uid}${exp?' · 갱신 '+exp:''} · 모든 분석은 로컬에서만 처리됩니다.`;
@@ -238,8 +279,7 @@ function drawCharts(A){
     options:{...base,plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:grid}}}}}));
 }
 
-// auto-load embedded data (generated dashboards)
-if(window.__WARP_DATA__&&Array.isArray(window.__WARP_DATA__.list))render(WarpAnalyze.analyze(window.__WARP_DATA__));
+// 데이터 로드는 위 loadStored()/runFetch() 가 담당한다.
 </script>
 </body>
 </html>
