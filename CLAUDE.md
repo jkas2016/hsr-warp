@@ -18,7 +18,7 @@ go build -ldflags="-s -w" -o hsr-warp.exe .
 
 # 테스트
 go test ./...          # Go 단위 테스트 (internal/collector, internal/store, internal/server)
-node analyze.test.js   # 브라우저 분석 로직(analyze.js) 단위 테스트, 통과 시 "OK ..." 후 exit 0
+node web/analyze.test.js   # 브라우저 분석 로직(web/analyze.js) 단위 테스트, 통과 시 "OK ..." 후 exit 0
 ```
 
 ## Architecture
@@ -30,11 +30,11 @@ Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천�
 - **`internal/server`** — 라우팅과 핸들러. `/api/data`, `/api/config`, `/api/detect`, `/api/fetch`(SSE: progress/error/done). 자산은 main에서 `go:embed`한 `web/`를 `fs.Sub`로 주입.
 - **`main.go`** — `os.Executable()` 기준 baseDir, `data/`·`config.json` 경로, 빈 포트 선택, `go:embed web/dashboard.html web/analyze.js`, 브라우저 자동 오픈.
 
-**중심 도메인 규칙 — 50/50 픽뚫 판정** (`analyze.js`의 `analyzeBanner`): 한정 배너 5★의 `item_id`가 `STANDARD` 풀에 있으면 픽패(loss), 없으면 픽뚫(win). 픽패는 `guaranteed=true`로 다음 5★를 확정으로 만든다. HoYo가 표준 풀을 바꾸면 **`analyze.js` 상단의 `STANDARD` 배열만 수정**한다(문서화된 유지보수 지점). `gacha_type`: `11`=캐릭터, `12`=광추, `1`=일반(스텔라), `2`=출발.
+**중심 도메인 규칙 — 50/50 픽승/픽뚫 판정** (`web/analyze.js`의 `analyzeBanner`): 한정 배너 5★의 `item_id`가 `LIMITED` 풀(한정 픽업 목록)에 있으면 픽승(win), 없으면 픽뚫(loss). 픽뚫은 `guaranteed=true`로 다음 5★를 확정으로 만든다. `LIMITED`·`STANDARD` 어디에도 없으면 `unidentified`로 표시(목록 갱신 신호, 대시보드 '미확인 5★' 경고). 신규 한정 출시 시 **`web/analyze.js` 상단의 `LIMITED` 배열에 item_id 추가**(StarRailRes에서 '전체 5★ − 상시 7종'으로 도출, 8xxx/24xxx 제외). HoYo가 표준 풀을 바꾸면 `STANDARD` 배열을 수정한다. `gacha_type`: `11`=캐릭터, `12`=광추, `1`=일반(스텔라), `2`=출발.
 
 **저장은 비파괴 부분 재작성이다.** `WriteAffectedMonths`는 이번 조회로 **신규가 생긴 월 파일만** 로드·병합·중복제거·정렬 후 원자적으로 재작성하고, 손대지 않은 월은 보존한다. authkey가 최근 기록만 줄 때 과거 월이 통째로 사라지는 것을 막는 핵심 보장이며, 테스트 `TestWriteAffectedMonths_PreservesUntouchedMonths`가 이를 강제한다. (구 PowerShell의 "전량 삭제 후 재작성"은 폐기됨.)
 
-**`analyze.js` 는 두 곳에 동일하게 존재한다.** 루트 `analyze.js`(= `analyze.test.js`가 require)와 `web/analyze.js`(서버가 `/analyze.js`로 서빙, exe에 내장). 분석 로직 변경 시 둘 다 동기화해야 한다(빌드 전 `Copy-Item analyze.js web\analyze.js -Force`). UMD IIFE로 브라우저=`window.WarpAnalyze`, Node=`module.exports` 노출. 의존성 없이 양쪽에서 동작해야 한다.
+**`analyze.js` 는 단일 소스다.** `web/analyze.js`가 유일 소스이며 서버가 `/analyze.js`로 서빙하고 exe에 `go:embed`로 내장된다. 단위 테스트는 `web/analyze.test.js`(`node web/analyze.test.js`)가 `require('./analyze.js')`로 같은 디렉터리 파일을 검증한다. UMD IIFE로 브라우저=`window.WarpAnalyze`, Node=`module.exports` 노출. 의존성 없이 양쪽에서 동작해야 한다.
 
 **ID는 매우 큰 정수다.** 비교 시 Go는 `math/big.Int`(`idLess`/`idLessEq`), JS는 `BigInt`로 다룬다 — `Number`로 비교하면 정밀도가 깨진다.
 

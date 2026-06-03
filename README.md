@@ -89,9 +89,9 @@
 `node` 만 있으면 됩니다 — `go` 는 빌드 스크립트(`scripts/run-go.mjs`)가 자동으로 찾습니다.
 
 ```powershell
-npm run build    # web/analyze.js 동기화 → 정적 단일 exe 빌드(-s -w)
+npm run build    # 정적 단일 exe 빌드(-s -w)
 npm start        # 빌드 후 실행
-npm test         # go test ./...  +  node analyze.test.js
+npm test         # go test ./...  +  node web/analyze.test.js
 npm run vet      # go vet ./...
 ```
 
@@ -100,12 +100,12 @@ npm run vet      # go vet ./...
 ```powershell
 go build -ldflags="-s -w" -o hsr-warp.exe .
 go test ./...
-node analyze.test.js
+node web/analyze.test.js
 ```
 
-- `analyze.js` 는 루트(테스트용)와 `web\analyze.js`(서빙용)에 **동일하게** 있어야 합니다. `npm run build` 가 매번 자동 동기화합니다.
+- 분석 로직은 `web/analyze.js` 단일 소스이며, 단위 테스트는 `web/analyze.test.js`(`node web/analyze.test.js`)가 같은 디렉터리에서 검증합니다.
 - 아이콘 변경: `go run ./tools/genicon` → `goversioninfo -64 -o resource_windows_amd64.syso` 로 재생성.
-- HoYo가 표준 풀을 바꾸면 `analyze.js`(및 `web\analyze.js`)의 `STANDARD` 배열을 수정하세요.
+- 신규 한정 캐릭터/광추 출시 시 `web/analyze.js`의 `LIMITED` 배열에 item_id를 추가하세요(StarRailRes 기준). HoYo가 표준 풀을 바꾸면 `STANDARD` 배열을 수정합니다.
 
 **출처** — SRGF 형식: <https://uigf.org/en/standards/srgf.html> · 확률·50/50: <https://www.prydwen.gg/star-rail/guides/gacha-system/> · item_id: <https://github.com/Mar-7th/StarRailRes> · 추출 원리: <https://github.com/biuuu/star-rail-warp-export>
 
