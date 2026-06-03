@@ -1,16 +1,19 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
+	"strings"
 	"time"
 
 	"hsr-warp/internal/server"
@@ -28,26 +31,78 @@ var webFiles embed.FS
 // 직접 빌드 시에는 기본값 "dev" 가 쓰인다. (.goreleaser.yaml 참고)
 var version = "dev"
 
+// logLevel 은 빌드 시 ldflags 로 주입하는 기본 로그 레벨이다(릴리스=info).
+// 디버그 빌드는 -X main.logLevel=debug 로 박는다(npm run build:debug → hsr-warp-debug.exe).
+// 런타임에 HSRWARP_LOG 가 설정되면 그쪽이 이 값을 덮어쓴다.
+var logLevel = "info"
+
 // logPath 는 logs/ 아래 날짜별 로그 파일 경로를 만든다(하루 한 파일).
 func logPath(base string, t time.Time) string {
 	return filepath.Join(base, "logs", "hsr-warp-"+t.Format("2006-01-02")+".log")
 }
 
-// setupLogging 은 표준 log 출력을 콘솔과 날짜별 파일에 동시에 보낸다.
+// parseLevel 은 레벨 문자열을 slog 레벨로 변환한다(대소문자 무시, 기본 info).
+func parseLevel(s string) slog.Level {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn", "warning":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+// resolveLevel 은 런타임 환경변수(우선) → 빌드 시 박힌 기본값 순으로 레벨을 정한다.
+func resolveLevel(env, baked string) slog.Level {
+	if strings.TrimSpace(env) != "" {
+		return parseLevel(env)
+	}
+	return parseLevel(baked)
+}
+
+// stackHandler 는 ERROR 이상 레코드에 전체 고루틴 스택트레이스를 자동 첨부한다.
+// 코드 어디서 slog.Error 를 부르든 호출부에서 깜빡할 여지 없이 에러 로그엔 항상
+// 스택이 남는다 — Go 엔 전역 예외 핸들러가 없으므로 이것이 로깅 계층의 전역 보장이다.
+type stackHandler struct{ slog.Handler }
+
+func (h stackHandler) Handle(ctx context.Context, r slog.Record) error {
+	if r.Level >= slog.LevelError {
+		r.AddAttrs(slog.String("stack", string(debug.Stack())))
+	}
+	return h.Handler.Handle(ctx, r)
+}
+
+// newLogger 는 JSON 핸들러(레벨·소스 위치 포함)를 stackHandler 로 감싼 로거를 만든다.
+func newLogger(w io.Writer, level slog.Level) *slog.Logger {
+	base := slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level, AddSource: true})
+	return slog.New(stackHandler{base})
+}
+
+// setupLogging 은 slog 기본 로거를 콘솔+날짜별 파일(JSON·레벨·소스·스택)로 설정한다.
+// 레벨은 HSRWARP_LOG(런타임) > 빌드 시 박힌 logLevel > 기본 info 순.
 // 파일을 못 열면 콘솔만 쓰고 계속 진행한다(로깅 실패로 앱이 죽지 않게).
 func setupLogging(base string) {
-	log.SetFlags(log.LstdFlags)
+	level := resolveLevel(os.Getenv("HSRWARP_LOG"), logLevel)
+	var w io.Writer = os.Stdout
 	p := logPath(base, time.Now())
 	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
-		log.Printf("로그 폴더 생성 실패(콘솔만 기록): %v", err)
-		return
+		slog.Warn("로그 폴더 생성 실패(콘솔만 기록)", "err", err)
+	} else if f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err != nil {
+		slog.Warn("로그 파일 열기 실패(콘솔만 기록)", "err", err)
+	} else {
+		w = io.MultiWriter(os.Stdout, f)
 	}
-	f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		log.Printf("로그 파일 열기 실패(콘솔만 기록): %v", err)
-		return
-	}
-	log.SetOutput(io.MultiWriter(os.Stdout, f))
+	slog.SetDefault(newLogger(w, level))
+	slog.Debug("로깅 초기화", "effective_level", level.String(), "baked", logLevel)
+}
+
+// fatal 은 ERROR(스택 포함) 로그를 남기고 종료한다. slog 엔 Fatal 이 없어 직접 만든다.
+func fatal(msg string, args ...any) {
+	slog.Error(msg, args...)
+	os.Exit(1)
 }
 
 func baseDir() string {
@@ -84,19 +139,19 @@ func main() {
 	}
 	assets, err := fs.Sub(webFiles, "web")
 	if err != nil {
-		log.Fatalln("자산 로드 실패:", err)
+		fatal("자산 로드 실패", "err", err)
 	}
 	srv := server.NewWithAssets(paths, assets)
 
 	ln, port, err := freeListener(8787)
 	if err != nil {
-		log.Fatalln(err)
+		fatal("포트 열기 실패", "err", err)
 	}
 	url := fmt.Sprintf("http://127.0.0.1:%d/dashboard.html", port)
-	log.Printf("HSR 워프 대시보드 %s 시작: %s", version, url)
+	slog.Info("대시보드 시작", "version", version, "url", url)
 	fmt.Printf("HSR 워프 대시보드 %s: %s\n(종료하려면 이 창에서 Ctrl+C)\n", version, url)
 	openBrowser(url)
 	if err := http.Serve(ln, srv.Handler()); err != nil {
-		log.Println("서버 종료:", err)
+		slog.Error("서버 종료", "err", err)
 	}
 }

@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -12,6 +14,27 @@ import (
 )
 
 func stringReader(s string) *strings.Reader { return strings.NewReader(s) }
+
+// 핸들러가 panic 해도 서버가 죽지 않고 500 + ERROR 로그로 복구해야 한다(전역 패닉 핸들러).
+func TestRecoverMiddleware_PanicYields500AndLogs(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(old) })
+
+	panicker := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		panic("boom")
+	})
+	rr := httptest.NewRecorder()
+	recoverMiddleware(panicker).ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/x", nil))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("panic 은 500 을 반환해야 한다, got %d", rr.Code)
+	}
+	if !strings.Contains(buf.String(), `"level":"ERROR"`) {
+		t.Fatalf("panic 은 ERROR 로 기록돼야 한다: %s", buf.String())
+	}
+}
 
 func TestHandleData_ReturnsStored(t *testing.T) {
 	dir := t.TempDir()

@@ -3,6 +3,7 @@ package collector
 
 import (
 	"errors"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -89,6 +90,9 @@ func parseAuthURL(blob []byte) (*AuthContext, error) {
 			kept = append(kept, pair)
 		}
 	}
+	// authkey 는 자격증명이라 절대 로그에 남기지 않는다 — 호스트·경로·지역·언어·발급시각만.
+	slog.Debug("authkey 컨텍스트 추출", "api_host", u.Host, "api_path", u.Path,
+		"region", region, "lang", lang, "issued", issued, "authkey_urls", len(matches))
 	return &AuthContext{
 		// 경로를 하드코딩하지 않고 캐시의 실제 호스트·경로를 그대로 쓴다.
 		// (HoYo가 /common/gacha_record → /common/hkrpg_gacha_record 처럼 바꿔도 견딘다.)
@@ -171,7 +175,9 @@ func FindAuthContext(gamePath string) (*AuthContext, error) {
 	if len(verDirs) == 0 {
 		return nil, errors.New("캐시 데이터(data_2)가 없습니다. 게임에서 전언 기록을 한 번 열었나요?")
 	}
-	dataFile := filepath.Join(webCaches, latestVersion(verDirs), "Cache", "Cache_Data", "data_2")
+	chosen := latestVersion(verDirs)
+	slog.Debug("캐시 버전 선택", "candidates", len(verDirs), "chosen", chosen)
+	dataFile := filepath.Join(webCaches, chosen, "Cache", "Cache_Data", "data_2")
 	// Go 는 Windows 에서 공유 모드로 파일을 열어 게임 실행 중에도 읽기 가능.
 	blob, err := os.ReadFile(dataFile)
 	if err != nil {

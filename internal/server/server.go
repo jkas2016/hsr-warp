@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -35,7 +35,7 @@ func writeJSON(w http.ResponseWriter, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
-// Handler 는 라우팅된 http.Handler 를 반환한다.
+// Handler 는 라우팅된 http.Handler 를 반환한다(전역 패닉 복구로 감쌈).
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/data", s.handleData)
@@ -45,7 +45,22 @@ func (s *Server) Handler() http.Handler {
 	if s.assets != nil {
 		mux.Handle("/", http.FileServer(http.FS(s.assets)))
 	}
-	return mux
+	return recoverMiddleware(mux)
+}
+
+// recoverMiddleware 는 어떤 핸들러가 panic 해도 500 으로 복구하고 ERROR 로 기록한다.
+// Go 엔 전역 예외 핸들러가 없어, mux 전체를 감싸는 미들웨어가 그 역할을 한다.
+// ERROR 레벨이라 stackHandler 가 패닉 시점 스택트레이스를 자동 첨부한다.
+func recoverMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				slog.Error("핸들러 panic 복구", "panic", rec, "method", r.Method, "path", r.URL.Path)
+				http.Error(w, "internal server error", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
@@ -101,7 +116,7 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	fail := func(msg string) {
-		log.Println("조회 실패:", msg)
+		slog.Error("조회 실패", "err", msg)
 		send("error", map[string]string{"message": msg})
 	}
 
@@ -110,7 +125,7 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		fail("게임 경로가 비어 있습니다.")
 		return
 	}
-	log.Println("조회 시작:", gamePath)
+	slog.Info("조회 시작", "path", gamePath)
 
 	ac, err := collector.FindAuthContext(gamePath)
 	if err != nil {
@@ -118,10 +133,11 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ac.IssuedAt.IsZero() {
-		log.Println("authkey 발급 시각: 알 수 없음(캐시에 timestamp 없음)")
+		slog.Warn("authkey 발급 시각 알 수 없음", "reason", "캐시에 timestamp 없음")
 	} else {
-		log.Printf("authkey 발급 시각: %s (%.0f시간 전)",
-			ac.IssuedAt.Format("2006-01-02 15:04"), time.Since(ac.IssuedAt).Hours())
+		slog.Info("authkey 발급 시각",
+			"issued", ac.IssuedAt.Format("2006-01-02 15:04"),
+			"hours_ago", int(time.Since(ac.IssuedAt).Hours()))
 	}
 	// config 에 경로 저장(다음 실행 자동 채움).
 	_ = SaveConfig(s.paths.ConfigFile, Config{GamePath: gamePath})
@@ -176,7 +192,7 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 	for _, rec := range newRecs {
 		perBanner[rec.GachaType]++
 	}
-	log.Printf("조회 완료: 신규 %d건, 갱신 월 %v, uid=%s", len(newRecs), updatedMonths, uid)
+	slog.Info("조회 완료", "new", len(newRecs), "updated_months", updatedMonths, "uid", uid)
 	send("done", map[string]any{
 		"summary": map[string]any{
 			"newTotal":      len(newRecs),

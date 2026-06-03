@@ -1,7 +1,9 @@
 package collector
 
 import (
+	"bytes"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -63,6 +65,32 @@ func TestFetchIncremental_StopsAtStoredID(t *testing.T) {
 	}
 	if len(recs) != 1 || recs[0].ID != "30" {
 		t.Fatalf("expected only new record id 30, got %+v", recs)
+	}
+}
+
+// 디버그 빌드에서 페이지네이션을 진단할 수 있게, 배너별 페이지마다 DEBUG 추적을 남긴다.
+func TestFetchIncremental_EmitsPerPageDebug(t *testing.T) {
+	var buf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	t.Cleanup(func() { slog.SetDefault(old) })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var list []map[string]string
+		if r.URL.Query().Get("gacha_type") == "11" && r.URL.Query().Get("end_id") == "0" {
+			list = []map[string]string{{"id": "30", "gacha_type": "11", "rank_type": "5", "time": "2026-06-03 10:00:00", "name": "A", "item_id": "1", "uid": "777"}}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": 0, "message": "ok", "data": map[string]any{"list": list}})
+	}))
+	defer srv.Close()
+
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
+	if _, _, err := FetchIncremental(ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {}); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !contains(out, `"msg":"페이지 수집"`) || !contains(out, `"received":1`) {
+		t.Fatalf("페이지별 DEBUG 추적이 있어야 한다: %s", out)
 	}
 }
 

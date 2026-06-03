@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"net/http"
 	"strings"
@@ -124,6 +125,8 @@ func FetchIncremental(ac *AuthContext, lastID map[string]string, delay time.Dura
 				})
 				added++
 			}
+			slog.Debug("페이지 수집", "banner", bannerName[gt], "gacha_type", gt,
+				"page", page, "received", len(ar.Data.List), "added", added)
 			endID = ar.Data.List[len(ar.Data.List)-1].ID
 			page++
 			onProgress(bannerName[gt], added)
@@ -131,6 +134,7 @@ func FetchIncremental(ac *AuthContext, lastID map[string]string, delay time.Dura
 				time.Sleep(delay)
 			}
 		}
+		slog.Debug("배너 수집 완료", "banner", bannerName[gt], "gacha_type", gt, "added", added)
 	}
 	return out, uid, nil
 }

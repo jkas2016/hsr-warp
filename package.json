@@ -5,7 +5,9 @@
   "private": true,
   "scripts": {
     "build": "node scripts/run-go.mjs build -ldflags=\"-s -w\" -o hsr-warp.exe .",
+    "build:debug": "node scripts/run-go.mjs build -ldflags=\"-s -w -X main.logLevel=debug\" -o hsr-warp-debug.exe .",
     "start": "npm run build && hsr-warp.exe",
+    "start:debug": "npm run build:debug && hsr-warp-debug.exe",
     "vet": "node scripts/run-go.mjs vet ./...",
     "test": "node scripts/run-go.mjs test ./... && node web/analyze.test.js",
     "test:go": "node scripts/run-go.mjs test ./...",
