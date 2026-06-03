@@ -13,7 +13,12 @@ import (
 	"hsr-warp/internal/server"
 )
 
-//go:embed web/dashboard.html web/analyze.js
+// 아이콘 리소스(resource_windows_amd64.syso)는 아래 generate 로 만든다(icon.ico 변경 시 재실행):
+//
+//go:generate go run ./tools/genicon
+//go:generate goversioninfo -64 -o resource_windows_amd64.syso
+
+//go:embed web/dashboard.html web/analyze.js web/favicon.ico
 var webFiles embed.FS
 
 // version 은 릴리스 빌드 시 goreleaser 가 ldflags(-X main.version)로 주입한다.
