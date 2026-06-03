@@ -6,11 +6,11 @@
   "scripts": {
     "sync-analyze": "node -e \"require('fs').copyFileSync('analyze.js','web/analyze.js')\"",
     "prebuild": "npm run sync-analyze",
-    "build": "go build -ldflags=\"-s -w\" -o hsr-warp.exe .",
+    "build": "node scripts/run-go.mjs build -ldflags=\"-s -w\" -o hsr-warp.exe .",
     "start": "npm run build && hsr-warp.exe",
-    "vet": "go vet ./...",
-    "test": "go test ./... && node analyze.test.js",
-    "test:go": "go test ./...",
+    "vet": "node scripts/run-go.mjs vet ./...",
+    "test": "node scripts/run-go.mjs test ./... && node analyze.test.js",
+    "test:go": "node scripts/run-go.mjs test ./...",
     "test:analyze": "node analyze.test.js"
   }
 }

@@ -29,7 +29,7 @@
 
 ## 빌드 / 개발
 
-`package.json` 에 편의 스크립트가 있습니다 (`go`·`node` 가 PATH에 있어야 함):
+`package.json` 에 편의 스크립트가 있습니다. **`node` 만 있으면 되고, `go` 는 스크립트(`scripts/run-go.mjs`)가 자동으로 찾습니다** — Go 설치 후 터미널을 아직 재시작 안 해 PATH에 `go` 가 없어도 그냥 동작합니다:
 
 ```powershell
 npm run build    # web/analyze.js 동기화(prebuild) → 정적 단일 exe 빌드(-s -w)
