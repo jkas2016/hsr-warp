@@ -29,19 +29,25 @@
 
 ## 빌드 / 개발
 
+`package.json` 에 편의 스크립트가 있습니다 (`go`·`node` 가 PATH에 있어야 함):
+
 ```powershell
-# 빌드 (정적 단일 exe, 런타임 의존 없음)
-go build -ldflags="-s -w" -o hsr-warp.exe .
-
-# 테스트
-go test ./...          # Go 단위 테스트 (collector / store / server)
-node analyze.test.js   # 브라우저 분석 로직(analyze.js) 단위 테스트
-
-# 합성 데이터 생성 (수동 확인용)
-node gen_sample.js
+npm run build    # web/analyze.js 동기화(prebuild) → 정적 단일 exe 빌드(-s -w)
+npm start        # 빌드 후 hsr-warp.exe 실행
+npm test         # go test ./...  +  node analyze.test.js
+npm run vet      # go vet ./...
+npm run sample   # node gen_sample.js (합성 데이터)
 ```
 
-> `analyze.js` 는 루트(테스트용)와 `web\analyze.js`(서빙용) 두 곳에 있고 **내용이 동일해야** 합니다. 분석 로직을 바꾸면 둘 다 갱신하거나, 빌드 전에 `Copy-Item analyze.js web\analyze.js -Force` 를 실행하세요.
+원하면 도구를 직접 호출해도 됩니다:
+
+```powershell
+go build -ldflags="-s -w" -o hsr-warp.exe .
+go test ./...          # Go 단위 테스트 (collector / store / server)
+node analyze.test.js   # 브라우저 분석 로직(analyze.js) 단위 테스트
+```
+
+> `analyze.js` 는 루트(테스트용)와 `web\analyze.js`(서빙용) 두 곳에 있고 **내용이 동일해야** 합니다. `npm run build` 의 `prebuild` 가 매 빌드마다 루트 → `web\` 로 자동 복사해 동기화하므로 수동 복사는 필요 없습니다. (도구를 직접 쓸 땐 `npm run sync-analyze` 로 동기화하세요.)
 
 ## 측정 지표
 

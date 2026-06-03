@@ -1,0 +1,17 @@
+{
+  "name": "hsr-warp",
+  "version": "0.1.0",
+  "description": "자가 호스팅 HSR 워프 추적기 — 단일 Go 실행파일 + 로컬 대시보드",
+  "private": true,
+  "scripts": {
+    "sync-analyze": "node -e \"require('fs').copyFileSync('analyze.js','web/analyze.js')\"",
+    "prebuild": "npm run sync-analyze",
+    "build": "go build -ldflags=\"-s -w\" -o hsr-warp.exe .",
+    "start": "npm run build && hsr-warp.exe",
+    "vet": "go vet ./...",
+    "test": "go test ./... && node analyze.test.js",
+    "test:go": "go test ./...",
+    "test:analyze": "node analyze.test.js",
+    "sample": "node gen_sample.js"
+  }
+}
