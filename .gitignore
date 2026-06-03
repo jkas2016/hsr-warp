@@ -1,4 +1,4 @@
-# Node (no package.json — orphan, not reproducible; kept on disk only)
+# Node deps (package.json has no dependencies; nothing to install)
 node_modules/
 
 # graphify knowledge-graph output (regenerable)
@@ -11,7 +11,20 @@ HSR_Warp_Dashboard.html
 hsr-warp.exe
 *.exe
 
+# goreleaser build output
+dist/
+
 # Runtime data and config (machine-specific)
 data/
 config.json
 *.tmp
+
+# Runtime logs (날짜별 hsr-warp-YYYY-MM-DD.log)
+logs/
+
+# Generated sample data (regenerate with: npm run sample)
+warp_data.sample.json
+
+# 로컬 기획 산출물(superpowers) · 개발 도구 — 추적 안 함
+docs/superpowers/
+tools/
