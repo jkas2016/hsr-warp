@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"strings"
 	"time"
 
 	"hsr-warp/internal/store"
@@ -75,7 +76,11 @@ func FetchIncremental(ac *AuthContext, lastID map[string]string, delay time.Dura
 			}
 			var ar apiResp
 			if err := json.Unmarshal(body, &ar); err != nil {
-				return out, uid, fmt.Errorf("응답 파싱 실패: %w", err)
+				snippet := strings.TrimSpace(string(body))
+				if len(snippet) > 200 {
+					snippet = snippet[:200] + "…"
+				}
+				return out, uid, fmt.Errorf("응답 파싱 실패: %w (HTTP %d, 응답: %q)", err, resp.StatusCode, snippet)
 			}
 			if ar.Retcode != 0 {
 				if ar.Retcode == -101 {
