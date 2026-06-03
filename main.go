@@ -16,6 +16,10 @@ import (
 //go:embed web/dashboard.html web/analyze.js
 var webFiles embed.FS
 
+// version 은 릴리스 빌드 시 goreleaser 가 ldflags(-X main.version)로 주입한다.
+// 직접 빌드 시에는 기본값 "dev" 가 쓰인다. (.goreleaser.yaml 참고)
+var version = "dev"
+
 func baseDir() string {
 	exe, err := os.Executable()
 	if err != nil {
@@ -60,7 +64,7 @@ func main() {
 		os.Exit(1)
 	}
 	url := fmt.Sprintf("http://127.0.0.1:%d/dashboard.html", port)
-	fmt.Printf("HSR 워프 대시보드: %s\n(종료하려면 이 창에서 Ctrl+C)\n", url)
+	fmt.Printf("HSR 워프 대시보드 %s: %s\n(종료하려면 이 창에서 Ctrl+C)\n", version, url)
 	openBrowser(url)
 	if err := http.Serve(ln, srv.Handler()); err != nil {
 		fmt.Println("서버 종료:", err)

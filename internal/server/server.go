@@ -138,7 +138,7 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		UID: uid, Lang: ac.Lang, Region: ac.Region,
 		RegionTimeZone:  store.TZForRegion(ac.Region),
 		ExportTimestamp: time.Now().Unix(),
-		ExportApp:       "DIY-HSR-Warp", ExportAppVersion: "3.0", SRGFVersion: "v1.0",
+		ExportApp:       "DIY-HSR-Warp", ExportAppVersion: "0.1.0", SRGFVersion: "v1.0",
 	}
 
 	updatedMonths, err := store.WriteAffectedMonths(s.paths.DataDir, info, newRecs)
