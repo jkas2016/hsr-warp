@@ -4,13 +4,11 @@
   "description": "자가 호스팅 HSR 워프 추적기 — 단일 Go 실행파일 + 로컬 대시보드",
   "private": true,
   "scripts": {
-    "sync-analyze": "node -e \"require('fs').copyFileSync('analyze.js','web/analyze.js')\"",
-    "prebuild": "npm run sync-analyze",
     "build": "node scripts/run-go.mjs build -ldflags=\"-s -w\" -o hsr-warp.exe .",
     "start": "npm run build && hsr-warp.exe",
     "vet": "node scripts/run-go.mjs vet ./...",
-    "test": "node scripts/run-go.mjs test ./... && node analyze.test.js",
+    "test": "node scripts/run-go.mjs test ./... && node web/analyze.test.js",
     "test:go": "node scripts/run-go.mjs test ./...",
-    "test:analyze": "node analyze.test.js"
+    "test:analyze": "node web/analyze.test.js"
   }
 }
