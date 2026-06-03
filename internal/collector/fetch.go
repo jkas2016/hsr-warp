@@ -59,14 +59,20 @@ func FetchIncremental(ac *AuthContext, lastID map[string]string, delay time.Dura
 		stop := false
 		for !stop {
 			u := fmt.Sprintf("%s?%s&size=20&gacha_type=%s&page=%d&end_id=%s", ac.APIBase, ac.BaseQuery, gt, page, endID)
-			req, _ := http.NewRequest(http.MethodGet, u, nil)
+			req, err := http.NewRequest(http.MethodGet, u, nil)
+			if err != nil {
+				return out, uid, fmt.Errorf("요청 생성 실패: %w", err)
+			}
 			req.Header.Set("User-Agent", "Mozilla/5.0")
 			resp, err := client.Do(req)
 			if err != nil {
 				return out, uid, fmt.Errorf("API 호출 실패: %w", err)
 			}
-			body, _ := io.ReadAll(resp.Body)
+			body, readErr := io.ReadAll(resp.Body)
 			resp.Body.Close()
+			if readErr != nil {
+				return out, uid, fmt.Errorf("응답 읽기 실패: %w", readErr)
+			}
 			var ar apiResp
 			if err := json.Unmarshal(body, &ar); err != nil {
 				return out, uid, fmt.Errorf("응답 파싱 실패: %w", err)

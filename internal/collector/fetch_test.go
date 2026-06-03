@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
 func TestFetchIncremental_StopsAtStoredID(t *testing.T) {
@@ -51,5 +50,4 @@ func TestFetchIncremental_AuthkeyExpired(t *testing.T) {
 	if err == nil || !contains(err.Error(), "authkey") {
 		t.Fatalf("expected authkey error, got %v", err)
 	}
-	_ = time.Second
 }
