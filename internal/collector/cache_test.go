@@ -74,6 +74,38 @@ func TestParseAuthURL_NoGachaLogURL(t *testing.T) {
 	}
 }
 
+// authkey URL 의 timestamp 쿼리값으로 생성 시각(IssuedAt)을 알 수 있어야 한다.
+// 게임을 켜기만 하면 data_2 mtime 은 갱신돼도 새 authkey 는 안 써진다 —
+// 사용자가 "왜 만료냐"고 헷갈리는 핵심이라, 생성 시각을 노출해 진단에 쓴다.
+func TestParseAuthURL_IssuedAtFromTimestamp(t *testing.T) {
+	blob := []byte("\x00https://host/common/gacha_record/api/getGachaLog?authkey=X&lang=ko-kr&timestamp=1776815846\x00")
+	ac, err := parseAuthURL(blob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ac.IssuedAt.Unix() != 1776815846 {
+		t.Fatalf("expected IssuedAt unix 1776815846, got %d", ac.IssuedAt.Unix())
+	}
+}
+
+// getGachaLog URL 이 여러 개면(전언기록을 여러 번 열어 캐시에 누적) 바이트 순서상
+// 마지막이 아니라 timestamp 가 가장 큰(최신) authkey 를 골라야 한다.
+func TestParseAuthURL_PicksFreshestGachaLogByTimestamp(t *testing.T) {
+	blob := []byte(
+		"\x00https://host/common/gacha_record/api/getGachaLog?authkey=NEW&lang=ko-kr&timestamp=2000\x00" +
+			"\x00https://host/common/gacha_record/api/getGachaLog?authkey=OLD&lang=ko-kr&timestamp=1000\x00")
+	ac, err := parseAuthURL(blob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(ac.BaseQuery, "authkey=NEW") {
+		t.Fatalf("must pick freshest authkey by timestamp, got: %s", ac.BaseQuery)
+	}
+	if ac.IssuedAt.Unix() != 2000 {
+		t.Fatalf("IssuedAt should be the freshest timestamp 2000, got %d", ac.IssuedAt.Unix())
+	}
+}
+
 func contains(s, sub string) bool {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {

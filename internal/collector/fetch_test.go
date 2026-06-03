@@ -5,7 +5,33 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
+
+// 만료 메시지는 사용자의 혼란("방금 게임 켰는데 왜 만료냐")을 직접 풀어줘야 한다:
+// authkey 생성 시각과 경과 일수를 보여주고, 게임 실행만으로는 갱신 안 됨을 명시한다.
+func TestExpiredMessage_ShowsAgeAndGuidance(t *testing.T) {
+	issued := time.Date(2026, 4, 21, 8, 57, 0, 0, time.Local)
+	now := time.Date(2026, 6, 3, 19, 0, 0, 0, time.Local)
+	msg := expiredMessage(issued, now)
+	if !contains(msg, "43일") {
+		t.Fatalf("message should state the 43-day age, got: %s", msg)
+	}
+	if !contains(msg, "2026-04-21") {
+		t.Fatalf("message should state the issue date, got: %s", msg)
+	}
+	if !contains(msg, "전언") || !contains(msg, "기록") {
+		t.Fatalf("message should tell user to open the warp records screen, got: %s", msg)
+	}
+}
+
+// 생성 시각을 모를 때(timestamp 없는 캐시)는 경과 표기 없이 안내만 한다.
+func TestExpiredMessage_UnknownIssuedAt(t *testing.T) {
+	msg := expiredMessage(time.Time{}, time.Now())
+	if !contains(msg, "전언") || !contains(msg, "기록") {
+		t.Fatalf("message should still guide the user, got: %s", msg)
+	}
+}
 
 func TestFetchIncremental_StopsAtStoredID(t *testing.T) {
 	// 배너 11 은 id 30,20,10 보유. lastID=20 이면 30만 신규.
@@ -37,6 +63,20 @@ func TestFetchIncremental_StopsAtStoredID(t *testing.T) {
 	}
 	if len(recs) != 1 || recs[0].ID != "30" {
 		t.Fatalf("expected only new record id 30, got %+v", recs)
+	}
+}
+
+// -110(visit too frequently)은 레이트 리밋이다. raw retcode 대신 잠시 기다리라는
+// 안내를 줘야 한다(짧은 간격으로 반복 조회 시 흔히 발생).
+func TestFetchIncremental_RateLimited(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -110, "message": "visit too frequently"})
+	}))
+	defer srv.Close()
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
+	_, _, err := FetchIncremental(ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	if err == nil || !contains(err.Error(), "기다") {
+		t.Fatalf("expected a rate-limit wait message, got %v", err)
 	}
 }
 

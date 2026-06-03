@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // AuthContext 는 getGachaLog 호출에 필요한 베이스 정보다.
@@ -17,6 +18,9 @@ type AuthContext struct {
 	BaseQuery string // 페이지 관련 제외한 쿼리(원본 인코딩 유지), '&' 결합
 	Region    string
 	Lang      string
+	// IssuedAt 은 채택한 authkey URL 의 timestamp 쿼리값(= 게임에서 전언 기록을
+	// 마지막으로 연 시각). 만료 진단에 쓴다. timestamp 가 없으면 zero.
+	IssuedAt time.Time
 }
 
 var authURLRe = regexp.MustCompile(`https://[^\x00-\x1f"\\]+?authkey=[^\x00-\x1f"\\]+`)
@@ -31,12 +35,28 @@ var pageKeys = map[string]bool{
 func parseAuthURL(blob []byte) (*AuthContext, error) {
 	matches := authURLRe.FindAll(blob, -1)
 	var raw string
+	var issued time.Time
+	bestTS := int64(-1)
 	for _, m := range matches {
 		s := string(m)
 		// 캐시에는 HoYoLAB·이벤트용 authkey URL이 다수 섞여 있다. 게임 내 전언 기록
-		// 엔드포인트(getGachaLog)만 채택하고, 그중 가장 최근(마지막) 것을 쓴다.
-		if strings.Contains(s, "getGachaLog") {
+		// 엔드포인트(getGachaLog)만 채택한다. 같은 캐시에 (전언 기록을 여러 번 열어)
+		// getGachaLog URL이 여럿 누적될 수 있으므로, 바이트 순서가 아니라 timestamp
+		// 쿼리값이 가장 큰(=가장 최근에 발급된) authkey 를 고른다.
+		if !strings.Contains(s, "getGachaLog") {
+			continue
+		}
+		ts := timestampOf(s)
+		// timestamp 가 더 크거나(최신), 아직 후보가 없을 때 채택.
+		// timestamp 없는(-? ts<0) URL 도 최소 한 번은 후보가 되도록 한다.
+		if raw == "" || ts > bestTS {
 			raw = s
+			bestTS = ts
+			if ts >= 0 {
+				issued = time.Unix(ts, 0)
+			} else {
+				issued = time.Time{}
+			}
 		}
 	}
 	if raw == "" {
@@ -76,7 +96,24 @@ func parseAuthURL(blob []byte) (*AuthContext, error) {
 		BaseQuery: strings.Join(kept, "&"),
 		Region:    region,
 		Lang:      lang,
+		IssuedAt:  issued,
 	}, nil
+}
+
+// timestampOf 는 URL 쿼리의 timestamp 값을 정수로 반환한다(없으면 -1).
+func timestampOf(rawURL string) int64 {
+	q := rawURL
+	if i := strings.IndexByte(q, '?'); i >= 0 {
+		q = q[i+1:]
+	}
+	for _, pair := range strings.Split(q, "&") {
+		if v, ok := strings.CutPrefix(pair, "timestamp="); ok {
+			if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+				return n
+			}
+		}
+	}
+	return -1
 }
 
 // verLess 는 점으로 구분된 버전 문자열을 컴포넌트별 정수로 비교한다(비숫자는 0).

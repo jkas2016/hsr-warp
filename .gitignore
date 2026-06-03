@@ -19,5 +19,8 @@ data/
 config.json
 *.tmp
 
+# Runtime logs (날짜별 hsr-warp-YYYY-MM-DD.log)
+logs/
+
 # Generated sample data (regenerate with: npm run sample)
 warp_data.sample.json

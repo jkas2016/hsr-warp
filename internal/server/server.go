@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 	"time"
 
@@ -99,18 +100,28 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
-	fail := func(msg string) { send("error", map[string]string{"message": msg}) }
+	fail := func(msg string) {
+		log.Println("조회 실패:", msg)
+		send("error", map[string]string{"message": msg})
+	}
 
 	gamePath := r.URL.Query().Get("path")
 	if gamePath == "" {
 		fail("게임 경로가 비어 있습니다.")
 		return
 	}
+	log.Println("조회 시작:", gamePath)
 
 	ac, err := collector.FindAuthContext(gamePath)
 	if err != nil {
 		fail(err.Error())
 		return
+	}
+	if ac.IssuedAt.IsZero() {
+		log.Println("authkey 발급 시각: 알 수 없음(캐시에 timestamp 없음)")
+	} else {
+		log.Printf("authkey 발급 시각: %s (%.0f시간 전)",
+			ac.IssuedAt.Format("2006-01-02 15:04"), time.Since(ac.IssuedAt).Hours())
 	}
 	// config 에 경로 저장(다음 실행 자동 채움).
 	_ = SaveConfig(s.paths.ConfigFile, Config{GamePath: gamePath})
@@ -165,6 +176,7 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 	for _, rec := range newRecs {
 		perBanner[rec.GachaType]++
 	}
+	log.Printf("조회 완료: 신규 %d건, 갱신 월 %v, uid=%s", len(newRecs), updatedMonths, uid)
 	send("done", map[string]any{
 		"summary": map[string]any{
 			"newTotal":      len(newRecs),

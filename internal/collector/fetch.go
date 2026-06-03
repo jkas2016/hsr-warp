@@ -38,6 +38,21 @@ type apiResp struct {
 	} `json:"data"`
 }
 
+// expiredMessage 는 authkey 만료(-101) 시 사용자에게 보일 메시지를 만든다.
+// 핵심: 게임을 "켜는 것"만으로는 authkey 가 갱신되지 않는다 — 게임 안에서 전언
+// 기록 화면을 실제로 열어야 캐시에 새 authkey 가 기록된다. issuedAt(캐시의 authkey
+// 생성 시각)을 알면 경과 일수를 함께 보여 "방금 켰는데 왜 만료냐"는 혼란을 푼다.
+func expiredMessage(issuedAt, now time.Time) string {
+	const guide = "게임을 켜는 것만으로는 authkey 가 갱신되지 않습니다. " +
+		"게임 안에서 [전언] → [기록] 화면을 직접 연 뒤(목록이 보이게) 다시 조회하세요."
+	if issuedAt.IsZero() {
+		return "authkey 만료. " + guide
+	}
+	days := int(now.Sub(issuedAt).Hours() / 24)
+	return fmt.Sprintf("authkey 만료 — 캐시의 authkey 는 %s 에 발급된 것으로 %d일 지났습니다. %s",
+		issuedAt.Format("2006-01-02 15:04"), days, guide)
+}
+
 func idLessEq(a, b string) bool {
 	ai, okA := new(big.Int).SetString(a, 10)
 	bi, okB := new(big.Int).SetString(b, 10)
@@ -83,8 +98,11 @@ func FetchIncremental(ac *AuthContext, lastID map[string]string, delay time.Dura
 				return out, uid, fmt.Errorf("응답 파싱 실패: %w (HTTP %d, 응답: %q)", err, resp.StatusCode, snippet)
 			}
 			if ar.Retcode != 0 {
-				if ar.Retcode == -101 {
-					return out, uid, errors.New("authkey 만료. 게임에서 전언 기록을 다시 열고 재시도하세요")
+				switch ar.Retcode {
+				case -101: // authkey timeout
+					return out, uid, errors.New(expiredMessage(ac.IssuedAt, time.Now()))
+				case -110: // visit too frequently (레이트 리밋)
+					return out, uid, errors.New("조회가 너무 잦습니다(서버 호출 제한). 1~2분 기다린 뒤 다시 시도하세요.")
 				}
 				return out, uid, fmt.Errorf("API 오류 (retcode=%d): %s", ar.Retcode, ar.Message)
 			}

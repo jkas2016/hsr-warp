@@ -1,6 +1,7 @@
-// genicon 은 대시보드 테마(짙은 라운드 사각 배경 + 골드 5각 별)의 아이콘을
-// 표준 라이브러리만으로 생성한다. 결과물: 루트 icon.ico(exe 리소스용)와
-// web/favicon.ico(웹 favicon용). 외부 의존성 없음.
+// genicon 은 대시보드 테마(짙은 라운드 사각 배경 + 골드 열차)의 아이콘을
+// 표준 라이브러리만으로 생성한다. 모티프는 '별의 개척 열차'의 측면 기관차다.
+// 결과물: 루트 icon.ico(exe 리소스용)와 web/favicon.ico(웹 favicon용).
+// 외부 의존성 없음. 동일 디자인의 벡터본은 web/favicon.svg 에 있다(수정 시 함께 맞출 것).
 //
 //	go run ./tools/genicon
 package main
@@ -37,34 +38,53 @@ func must(err error) {
 }
 
 // render 는 4배 슈퍼샘플링 후 박스 다운스케일로 부드러운 size×size 아이콘을 만든다.
+// 짙은 라운드 패널 위에 골드 측면 기관차(차체+캡 지붕+창문 음각+바퀴+레일)를 그린다.
+// 좌표는 모두 hi(=고해상도 변) 대비 비율로 정의해 크기에 무관하게 동일 비례를 유지한다.
 func render(size int) *image.RGBA {
 	const ss = 4
 	hi := size * ss
+	H := float64(hi)
 	big := image.NewRGBA(image.Rect(0, 0, hi, hi))
 	bg := color.RGBA{0x12, 0x16, 0x22, 0xff}   // 짙은 패널색
-	gold := color.RGBA{0xf5, 0xc5, 0x42, 0xff} // HSR 골드(별)
-	radius := float64(hi) * 0.20               // 라운드 코너 반경
+	gold := color.RGBA{0xf5, 0xc5, 0x42, 0xff} // HSR 골드
+	radius := H * 0.20                          // 패널 라운드 반경
 
-	// 5각 별 꼭짓점(위쪽 시작, 외/내 반경 교차)
-	cx, cy := float64(hi)/2, float64(hi)/2
-	outer, inner := float64(hi)*0.37, float64(hi)*0.37*0.40
-	pts := make([][2]float64, 10)
-	for i := 0; i < 10; i++ {
-		ang := -math.Pi/2 + float64(i)*math.Pi/5
-		r := outer
-		if i%2 == 1 {
-			r = inner
-		}
-		pts[i] = [2]float64{cx + r*math.Cos(ang), cy + r*math.Sin(ang)}
+	// 각 비율을 픽셀로.
+	p := func(f float64) float64 { return f * H }
+
+	// goldAt 은 (fx,fy)가 열차(골드)에 속하면 true.
+	goldAt := func(fx, fy float64) bool {
+		// 차체(둥근 사각형) + 앞쪽 캡 지붕(둥근 사각형).
+		body := inRoundRect(fx, fy, p(0.15), p(0.34), p(0.85), p(0.60), p(0.05))
+		cab := inRoundRect(fx, fy, p(0.55), p(0.26), p(0.85), p(0.36), p(0.04))
+		// 바퀴(원반) 3개.
+		wheel := inDisc(fx, fy, p(0.28), p(0.62), p(0.055)) ||
+			inDisc(fx, fy, p(0.50), p(0.62), p(0.055)) ||
+			inDisc(fx, fy, p(0.72), p(0.62), p(0.055))
+		// 레일(가는 가로 막대).
+		rail := inRect(fx, fy, p(0.10), p(0.70), p(0.90), p(0.735))
+		return body || cab || wheel || rail
+	}
+
+	// holeAt 은 음각(배경색으로 비울 영역): 창문들·바퀴 허브.
+	holeAt := func(fx, fy float64) bool {
+		windshield := inRoundRect(fx, fy, p(0.63), p(0.39), p(0.81), p(0.49), p(0.015))
+		w1 := inRect(fx, fy, p(0.21), p(0.40), p(0.29), p(0.49))
+		w2 := inRect(fx, fy, p(0.32), p(0.40), p(0.40), p(0.49))
+		w3 := inRect(fx, fy, p(0.43), p(0.40), p(0.51), p(0.49))
+		hub := inDisc(fx, fy, p(0.28), p(0.62), p(0.02)) ||
+			inDisc(fx, fy, p(0.50), p(0.62), p(0.02)) ||
+			inDisc(fx, fy, p(0.72), p(0.62), p(0.02))
+		return windshield || w1 || w2 || w3 || hub
 	}
 
 	for y := 0; y < hi; y++ {
 		for x := 0; x < hi; x++ {
-			fx, fy := float64(x), float64(y)
-			if !insideRoundRect(fx, fy, float64(hi), radius) {
+			fx, fy := float64(x)+0.5, float64(y)+0.5
+			if !insideRoundRect(fx, fy, H, radius) {
 				continue // 바깥은 투명
 			}
-			if pointInPoly(fx+0.5, fy+0.5, pts) {
+			if goldAt(fx, fy) && !holeAt(fx, fy) {
 				big.SetRGBA(x, y, gold)
 			} else {
 				big.SetRGBA(x, y, bg)
@@ -82,23 +102,26 @@ func insideRoundRect(x, y, side, r float64) bool {
 	return dx*dx+dy*dy <= r*r
 }
 
-// pointInPoly 는 짝/홀(even-odd) 광선 투사로 다각형 내부 여부를 판정한다.
-func pointInPoly(px, py float64, poly [][2]float64) bool {
-	in := false
-	n := len(poly)
-	j := n - 1
-	for i := 0; i < n; i++ {
-		xi, yi := poly[i][0], poly[i][1]
-		xj, yj := poly[j][0], poly[j][1]
-		if (yi > py) != (yj > py) {
-			xint := (xj-xi)*(py-yi)/(yj-yi) + xi
-			if px < xint {
-				in = !in
-			}
-		}
-		j = i
+// inRect 는 [x0,x1]×[y0,y1] 직사각형 내부 여부.
+func inRect(px, py, x0, y0, x1, y1 float64) bool {
+	return px >= x0 && px <= x1 && py >= y0 && py <= y1
+}
+
+// inDisc 는 중심 (cx,cy) 반경 r 원반 내부 여부.
+func inDisc(px, py, cx, cy, r float64) bool {
+	dx, dy := px-cx, py-cy
+	return dx*dx+dy*dy <= r*r
+}
+
+// inRoundRect 는 임의 위치의 라운드 사각형 [x0,x1]×[y0,y1](모서리 반경 r) 내부 여부.
+func inRoundRect(px, py, x0, y0, x1, y1, r float64) bool {
+	if !inRect(px, py, x0, y0, x1, y1) {
+		return false
 	}
-	return in
+	cxn := math.Min(math.Max(px, x0+r), x1-r)
+	cyn := math.Min(math.Max(py, y0+r), y1-r)
+	dx, dy := px-cxn, py-cyn
+	return dx*dx+dy*dy <= r*r
 }
 
 // downscale 은 ss×ss 박스 평균으로 축소한다.
