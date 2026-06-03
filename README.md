@@ -62,15 +62,13 @@
 ## 대시보드에서 보는 지표
 
 - **운 지표** — 5★ 평균 천장을 이론 평균 **62.5회**(종합 확률 1.6%)와 비교. 낮을수록 행운입니다.
-- **소프트천장 이전 획득률** — 5★를 74회(광추 65회) 전에 뽑은 비율.
-- **픽뚫률(50/50)** — 한정 배너에서 50/50 승부 중 픽업을 뽑은 비율(확정 획득은 별도 집계).
+- **평균 천장** — 캐릭터 5★ 평균 천장(+ 최고/최악 운).
+- **픽승률(50/50)** — 한정 배너에서 50/50 승부 중 픽업을 뽑은 비율(확정 획득은 별도 집계).
 - **월별 집계** — 월별 뽑기 수·성옥·획득 5★.
 
 ### 판정 기준
-- **50/50**: 한정 배너 5★가 표준(상시) 풀에 있으면 **픽패**, 없으면 **픽뚫**으로 봅니다.
-  - 표준 캐릭터: 히메코·벨트·브로냐·게파드·클라라·연경·백로
-  - 표준 광추: 상시 풀 고정 5★ 광추 7종
-- 콜라보·신규 "커스텀 50/50" 배너는 표준 풀 방식으로 정확히 가리지 못해 픽뚫로 잡힐 수 있습니다.
+- **50/50**: 5★ 획득 **시점의 배너 픽업(rate-up)** 대상이면 **픽승**, 아니면 **픽뚫**으로 봅니다. 시점 기반이라 상시풀 편입·리런·콜라보·Celestial Invitation을 정확히 처리합니다(픽업 일정은 `web/analyze.js`의 `SCHEDULE`).
+- 픽업 일정에 없는 시점(주로 갓 나온 신규 패치)의 5★는 **미확인**으로 표시됩니다 — 일정을 갱신하면 해소됩니다.
 - 공식 확률/천장: 캐릭터 0.6%(종합 1.6%)/하드천장 90, 광추 0.8%/하드천장 80.
 
 ---
@@ -105,7 +103,7 @@ node web/analyze.test.js
 
 - 분석 로직은 `web/analyze.js` 단일 소스이며, 단위 테스트는 `web/analyze.test.js`(`node web/analyze.test.js`)가 같은 디렉터리에서 검증합니다.
 - 아이콘 변경: `go run ./tools/genicon` → `goversioninfo -64 -o resource_windows_amd64.syso` 로 재생성.
-- 신규 한정 캐릭터/광추 출시 시 `web/analyze.js`의 `LIMITED` 배열에 item_id를 추가하세요(StarRailRes 기준). HoYo가 표준 풀을 바꾸면 `STANDARD` 배열을 수정합니다.
+- 신규 패치 출시 시 `web/analyze.js`의 `SCHEDULE` 배열에 새 페이즈 `{s,e,c,l}`를 추가하세요(c=캐릭터·l=광추 픽업 item_id; 픽업=Mantan21/HSR-Warp-Simulator, item_id=StarRailRes). 누락 시 그 시점 5★가 '미확인'으로 표시됩니다.
 
 **출처** — SRGF 형식: <https://uigf.org/en/standards/srgf.html> · 확률·50/50: <https://www.prydwen.gg/star-rail/guides/gacha-system/> · item_id: <https://github.com/Mar-7th/StarRailRes> · 추출 원리: <https://github.com/biuuu/star-rail-warp-export>
 

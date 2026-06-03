@@ -92,7 +92,7 @@
 
   <div class="foot">
     뽑기 1회 = 성옥 160 기준 · 비공식 도구이며 호요버스와 무관 · 데이터 형식 SRGF v1.0<br>
-    50/50 판정: 한정 배너 5★가 픽업(한정) 대상이면 '픽승', 아니면 '픽뚫'. 표준/미확인은 픽뚫로 집계되며, 미확인 5★는 목록 갱신 안내가 표시됩니다.
+    50/50 판정: 5★ 획득 시점의 배너 픽업(rate-up) 대상이면 '픽승', 아니면 '픽뚫'. 시점 기반이라 상시풀 편입·리런·콜라보를 정확히 처리하며, 픽업 일정에 없는 시점의 5★는 '미확인'으로 표시됩니다.
   </div>
 
 <script src="/analyze.js"></script>
@@ -170,7 +170,7 @@ function render(A){
   const win5050=cb&&cb.win5050Rate!=null?(cb.win5050Rate*100).toFixed(0):'-';
 
   let h='';
-  if(A.unknown5>0) h+=`<div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:rgba(255,158,69,.12);color:var(--orange);font-size:13px">⚠ 미확인 5★ ${A.unknown5}개 — 신규 한정이 LIMITED 목록에 없을 수 있어요. analyze.js의 LIMITED를 갱신하세요.</div>`;
+  if(A.unknown5>0) h+=`<div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:rgba(255,158,69,.12);color:var(--orange);font-size:13px">⚠ 미확인 5★ ${A.unknown5}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). analyze.js의 SCHEDULE를 갱신하세요.</div>`;
   h+=`<section class="hero">
     <div class="card">
       <div class="lbl">운 지표 · 캐릭터/일반 평균 천장</div>

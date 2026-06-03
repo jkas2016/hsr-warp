@@ -30,7 +30,7 @@ Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천�
 - **`internal/server`** — 라우팅과 핸들러. `/api/data`, `/api/config`, `/api/detect`, `/api/fetch`(SSE: progress/error/done). 자산은 main에서 `go:embed`한 `web/`를 `fs.Sub`로 주입.
 - **`main.go`** — `os.Executable()` 기준 baseDir, `data/`·`config.json` 경로, 빈 포트 선택, `go:embed web/dashboard.html web/analyze.js`, 브라우저 자동 오픈.
 
-**중심 도메인 규칙 — 50/50 픽승/픽뚫 판정** (`web/analyze.js`의 `analyzeBanner`): 한정 배너 5★의 `item_id`가 `LIMITED` 풀(한정 픽업 목록)에 있으면 픽승(win), 없으면 픽뚫(loss). 픽뚫은 `guaranteed=true`로 다음 5★를 확정으로 만든다. `LIMITED`·`STANDARD` 어디에도 없으면 `unidentified`로 표시(목록 갱신 신호, 대시보드 '미확인 5★' 경고). 신규 한정 출시 시 **`web/analyze.js` 상단의 `LIMITED` 배열에 item_id 추가**(StarRailRes에서 '전체 5★ − 상시 7종'으로 도출, 8xxx/24xxx 제외). HoYo가 표준 풀을 바꾸면 `STANDARD` 배열을 수정한다. `gacha_type`: `11`=캐릭터, `12`=광추, `1`=일반(스텔라), `2`=출발.
+**중심 도메인 규칙 — 50/50 픽승/픽뚫 판정** (`web/analyze.js`의 `analyzeBanner`): 5★ **획득 시각**이 속한 배너 기간(`SCHEDULE`의 `[s,e)`)의 픽업(rate-up) item_id이면 픽승(win), 아니면 픽뚫(loss). 픽뚫은 `guaranteed=true`로 다음 5★를 확정으로 만든다. **'그 시점 픽업이었나'로 판정**하므로 상시풀 편입·Celestial Invitation·콜라보·리런을 모두 올바르게 처리한다(풀 소속 방식은 구조적으로 불가 — 패배 풀이 시변적·플레이어별이라). 일정에 없는 시각의 5★는 `unidentified`(대시보드 '미확인 5★' 경고). 신규 패치 출시 시 **`SCHEDULE` 배열에 `{s,e,c,l}` 항목 추가**(c=캐릭터 픽업, l=광추 픽업 item_id; 픽업=Mantan21/HSR-Warp-Simulator, item_id=StarRailRes). `gacha_type`: `11`=캐릭터, `12`=광추, `1`=일반(스텔라), `2`=출발.
 
 **저장은 비파괴 부분 재작성이다.** `WriteAffectedMonths`는 이번 조회로 **신규가 생긴 월 파일만** 로드·병합·중복제거·정렬 후 원자적으로 재작성하고, 손대지 않은 월은 보존한다. authkey가 최근 기록만 줄 때 과거 월이 통째로 사라지는 것을 막는 핵심 보장이며, 테스트 `TestWriteAffectedMonths_PreservesUntouchedMonths`가 이를 강제한다. (구 PowerShell의 "전량 삭제 후 재작성"은 폐기됨.)
 

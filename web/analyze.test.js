@@ -2,60 +2,66 @@ const assert = require('assert');
 const { analyzeBanner, analyze, monthly, BANNERS } = require('./analyze.js');
 
 let id = 1000n;
-// helper: make a record. rank 5 needs an item_id (to test pool membership).
-const r5 = (item_id, time = '2025-03-01 00:00:00') => ({ id: String(id++), rank_type: '5', item_id: String(item_id), name: 'x', item_type: 'C', time, gacha_type: '11' });
-const r34 = (rank) => ({ id: String(id++), rank_type: String(rank), item_id: '0', name: 'y', item_type: 'C', time: '2025-03-01 00:00:00', gacha_type: '11' });
+// 3.7 phase 1 (2025-11-04..11-25): featured char includes 1415,1409 ; featured lc includes 23052.
+const T = '2025-11-10 12:00:00';
+const r5 = (item_id, time = T) => ({ id: String(id++), rank_type: '5', item_id: String(item_id), name: 'x', item_type: 'C', time, gacha_type: '11' });
+const r34 = (rank, time = T) => ({ id: String(id++), rank_type: String(rank), item_id: '0', name: 'y', item_type: 'C', time, gacha_type: '11' });
 
 // ---- pity ----
-const seq = ['3','3','3','4','3'].map(r34).concat([r5(9999)]); // 6 pulls, 5* at pity 6
+const seq = ['3', '3', '3', '4', '3'].map(r => r34(r)).concat([r5(1415)]); // 6 pulls, 5* at pity 6
 const b = analyzeBanner(seq, BANNERS['11']);
 assert.strictEqual(b.total, 6);
 assert.strictEqual(b.count5, 1);
 assert.strictEqual(b.fives[0].pity, 6, 'pity counts the winning pull');
 assert.strictEqual(b.currentPity5, 0, 'reset after 5*');
 
-// ---- 50/50: loss -> guaranteed win -> contested win -> loss (LIMITED 기반) ----
-// standard char: 1003(Himeko),1101(Bronya) | limited(픽업): 1005(Kafka),1006(Silver Wolf)
+// ---- 50/50 (schedule-based, all within 3.7 p1): loss -> guaranteed win -> contested win -> loss ----
 id = 5000n;
 const banner11 = [
-  r5(1003),  // standard -> contested LOSS(픽뚫) -> guaranteed
-  r5(1005),  // guaranteed WIN(픽업)
-  r5(1006),  // contested WIN(픽승, 픽업)
-  r5(1101),  // standard -> contested LOSS(픽뚫) -> guaranteed
+  r5(1102),  // Seele NOT featured in 3.7 -> contested LOSS -> guaranteed
+  r5(1415),  // featured -> guaranteed WIN
+  r5(1409),  // featured -> contested WIN
+  r5(1102),  // not featured -> contested LOSS -> guaranteed
 ];
 const s = analyzeBanner(banner11, BANNERS['11']);
 assert.strictEqual(s.contested, 3, '3 contested (#1,#3,#4)');
 assert.strictEqual(s.cWins, 1, '1 contested win');
 assert.strictEqual(s.cLoss, 2, '2 contested losses');
 assert.strictEqual(s.gWins, 1, '1 guaranteed win');
-assert.strictEqual(s.pickupTotal, 2, 'featured = contested wins + guaranteed wins');
+assert.strictEqual(s.pickupTotal, 2, 'featured obtained = contested wins + guaranteed wins');
 assert.ok(Math.abs(s.win5050Rate - 1 / 3) < 1e-9, '50/50 win rate = 1/3');
 assert.strictEqual(s.currentGuaranteed, true, 'ends on loss -> next guaranteed');
 assert.deepStrictEqual(s.fives.map(f => f.result), ['loss', 'guaranteed', 'win', 'loss']);
 assert.deepStrictEqual(s.fives.map(f => f.isPickup), [false, true, true, false]);
-assert.strictEqual(s.unknown5, 0, 'all ids in LIMITED or STANDARD');
+assert.strictEqual(s.unknown5, 0, 'all ids covered by schedule');
 
-// ---- 미확인 5★: LIMITED·STANDARD 어디에도 없으면 contested loss + unidentified ----
+// ---- core fix: win/loss depends on TIME, not pool membership ----
+// Seele(1102) is a featured pickup ONLY at her own banners (1.0 p1); a LOSS elsewhere.
+id = 5200n;
+const win10 = analyzeBanner([r5(1102, '2023-05-01 00:00:00')], BANNERS['11']); // 1.0 p1: Seele featured
+assert.strictEqual(win10.fives[0].result, 'win', 'Seele during 1.0 p1 = 픽승');
+const loss37 = analyzeBanner([r5(1102, '2025-11-10 00:00:00')], BANNERS['11']); // 3.7 p1: not featured
+assert.strictEqual(loss37.fives[0].result, 'loss', 'Seele during 3.7 p1 = 픽뚫');
+
+// ---- unidentified: time outside the known schedule ----
 id = 5500n;
-const u = analyzeBanner([r5(9999)], BANNERS['11']);
-assert.strictEqual(u.fives[0].result, 'loss', 'unknown contested -> loss');
-assert.strictEqual(u.fives[0].isPickup, false);
-assert.strictEqual(u.fives[0].unidentified, true);
+const u = analyzeBanner([r5(1415, '2030-01-01 00:00:00')], BANNERS['11']);
+assert.strictEqual(u.fives[0].unidentified, true, 'no period -> unidentified');
+assert.strictEqual(u.fives[0].result, null, 'unidentified not classified');
+assert.strictEqual(u.fives[0].isPickup, null);
 assert.strictEqual(u.unknown5, 1);
-const std = analyzeBanner([r5(1003)], BANNERS['11']);
-assert.strictEqual(std.fives[0].unidentified, false, 'standard id is identified');
-assert.strictEqual(std.unknown5, 0);
+assert.strictEqual(u.contested, 0, 'unidentified excluded from 50/50');
 
-// ---- light cone pool (banner 12): standard 23002 -> loss, limited 23001 -> guaranteed ----
-const r5lc = (iid) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'z', item_type: 'L', time: '2025-03-01 00:00:00', gacha_type: '12' });
-const banner12 = [r5lc(23002) /*standard -> loss*/, r5lc(23001) /*limited -> guaranteed*/];
+// ---- light cone (banner 12), 3.7 p1: 23052 featured, 23000 standard ----
+const r5lc = (iid, time = T) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'z', item_type: 'L', time, gacha_type: '12' });
+const banner12 = [r5lc(23000) /*standard -> loss*/, r5lc(23052) /*featured -> guaranteed*/];
 const sl = analyzeBanner(banner12, BANNERS['12']);
 assert.deepStrictEqual(sl.fives.map(f => f.result), ['loss', 'guaranteed'], 'LC: loss then guaranteed');
 assert.strictEqual(sl.unknown5, 0);
 
 // ---- luck (소프트천장/early 제거 확인) ----
 id = 6000n;
-const lk = analyzeBanner([r5(1005)], BANNERS['11']); // Kafka pity 1 -> 픽승, 매우 행운
+const lk = analyzeBanner([r5(1415)], BANNERS['11']); // pity 1, featured -> 픽승, 매우 행운
 assert.ok(lk.luckPct > 90, 'pity 1 is ~98% luckier than 62.5 avg');
 assert.strictEqual(lk.fives[0].result, 'win');
 assert.ok(!('earlyCount' in lk), 'soft-pity earlyCount removed');
@@ -77,7 +83,7 @@ assert.strictEqual(mo[1].month, '202502');
 
 // ---- analyze() integration ----
 id = 7000n;
-const data = { info: { uid: '1' }, list: [r5(1003), r5(1005), r34(3), { ...r5lc(23002) }] };
+const data = { info: { uid: '1' }, list: [r5(1102), r5(1415), r34(3), { ...r5lc(23000) }] };
 const A = analyze(data);
 assert.ok(A.banners.length >= 1);
 assert.strictEqual(A.count5, 3);
