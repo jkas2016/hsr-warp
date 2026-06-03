@@ -40,3 +40,13 @@ func contains(s, sub string) bool {
 	}
 	return false
 }
+
+func TestLatestVersion(t *testing.T) {
+	got := latestVersion([]string{"2.9.0.0", "2.10.0.0", "2.3.5.1"})
+	if got != "2.10.0.0" {
+		t.Fatalf("expected 2.10.0.0, got %s", got)
+	}
+	if latestVersion(nil) != "" {
+		t.Fatalf("expected empty for nil input")
+	}
+}

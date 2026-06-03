@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -75,6 +75,40 @@ func parseAuthURL(blob []byte) (*AuthContext, error) {
 	}, nil
 }
 
+// verLess 는 점으로 구분된 버전 문자열을 컴포넌트별 정수로 비교한다(비숫자는 0).
+func verLess(a, b string) bool {
+	as := strings.Split(a, ".")
+	bs := strings.Split(b, ".")
+	n := len(as)
+	if len(bs) > n {
+		n = len(bs)
+	}
+	for i := 0; i < n; i++ {
+		ai, bi := 0, 0
+		if i < len(as) {
+			ai, _ = strconv.Atoi(as[i])
+		}
+		if i < len(bs) {
+			bi, _ = strconv.Atoi(bs[i])
+		}
+		if ai != bi {
+			return ai < bi
+		}
+	}
+	return false
+}
+
+// latestVersion 은 숫자 기반으로 가장 높은 버전 이름을 반환한다(없으면 "").
+func latestVersion(names []string) string {
+	best := ""
+	for _, n := range names {
+		if best == "" || verLess(best, n) {
+			best = n
+		}
+	}
+	return best
+}
+
 // FindAuthContext 는 gamePath 의 최신 webCaches data_2 를 읽어 AuthContext 를 만든다.
 func FindAuthContext(gamePath string) (*AuthContext, error) {
 	webCaches := filepath.Join(gamePath, "StarRail_Data", "webCaches")
@@ -96,8 +130,7 @@ func FindAuthContext(gamePath string) (*AuthContext, error) {
 	if len(verDirs) == 0 {
 		return nil, errors.New("캐시 데이터(data_2)가 없습니다. 게임에서 전언 기록을 한 번 열었나요?")
 	}
-	sort.Strings(verDirs)
-	dataFile := filepath.Join(webCaches, verDirs[len(verDirs)-1], "Cache", "Cache_Data", "data_2")
+	dataFile := filepath.Join(webCaches, latestVersion(verDirs), "Cache", "Cache_Data", "data_2")
 	// Go 는 Windows 에서 공유 모드로 파일을 열어 게임 실행 중에도 읽기 가능.
 	blob, err := os.ReadFile(dataFile)
 	if err != nil {
