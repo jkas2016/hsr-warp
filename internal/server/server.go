@@ -2,9 +2,12 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"net/http"
+	"time"
 
+	"hsr-warp/internal/collector"
 	"hsr-warp/internal/store"
 )
 
@@ -81,7 +84,93 @@ func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"path": detectGamePath(defaultCandidates())})
 }
 
-// handleFetch 는 Task 7 에서 SSE 로 교체된다(현재는 스텁).
+// handleFetch 는 증분 조회를 SSE 로 스트리밍한다.
+// 이벤트: progress {banner,added} / error {message} / done {summary,data}.
 func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	flusher, _ := w.(http.Flusher)
+
+	send := func(event string, payload any) {
+		b, _ := json.Marshal(payload)
+		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b)
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+	fail := func(msg string) { send("error", map[string]string{"message": msg}) }
+
+	gamePath := r.URL.Query().Get("path")
+	if gamePath == "" {
+		fail("게임 경로가 비어 있습니다.")
+		return
+	}
+
+	ac, err := collector.FindAuthContext(gamePath)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	// config 에 경로 저장(다음 실행 자동 채움).
+	_ = SaveConfig(s.paths.ConfigFile, Config{GamePath: gamePath})
+
+	existing, prevInfo, err := store.LoadAll(s.paths.DataDir)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	lastID := store.MaxIDByBanner(existing)
+
+	newRecs, uid, err := collector.FetchIncremental(ac, lastID, 400*time.Millisecond,
+		func(banner string, added int) {
+			send("progress", map[string]any{"banner": banner, "added": added})
+		})
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+
+	if uid == "" && prevInfo != nil {
+		uid = prevInfo.UID
+	}
+	info := store.Info{
+		UID: uid, Lang: ac.Lang, Region: ac.Region,
+		RegionTimeZone:  store.TZForRegion(ac.Region),
+		ExportTimestamp: time.Now().Unix(),
+		ExportApp:       "DIY-HSR-Warp", ExportAppVersion: "3.0", SRGFVersion: "v1.0",
+	}
+
+	updatedMonths, err := store.WriteAffectedMonths(s.paths.DataDir, info, newRecs)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+
+	// 갱신 후 전체 합본 재구성.
+	all, finalInfo, err := store.LoadAll(s.paths.DataDir)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	out := store.SRGF{List: all}
+	if finalInfo != nil {
+		out.Info = *finalInfo
+	} else {
+		out.Info = info
+	}
+
+	// 배너별 신규 건수 요약.
+	perBanner := map[string]int{}
+	for _, rec := range newRecs {
+		perBanner[rec.GachaType]++
+	}
+	send("done", map[string]any{
+		"summary": map[string]any{
+			"newTotal":      len(newRecs),
+			"perBanner":     perBanner,
+			"updatedMonths": updatedMonths,
+		},
+		"data": out,
+	})
 }
