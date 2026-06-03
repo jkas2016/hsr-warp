@@ -121,11 +121,11 @@ func WriteAffectedMonths(dir string, info Info, newRecords []Record) ([]string, 
 		path := filepath.Join(dir, "warp_"+m+".json")
 		existing, err := readSRGF(path) // 없으면 zero 값(빈 List)
 		if err != nil && !os.IsNotExist(err) {
-			return updated, err
+			return nil, err
 		}
 		merged := dedupByID(append(existing.List, recs...))
 		if err := writeSRGFAtomic(path, SRGF{Info: info, List: merged}); err != nil {
-			return updated, err
+			return nil, err
 		}
 		updated = append(updated, m)
 	}

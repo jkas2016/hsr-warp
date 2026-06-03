@@ -34,7 +34,10 @@ func TestWriteAffectedMonths_PreservesUntouchedMonths(t *testing.T) {
 		t.Fatal(err)
 	}
 	mayPath := filepath.Join(dir, "warp_202605.json")
-	mayBefore, _ := os.ReadFile(mayPath)
+	mayBefore, err := os.ReadFile(mayPath)
+	if err != nil {
+		t.Fatalf("reading may file: %v", err)
+	}
 
 	jun := []Record{rec("20", "11", "2026-06-01 09:00:00", "5")}
 	updated, err := WriteAffectedMonths(dir, info, jun)
