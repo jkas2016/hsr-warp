@@ -134,7 +134,7 @@ function runFetch(){
   es.addEventListener('error',e=>{
     es.close();goBtn.disabled=false;goBtn.textContent='조회';
     if(e.data){try{err.textContent='조회 실패: '+JSON.parse(e.data).message;}catch{err.textContent='조회 실패';}}
-    else if(progress.textContent==='연결 중…'){err.textContent='서버 연결 실패';}
+    else{err.textContent='서버 연결 실패';}
     progress.textContent='';
   });
   es.addEventListener('done',e=>{
