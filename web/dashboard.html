@@ -162,11 +162,11 @@ function render(A){
   const exp=A.info.export_timestamp?new Date(A.info.export_timestamp*1000).toLocaleString('ko-KR'):'';
   $('#subline').textContent=`UID ${uid}${exp?' · 갱신 '+exp:''} · 모든 분석은 로컬에서만 처리됩니다.`;
 
-  const cb=A.luck.charBanner, lcb=A.luck.lcBanner;
-  const lp=A.luck.charLuckPct;
-  const luckWord=lp>=0?'행운':'불운', luckCol=lp>=0?'var(--green)':'var(--red)';
+  const cb=A.luck.charBanner;
+  const lp=A.luck.charLuckPct, hasLuck=lp!=null;
+  const luckWord=hasLuck?(lp>=0?'행운':'불운'):'', luckCol=hasLuck?(lp>=0?'var(--green)':'var(--red)'):'var(--muted)';
   // luck marker: map avg pity (1..90) -> 0..100% where 62.5=center(50%)
-  const markPct=cb?Math.max(2,Math.min(98,(A.luck.charAvgPity/125)*100)):50;
+  const markPct=hasLuck?Math.max(2,Math.min(98,(A.luck.charAvgPity/125)*100)):50;
   const win5050=cb&&cb.win5050Rate!=null?(cb.win5050Rate*100).toFixed(0):'-';
 
   let h='';
@@ -174,8 +174,8 @@ function render(A){
   h+=`<section class="hero">
     <div class="card">
       <div class="lbl">운 지표 · 캐릭터/일반 평균 천장</div>
-      <div class="big" style="color:${luckCol}">${cb?A.luck.charAvgPity.toFixed(1):'-'}<small style="font-size:16px;color:var(--muted)"> 회</small></div>
-      <div class="desc">이론 평균 <b>62.5회</b> 대비 <b style="color:${luckCol}">${lp>=0?'+':''}${lp?lp.toFixed(0):0}%</b> ${luckWord} ${lp>=0?'(적게 쓰고 뽑음)':'(더 많이 씀)'}</div>
+      <div class="big" style="color:${luckCol}">${hasLuck?A.luck.charAvgPity.toFixed(1):'-'}<small style="font-size:16px;color:var(--muted)"> 회</small></div>
+      <div class="desc">${hasLuck?`이론 평균 <b>62.5회</b> 대비 <b style="color:${luckCol}">${lp>=0?'+':''}${lp.toFixed(0)}%</b> ${luckWord} ${lp>=0?'(적게 쓰고 뽑음)':'(더 많이 씀)'}`:'데이터 없음'}</div>
       <div class="luckbar"><div class="mid"></div><div class="mark" style="left:${markPct}%"></div></div>
     </div>
     <div class="card">
