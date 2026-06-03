@@ -92,7 +92,7 @@
 
   <div class="foot">
     뽑기 1회 = 성옥 160 기준 · 비공식 도구이며 호요버스와 무관 · 데이터 형식 SRGF v1.0<br>
-    50/50 판정: 한정 배너 5★의 item_id가 표준 풀이면 '픽패', 아니면 '픽뚫'. 커스텀 풀/콜라보는 근사치일 수 있습니다.
+    50/50 판정: 한정 배너 5★가 픽업(한정) 대상이면 '픽승', 아니면 '픽뚫'. 표준/미확인은 픽뚫로 집계되며, 미확인 5★는 목록 갱신 안내가 표시됩니다.
   </div>
 
 <script src="/analyze.js"></script>
@@ -102,7 +102,7 @@ const err=$('#err'),app=$('#app');
 let charts=[];
 const num=n=>Math.round(n).toLocaleString('ko-KR');
 const pityColor=p=>p<60?'var(--green)':p<=80?'var(--orange)':'var(--red)';
-const resText={win:'픽뚫',loss:'픽패',guaranteed:'확정',null:'-'};
+const resText={win:'픽승',loss:'픽뚫',guaranteed:'확정',null:'-'};
 const resClass={win:'win',loss:'loss',guaranteed:'guar'};
 
 const pathInput=$('#path'),goBtn=$('#go'),progress=$('#progress'),summary=$('#summary');
@@ -169,7 +169,9 @@ function render(A){
   const markPct=cb?Math.max(2,Math.min(98,(A.luck.charAvgPity/125)*100)):50;
   const win5050=cb&&cb.win5050Rate!=null?(cb.win5050Rate*100).toFixed(0):'-';
 
-  let h=`<section class="hero">
+  let h='';
+  if(A.unknown5>0) h+=`<div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:rgba(255,158,69,.12);color:var(--orange);font-size:13px">⚠ 미확인 5★ ${A.unknown5}개 — 신규 한정이 LIMITED 목록에 없을 수 있어요. analyze.js의 LIMITED를 갱신하세요.</div>`;
+  h+=`<section class="hero">
     <div class="card">
       <div class="lbl">운 지표 · 캐릭터/일반 평균 천장</div>
       <div class="big" style="color:${luckCol}">${cb?A.luck.charAvgPity.toFixed(1):'-'}<small style="font-size:16px;color:var(--muted)"> 회</small></div>
@@ -177,15 +179,15 @@ function render(A){
       <div class="luckbar"><div class="mid"></div><div class="mark" style="left:${markPct}%"></div></div>
     </div>
     <div class="card">
-      <div class="lbl">픽뚫률 · 캐릭터 50/50</div>
+      <div class="lbl">픽승률 · 캐릭터 50/50</div>
       <div class="big" style="color:var(--gold)">${win5050}<small style="font-size:16px;color:var(--muted)"> %</small></div>
       <div class="desc">${cb?`50/50 승부 ${cb.contested}회 중 <b style="color:var(--gold)">${cb.cWins}승</b> · ${cb.cLoss}패 · 확정 ${cb.gWins}회 획득`:'데이터 없음'}</div>
-      ${cb&&cb.currentGuaranteed?'<span class="badge g">다음 5★ 확정 (픽패 상태)</span>':(cb?'<span class="badge ok">다음 5★ 50/50</span>':'')}
+      ${cb&&cb.currentGuaranteed?'<span class="badge g">다음 5★ 확정 (픽뚫 상태)</span>':(cb?'<span class="badge ok">다음 5★ 50/50</span>':'')}
     </div>
     <div class="card">
-      <div class="lbl">소프트천장 이전 획득률</div>
-      <div class="big">${cb?(cb.earlyRate*100).toFixed(0):'-'}<small style="font-size:16px;color:var(--muted)"> %</small></div>
-      <div class="desc">캐릭터 5★ ${cb?cb.count5:0}개 중 ${cb?cb.earlyCount:0}개를 74회 이전에 획득${cb&&cb.bestPity?` · 최고 운 <b style="color:var(--green)">${cb.bestPity}회</b>`:''}</div>
+      <div class="lbl">평균 천장 · 캐릭터</div>
+      <div class="big">${cb&&cb.avgPity5?cb.avgPity5.toFixed(1):'-'}<small style="font-size:16px;color:var(--muted)"> 회</small></div>
+      <div class="desc">캐릭터 5★ ${cb?cb.count5:0}개${cb&&cb.bestPity?` · 최고 운 <b style="color:var(--green)">${cb.bestPity}회</b> · 최악 <b style="color:var(--red)">${cb.worstPity}회</b>`:''}</div>
     </div>
   </section>`;
 
@@ -208,7 +210,7 @@ function render(A){
       <div class="row"><span>총 뽑기</span><b>${num(s.total)}</b></div>
       <div class="row"><span>5★ 획득</span><b>${s.count5}</b></div>
       <div class="row"><span>평균 천장</span><b>${s.avgPity5?s.avgPity5.toFixed(1):'-'}</b></div>
-      ${b.meta.kind==='limited'?`<div class="row"><span>픽뚫 / 픽패 / 확정</span><b>${s.cWins} / ${s.cLoss} / ${s.gWins}</b></div>`:''}
+      ${b.meta.kind==='limited'?`<div class="row"><span>픽승 / 픽뚫 / 확정</span><b>${s.cWins} / ${s.cLoss} / ${s.gWins}</b></div>`:''}
       ${b.meta.kind==='limited'&&s.currentGuaranteed?'<span class="badge g">다음 확정</span>':''}
     </div>`;}
   h+=`</div></section>`;
@@ -266,8 +268,8 @@ function drawCharts(A){
   const lim=A.banners.filter(b=>b.meta.kind==='limited');
   charts.push(new Chart(c5050,{type:'bar',
     data:{labels:lim.map(b=>b.meta.short),datasets:[
-      {label:'픽뚫',data:lim.map(b=>b.stats.cWins),backgroundColor:'#f5c542'},
-      {label:'픽패',data:lim.map(b=>b.stats.cLoss),backgroundColor:'#ff6b6b'},
+      {label:'픽승',data:lim.map(b=>b.stats.cWins),backgroundColor:'#f5c542'},
+      {label:'픽뚫',data:lim.map(b=>b.stats.cLoss),backgroundColor:'#ff6b6b'},
       {label:'확정',data:lim.map(b=>b.stats.gWins),backgroundColor:'#52d39a'}]},
     options:{...base,indexAxis:'y',plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true,grid:{color:grid},ticks:{precision:0}},y:{stacked:true,grid:{display:false}}}}}));
 
