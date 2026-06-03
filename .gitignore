@@ -1,4 +1,4 @@
-# Node (no package.json — orphan, not reproducible; kept on disk only)
+# Node deps (package.json has no dependencies; nothing to install)
 node_modules/
 
 # graphify knowledge-graph output (regenerable)
@@ -18,3 +18,6 @@ dist/
 data/
 config.json
 *.tmp
+
+# Generated sample data (regenerate with: npm run sample)
+warp_data.sample.json
