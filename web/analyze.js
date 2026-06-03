@@ -1,6 +1,6 @@
 // Shared warp-analysis logic. Single source (served at /analyze.js, embedded in exe).
-// Unit-tested via web/analyze.test.js. 50/50 판정은 픽업 일정(SCHEDULE) 기반이다: 5★ 획득 시각이
-// 속한 배너 기간의 픽업(rate-up) 5★이면 픽승(win), 아니면 픽뚫(loss). '그 시점 픽업이었나'로 판정하므로
+// Unit-tested via web/analyze.test.js. 50/50 판정은 픽업 일정(SCHEDULE) 기반이다: 5★ 획득 시각의
+// 픽업(rate-up) 5★이면 픽승(win), 아니면 픽뚫(loss). '그 시점 픽업이었나'로 판정하므로
 // 상시풀 편입·Celestial Invitation·콜라보·리런을 모두 올바르게 처리한다(풀 소속 방식은 구조적으로 불가).
 // 일정에 없는 시각의 5★는 unidentified(미확인)로 표시 — 신규 패치 미반영 신호. SCHEDULE 출처는 하단 SOURCES.
 (function (root) {
@@ -62,8 +62,8 @@
     {s:'2026-02-17',e:'2026-03-10',c:['1501','1412','1317','1306'],l:['23053','23048','23033','23021']}, // 4.0 p2
     {s:'2026-03-10',e:'2026-03-31',c:['1504','1409'],l:['23056','23042']}, // 4.1 p1
     {s:'2026-03-31',e:'2026-04-21',c:['1504','1315'],l:['23056','23027']}, // 4.1 p2
-    {s:'2026-04-21',e:'2026-05-12',c:['1506','1321','1407','1310'],l:['23058','23050','23040','23025']}, // 4.2 p1
-    {s:'2026-05-12',e:'2026-06-02',c:['1505','1403','1313','1220'],l:['23057','23038','23034','23031']}, // 4.2 p2
+    {s:'2026-04-21',e:'2026-05-12',c:['1506','1321','1407','1310'],l:['23057','23050','23040','23025']}, // 4.2 p1 (23057=Welcome to the Cosmic City; Mantan은 23057↔23058을 뒤바꿔 저장 → 게임 id로 교정)
+    {s:'2026-05-12',e:'2026-06-02',c:['1505','1403','1313','1220'],l:['23058','23038','23034','23031']}, // 4.2 p2 (23058=Until the Flowers Bloom Again)
     {s:'2026-06-02',e:'2026-06-23',c:['1507','1502'],l:['23059','23054']}, // 4.3 p1
     {s:'2026-06-23',e:'2026-07-14',c:['1415','1408'],l:['23052','23044']}, // 4.3 p2
   ];
@@ -76,8 +76,21 @@
   const ORDER = ['11', '12', '1', '2'];
   const byId = (a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0);
   const mean = a => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
-  // 획득 시각(YYYY-MM-DD …)이 속한 배너 기간을 찾는다. 날짜 문자열 비교(연대순). 없으면 null.
-  const periodFor = (time) => { const d = String(time).slice(0, 10); return SCHEDULE.find(p => d >= p.s && d < p.e) || null; };
+  const DAY = 86400000, MATCH_TOL = 60 * DAY;                 // SCHEDULE 날짜는 근사(cadence) — 픽업 기간과 ±60일까지 같은 배너로 인정
+  const SCHED_END = SCHEDULE.length ? Date.parse(SCHEDULE[SCHEDULE.length - 1].e) : 0;
+  // 5★(item_id)가 시각 t의 픽업이었는지: t가 그 item을 픽업한 기간의 ±MATCH_TOL 안이면 픽승.
+  // (게임상 캐릭터는 자기 배너 때만 뽑히므로 가까운 픽업 기간=실제 뽑은 배너. 상시풀 편입분은
+  //  픽업 기간이 수개월 전이라 허용오차 밖 → 픽뚫. 허용오차가 cadence 날짜 오차는 흡수하고
+  //  리런/표준편입 간격(수개월)보다는 작아 오판하지 않는다.)
+  function wasPickup(id, t, poolKey) {
+    for (const p of SCHEDULE) {
+      if (!p[poolKey].includes(id)) continue;
+      const s = Date.parse(p.s), e = Date.parse(p.e);
+      const d = (t >= s && t < e) ? 0 : Math.min(Math.abs(t - s), Math.abs(t - e));
+      if (d <= MATCH_TOL) return true;
+    }
+    return false;
+  }
 
   function analyzeBanner(records, meta) {
     const list = records.slice().sort(byId);
@@ -92,11 +105,10 @@
         const id = String(r.item_id);
         const f = { name: r.name, item_id: id, item_type: r.item_type, time: r.time, pity: p5, result: null, isPickup: null, fromGuarantee: false, unidentified: false };
         if (meta.kind === 'limited') {
-          const period = periodFor(r.time);                  // 획득 시각이 속한 배너 기간
-          const featured = period ? period[poolKey] : null;  // 그 기간의 픽업 5★ item_id 목록
-          if (!featured) { f.unidentified = true; unknown5++; }   // 일정 미반영(신규/범위 밖) — 판정 보류
+          const t = Date.parse(String(r.time).slice(0, 10));
+          if (!(t < SCHED_END)) { f.unidentified = true; unknown5++; }  // 일정 범위 밖(신규 패치 미반영) — 판정 보류
           else {
-            f.isPickup = featured.includes(id);              // 그 시점 픽업이면 픽승, 아니면 픽뚫
+            f.isPickup = wasPickup(id, t, poolKey);          // 그 시점 픽업이면 픽승, 아니면 픽뚫
             if (guaranteed) { f.result = 'guaranteed'; f.fromGuarantee = true; gWins++; guaranteed = false; }
             else { contested++; if (f.isPickup) { f.result = 'win'; cWins++; } else { f.result = 'loss'; cLoss++; guaranteed = true; } }
           }
