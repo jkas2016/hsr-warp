@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSR 워프 — 아키텍처</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  :root{
+    --txt:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#ffffff;
+    --link:#2563eb; --code-bg:#f6f8fa;
+    --green:#16a34a; --red:#dc2626; --amber:#d97706;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--txt);
+    font-family:"Pretendard Variable",Pretendard,system-ui,"Malgun Gothic",sans-serif;
+    font-size:16px;line-height:1.7;
+  }
+  main{max-width:880px;margin:0 auto;padding:48px 24px 120px}
+  code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,Consolas,monospace}
+
+  h1{font-size:26px;font-weight:700;line-height:1.3;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 4px}
+  h2{font-size:20px;font-weight:700;margin:44px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  h3{font-size:16px;font-weight:700;margin:24px 0 6px}
+  p{margin:10px 0}
+  ul,ol{margin:10px 0;padding-left:22px}
+  li{margin:4px 0}
+  a{color:var(--link);text-decoration:none}
+  a:hover{text-decoration:underline}
+  strong{font-weight:700}
+  em{font-style:normal;font-weight:600}
+
+  code{background:var(--code-bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:13px}
+  figure{margin:16px 0}
+  figcaption{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted);margin-bottom:4px}
+  pre{background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;margin:0;font-size:13px;line-height:1.6}
+  pre code{background:none;border:none;padding:0}
+  .cmt{color:#6b7280}
+
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:14px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:600}
+  td code{font-size:12px}
+  caption{caption-side:bottom;text-align:left;color:var(--muted);font-size:12px;padding-top:6px}
+
+  .toc{border:1px solid var(--line);border-radius:8px;padding:14px 18px;margin:22px 0;font-size:14px}
+  .toc strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-bottom:8px}
+  .toc ol{columns:2;column-gap:32px;margin:0;padding-left:18px}
+
+  .note,.warn,.stop{border-left:3px solid;border-radius:0 6px 6px 0;padding:10px 14px;margin:14px 0;font-size:14.5px;background:#f9fafb}
+  .note{border-color:var(--link)}
+  .warn{border-color:var(--amber);background:#fffbeb}
+  .stop{border-color:var(--red);background:#fef2f2}
+  .note b,.warn b,.stop b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+  .note b{color:var(--link)} .warn b{color:var(--amber)} .stop b{color:var(--red)}
+
+  .win{color:var(--green);font-weight:600}
+  .loss{color:var(--red);font-weight:600}
+  .hold{color:var(--amber);font-weight:600}
+
+  .mermaid{margin:8px 0;text-align:center}
+  .chart-box{position:relative;height:300px;margin:14px 0}
+</style>
+</head>
+<body>
+<main>
+  <h1>HSR 워프 — 아키텍처</h1>
+  <p class="sub">자가 호스팅 호요버스 스타레일 워프(가챠) 기록 추적기 · 단일 Go 실행파일 + 브라우저 분석</p>
+  <p class="sub">레포 <code>docs/architecture.html</code> · 소스와 <code>CLAUDE.md</code>·<code>docs/ARCHITECTURE.md</code>를 읽고 재구성</p>
+
+  <p>
+    게임 캐시에서 authkey를 추출해 비공식 <code>getGachaLog</code> API를 증분 호출하고, 데이터를 SRGF v1.0 형식으로
+    월별 저장한 뒤, 같은 exe에 내장된 대시보드를 로컬 HTTP로 서빙하고 진행 상황을 SSE로 스트리밍한다.
+    천장·운·50/50 등 분석은 전부 브라우저의 <code>web/analyze.js</code>가 담당한다. <strong>모든 처리는 로컬에서만 일어난다.</strong>
+  </p>
+
+  <nav class="toc">
+    <strong>목차</strong>
+    <ol>
+      <li><a href="#facts">핵심 사실</a></li>
+      <li><a href="#reading">권장 탐색 순서</a></li>
+      <li><a href="#packages">패키지 구조</a></li>
+      <li><a href="#flow">데이터 흐름</a></li>
+      <li><a href="#api">HTTP / SSE API</a></li>
+      <li><a href="#banners">배너와 gacha_type</a></li>
+      <li><a href="#fiftyfifty">50/50 픽승·픽뚫</a></li>
+      <li><a href="#authkey">authkey 추출</a></li>
+      <li><a href="#invariants">불변식</a></li>
+      <li><a href="#logging">로깅</a></li>
+      <li><a href="#sources">근거와 외부 명세</a></li>
+      <li><a href="#gotchas">함정</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="facts">핵심 사실</h2>
+  <table>
+    <tbody>
+      <tr><th>언어</th><td>Go (백엔드 수집·저장·서빙) + 브라우저 JS (분석)</td></tr>
+      <tr><th>프로덕션 Go</th><td>약 941 LOC, 4개 패키지 (main + internal 3)</td></tr>
+      <tr><th>분석 엔진</th><td><code>web/analyze.js</code> 190 LOC, 외부 의존성 0</td></tr>
+      <tr><th>런타임 의존</th><td>Go 표준 라이브러리만. 브라우저는 차트용 Chart.js만 CDN 사용</td></tr>
+      <tr><th>픽업 일정</th><td><code>SCHEDULE</code> 57개 항목 (1.0 ~ 4.3, 2023-04 ~ 2026-07)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>파일별 코드 줄 수</h3>
+  <figure>
+    <div class="chart-box"><canvas id="locChart"></canvas></div>
+    <figcaption>프로덕션 소스만 (테스트 제외). 색 = 계층: 보라 collector · 초록 store · 파랑 server · 주황 web · 회색 main</figcaption>
+  </figure>
+
+  <h2 id="reading">권장 탐색 순서</h2>
+  <p>바깥에서 안으로, 흐름을 따라 읽으면 가장 빠르다.</p>
+  <ol>
+    <li><code>main.go</code> — 진입점. baseDir, 로깅, 빈 포트 선택, 자산 embed, 브라우저 오픈.</li>
+    <li><code>internal/server/server.go</code> — 라우팅과 <code>handleFetch</code>(SSE 오케스트레이션). 전체 흐름의 허브.</li>
+    <li><code>internal/collector/cache.go</code> → <code>fetch.go</code> — authkey 추출 후 증분 수집.</li>
+    <li><code>internal/store/store.go</code> + <code>srgf.go</code> — 비파괴 월별 저장과 ID 정밀 비교.</li>
+    <li><code>web/analyze.js</code> — 모든 분석. 50/50 판정의 단일 소스.</li>
+    <li><code>web/dashboard.html</code> — 분석 결과를 차트·표로 렌더.</li>
+  </ol>
+
+  <h2 id="packages">패키지 구조</h2>
+  <p>Go 모듈 <code>hsr-warp</code>. 의존 방향은 한쪽이다: <code>main → server → {collector, store}</code> (collector도 store 타입에 의존).</p>
+  <table>
+    <thead><tr><th>패키지 / 파일</th><th>책임</th><th>핵심 심볼</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>main.go</code></td>
+        <td>실행파일 기준 baseDir 결정, <code>data/</code>·<code>config.json</code> 경로, 빈 포트 탐색, <code>web/</code> 자산 embed, 기본 브라우저 자동 오픈, 로깅 셋업.</td>
+        <td><code>setupLogging</code>, <code>freeListener</code>, <code>stackHandler</code>, <code>fatal</code></td>
+      </tr>
+      <tr>
+        <td><code>internal/server</code></td>
+        <td>HTTP 라우팅과 핸들러. 임베드된 <code>web/</code>를 정적 서빙. 패닉 복구 미들웨어로 라우터 전체를 감쌈.</td>
+        <td><code>Handler</code>, <code>handleFetch</code>, <code>handleData</code>, <code>handleConfig</code>, <code>handleDetect</code>, <code>recoverMiddleware</code></td>
+      </tr>
+      <tr>
+        <td><code>internal/collector</code></td>
+        <td>게임 캐시 <code>data_2</code>에서 정규식으로 authkey URL 추출 → 배너별 페이지네이션으로 저장분보다 최신인 기록만 증분 수집.</td>
+        <td><code>FindAuthContext</code>, <code>parseAuthURL</code>, <code>FetchIncremental</code>, <code>latestVersion</code></td>
+      </tr>
+      <tr>
+        <td><code>internal/store</code></td>
+        <td>SRGF 타입과 저장. 월별 병합·중복제거·정렬, 증분 기준 산출, 비파괴 부분 재작성, 큰 정수 ID 비교.</td>
+        <td><code>LoadAll</code>, <code>MaxIDByBanner</code>, <code>WriteAffectedMonths</code>, <code>idLess</code>, <code>TZForRegion</code></td>
+      </tr>
+      <tr>
+        <td><code>web/analyze.js</code></td>
+        <td>의존성 0의 순수 분석. 천장·운·50/50·월별. UMD 패턴이라 브라우저와 Node(테스트) 양쪽에서 동작.</td>
+        <td><code>analyze</code>, <code>analyzeBanner</code>, <code>wasPickup</code>, <code>monthly</code></td>
+      </tr>
+    </tbody>
+    <caption>참고: <code>tools/genicon</code>은 <code>go:generate</code> 빌드 도구로 런타임 바이너리에 포함되지 않는다.</caption>
+  </table>
+
+  <h2 id="flow">데이터 흐름</h2>
+  <p>"조회" 한 번의 전체 경로. <code>handleFetch</code>가 오케스트레이션하며 각 단계를 SSE 이벤트로 흘린다.</p>
+  <pre class="mermaid">
+flowchart TD
+  Browser["브라우저: dashboard.html + analyze.js"]
+  Cache["게임 웹 캐시 data_2"]
+  API["HoYo getGachaLog API"]
+  Disk["data 폴더 warp_YYYYMM.json SRGF"]
+
+  subgraph Collector [collector 수집]
+    Find["FindAuthContext: authkey 추출"]
+    Fetch["FetchIncremental: 배너별 페이지네이션"]
+  end
+
+  subgraph Store [store 저장]
+    Max["MaxIDByBanner: 증분 기준선"]
+    Write["WriteAffectedMonths: 비파괴 월별 재작성"]
+  end
+
+  Browser -->|조회 요청 SSE| Find
+  Find -->|읽기| Cache
+  Find --> Max
+  Max --> Fetch
+  Fetch -->|증분 조회| API
+  API -.->|기록 응답| Fetch
+  Fetch --> Write
+  Write --> Disk
+  Disk -->|LoadAll 합본| Browser
+
+  classDef collector fill:#ede9fe,stroke:#7c3aed,color:#3b0764
+  classDef store fill:#dcfce7,stroke:#16a34a,color:#14532d
+  classDef ext fill:#f1f5f9,stroke:#64748b,color:#1e293b
+  classDef ui fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+
+  class Find,Fetch collector
+  class Max,Write store
+  class Cache,API,Disk ext
+  class Browser ui
+  </pre>
+  <ol>
+    <li>브라우저가 게임 경로를 붙여 <code>GET /api/fetch</code> SSE 연결.</li>
+    <li><code>FindAuthContext</code>가 <code>StarRail_Data\webCaches\&lt;버전&gt;\Cache\Cache_Data\data_2</code>를 읽어 authkey URL 추출. 버전 폴더는 숫자 비교(<code>latestVersion</code>)로 최신 선택.</li>
+    <li><code>LoadAll</code> + <code>MaxIDByBanner</code>로 배너별 마지막 저장 ID(증분 기준선)를 구한다.</li>
+    <li><code>FetchIncremental</code>이 배너 <code>1·2·11·12</code> 순으로 페이지네이션, 저장분보다 최신 id만 모은다. 페이지마다 <code>progress</code> SSE, 호출 간 400ms 지연(레이트 리밋 회피).</li>
+    <li><code>WriteAffectedMonths</code>가 신규가 생긴 월 파일만 병합·재작성(나머지 월 보존).</li>
+    <li><code>LoadAll</code>로 전체 합본을 재구성해 <code>done</code> 이벤트에 요약 + 데이터를 실어 보낸다. 브라우저가 <code>analyze.js</code>로 분석·렌더.</li>
+  </ol>
+
+  <h2 id="api">HTTP / SSE API</h2>
+  <table>
+    <thead><tr><th>엔드포인트</th><th>메서드</th><th>동작</th></tr></thead>
+    <tbody>
+      <tr><td><code>/api/data</code></td><td>GET</td><td><code>LoadAll</code> 결과(전체 합본)를 JSON으로. 신규 조회 없이 기존 저장분만.</td></tr>
+      <tr><td><code>/api/config</code></td><td>GET / POST</td><td>로컬 <code>config.json</code>(게임 경로) 읽기/쓰기.</td></tr>
+      <tr><td><code>/api/detect</code></td><td>GET</td><td>흔한 HoYoPlay 경로 후보를 훑어 <code>webCaches</code>가 있는 첫 경로 반환.</td></tr>
+      <tr><td><code>/api/fetch</code></td><td>GET (SSE)</td><td>증분 조회 스트리밍. 이벤트 <code>progress</code> / <code>error</code> / <code>done</code>.</td></tr>
+      <tr><td><code>/</code> 외</td><td>GET</td><td>임베드된 <code>web/</code> 정적 서빙. 자산이 nil이면 비활성(API 테스트용).</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    <b>SSE를 쓰는 이유</b>
+    조회는 배너 4개 × 여러 페이지 × 400ms 지연이라 수초~수십초가 걸린다. 단일 응답 대신 페이지 단위 진행률을
+    흘려 "멈춘 게 아니다"를 보여주고, authkey 만료 같은 실패도 <code>error</code> 이벤트로 즉시 전달한다.
+  </div>
+
+  <h2 id="banners">배너와 gacha_type</h2>
+  <p><code>gacha_type</code> 코드는 SRGF 표준에 묶여 있고, 분석 메타는 <code>analyze.js</code>의 <code>BANNERS</code>에 정의된다.</p>
+  <table>
+    <thead><tr><th>코드</th><th>배너</th><th>종류</th><th>천장</th><th>rate-up</th><th>이론 평균</th></tr></thead>
+    <tbody>
+      <tr><td><code>11</code></td><td>캐릭터 이벤트</td><td>limited</td><td>90</td><td>0.5</td><td>62.5</td></tr>
+      <tr><td><code>12</code></td><td>광추 이벤트</td><td>limited</td><td>80</td><td>0.75</td><td>53.5</td></tr>
+      <tr><td><code>1</code></td><td>스텔라(일반)</td><td>standard</td><td>90</td><td>—</td><td>62.5</td></tr>
+      <tr><td><code>2</code></td><td>출발 워프</td><td>beginner</td><td>50</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p>limited 배너(11·12)만 50/50 판정 대상이다. standard·beginner는 픽업 개념이 없어 천장·운만 계산한다.</p>
+
+  <h2 id="fiftyfifty">50/50 픽승·픽뚫</h2>
+  <p>코드만 봐선 가장 이해하기 어려운 부분이자 정확도의 핵심. <code>web/analyze.js</code>가 유일한 판정 소스다.</p>
+
+  <h3>판정 방식: "그 시점 픽업이었나"</h3>
+  <p>
+    5★를 <strong>획득한 시각</strong>에 그 item_id가 당시 픽업(rate-up)이었으면 <span class="win">픽승(win)</span>,
+    아니면 <span class="loss">픽뚫(loss)</span>. 픽뚫이면 다음 5★를 <span class="hold">확정(guaranteed)</span>으로 만든다.
+    <code>analyzeBanner</code>가 ID 오름차순(=시간순)으로 순회하며 상태 기계처럼 처리한다.
+  </p>
+  <figure>
+    <figcaption>web/analyze.js — 핵심 분기 (요지)</figcaption>
+    <pre><code>f.isPickup = wasPickup(id, t, poolKey);          <span class="cmt">// 그 시점 픽업?</span>
+if (guaranteed) { f.result = 'guaranteed'; guaranteed = false; }  <span class="cmt">// 직전 픽뚫의 확정 회수</span>
+else if (f.isPickup) { f.result = 'win'; }                         <span class="cmt">// 50/50 승</span>
+else { f.result = 'loss'; guaranteed = true; }                     <span class="cmt">// 50/50 패 → 다음은 확정</span></code></pre>
+  </figure>
+
+  <h3>왜 "풀 소속"이 아니라 "그 시점"인가</h3>
+  <p>
+    "이 캐릭터가 상시풀 소속인가"로 판정하면 틀린다. 패배 풀은 <strong>시변적이고 플레이어별</strong>이라 구조적으로 불가능하다.
+    대신 "획득 시각이 그 item의 픽업 기간 근처였나"로 보면 <strong>상시풀 편입·Celestial Invitation·콜라보·리런</strong>을
+    모두 자연히 올바르게 처리한다. 같은 캐릭터라도 자기 픽업 배너 때 뽑혔으면 픽승, 한참 뒤 상시풀에서 나왔으면 픽뚫로 갈린다.
+  </p>
+
+  <h3>±60일 허용오차</h3>
+  <p>
+    <code>SCHEDULE</code>의 날짜는 정확한 일정이 아니라 42일 cadence 근사값이다(3.1=2025-02-25 앵커).
+    그래서 <code>wasPickup</code>은 획득 시각이 픽업 기간의 ±60일(<code>MATCH_TOL</code>) 안이면 같은 배너로 인정한다.
+    이 오차는 cadence 날짜 오차는 흡수하면서, 리런·표준 편입 간격(보통 수개월)보다는 작아 오판하지 않는다.
+  </p>
+  <div class="warn">
+    <b>신규 패치 출시 시</b>
+    <code>SCHEDULE</code> 배열에 <code>{s, e, c, l}</code>을 추가한다 — <code>s</code>/<code>e</code>=기간,
+    <code>c</code>=캐릭터 픽업 item_id, <code>l</code>=광추 픽업 item_id. 누락하면 그 기간 5★는
+    <span class="hold">unidentified(미확인)</span>로 표시되어 "패치 미반영" 신호 역할을 한다.
+  </div>
+
+  <h2 id="authkey">authkey 추출</h2>
+  <p>
+    게임은 인게임 전언 기록을 열 때 authkey가 박힌 URL을 웹 캐시 <code>data_2</code>에 남긴다. 캐시에는 HoYoLAB·이벤트용
+    URL이 섞여 있어 <code>getGachaLog</code> 엔드포인트만 골라야 하고, 같은 캐시에 여러 개가 쌓일 수 있으므로
+    URL의 <strong><code>timestamp</code> 쿼리값이 가장 큰(가장 최근 발급)</strong> 것을 채택한다.
+  </p>
+  <ul>
+    <li>API 호스트·경로를 <strong>하드코딩하지 않고</strong> 캐시의 실제 값을 그대로 쓴다 — HoYo가 경로를 바꿔도 견딘다.</li>
+    <li>쿼리는 자동 파싱 대신 직접 분해해 <strong>원본 인코딩(authkey의 <code>%2B</code> 등)을 보존</strong>한다. 페이지네이션 키만 떼어낸다.</li>
+    <li>채택한 URL의 <code>timestamp</code> = "전언 기록을 마지막으로 연 시각" → 만료 진단에 경과 일수로 활용.</li>
+  </ul>
+  <div class="stop">
+    <b>authkey 만료 (retcode -101)</b>
+    <strong>게임을 켜는 것만으로는 authkey가 갱신되지 않는다.</strong> 게임 안에서 [전언]→[기록] 화면을 실제로 열어야
+    캐시에 새 authkey가 기록된다(~24시간 유효). 만료 시 경과 일수를 곁들인 안내가 <code>error</code> SSE로 전달된다 — 설계된 동작이다.
+    레이트 리밋(<code>-110</code>)은 "1~2분 기다리라"는 별도 메시지.
+  </div>
+
+  <h2 id="invariants">불변식</h2>
+  <h3>저장은 비파괴 부분 재작성</h3>
+  <p>
+    <code>WriteAffectedMonths</code>는 이번 조회로 신규가 생긴 월 파일만 로드·병합·중복제거·정렬해 원자적으로
+    (<code>.tmp</code> 쓰고 rename) 재작성하고, 손대지 않은 월은 보존한다. authkey가 최근 기록만 줄 때 과거 월이
+    통째로 사라지는 사고를 막는 핵심 보장이며, <code>TestWriteAffectedMonths_PreservesUntouchedMonths</code>가 강제한다.
+  </p>
+  <h3>ID는 큰 정수 — JS는 BigInt 필수</h3>
+  <p>
+    워프 ID는 19자리 정수다(실제 예: <code>1780207800000106679</code> ≈ 1.78×10<sup>18</sup>).
+    이는 JS의 안전 정수 한계 <code>Number.MAX_SAFE_INTEGER</code>(2<sup>53</sup>−1 ≈ 9.0×10<sup>15</sup>)를 세 자릿수 가까이
+    초과하므로, <code>Number</code>로 비교하면 정밀도가 깨진다 — JS는 <code>BigInt</code>로만 비교한다(<code>byId</code>).
+    Go는 일관성을 위해 <code>math/big.Int</code>(<code>idLess</code>)를 쓴다.
+  </p>
+  <h3>analyze.js는 단일 소스</h3>
+  <p>
+    <code>web/analyze.js</code>가 분석의 유일 소스다. 서버가 <code>/analyze.js</code>로 서빙하고 exe에 임베드한다.
+    UMD 패턴으로 브라우저와 Node 양쪽에서 동작하며 의존성 0이어야 한다. <code>web/analyze.test.js</code>가
+    같은 파일을 <code>require</code>해 검증한다.
+  </p>
+
+  <h2 id="logging">로깅</h2>
+  <p>표준 <code>log/slog</code>(JSON, 외부 의존 0). <code>setupLogging</code>이 콘솔 + 날짜별 파일에 동시 출력.</p>
+  <ul>
+    <li><strong>레벨 우선순위</strong> <code>HSRWARP_LOG</code>(런타임) &gt; 빌드 시 박힌 <code>logLevel</code>(ldflags) &gt; 기본 <code>info</code>. release=info, <code>npm run build:debug</code>는 debug를 박은 별도 <code>hsr-warp-debug.exe</code>.</li>
+    <li><strong>에러엔 항상 스택</strong> <code>stackHandler</code>가 ERROR 이상에 고루틴 스택을 자동 첨부 — 호출부에서 깜빡할 여지가 없다.</li>
+    <li><strong>전역 패닉 복구</strong> Go엔 전역 예외 핸들러가 없어 <code>recoverMiddleware</code>가 HTTP 핸들러 전체를 감싸 panic을 500 + ERROR로 복구한다.</li>
+    <li><strong>자격증명 보호</strong> authkey는 절대 로그에 넣지 않는다 — host/path/region/lang/발급시각/개수만.</li>
+  </ul>
+
+  <h2 id="sources">근거와 외부 명세</h2>
+  <p>코드에서 직접 확인한 사실은 파일 경로로, 외부·플랫폼 동작은 공식 문서로 근거를 둔다.</p>
+  <table>
+    <thead><tr><th>주제</th><th>근거</th></tr></thead>
+    <tbody>
+      <tr><td>50/50 판정 로직 (<code>wasPickup</code>, <code>SCHEDULE</code>)</td><td><code>web/analyze.js</code></td></tr>
+      <tr><td>비파괴 저장 (<code>WriteAffectedMonths</code>)</td><td><code>internal/store/store.go</code></td></tr>
+      <tr><td>authkey 추출·timestamp 선택</td><td><code>internal/collector/cache.go</code></td></tr>
+      <tr><td>증분 조회·retcode 처리</td><td><code>internal/collector/fetch.go</code></td></tr>
+      <tr><td>SSE 오케스트레이션</td><td><code>internal/server/server.go</code></td></tr>
+      <tr><td>게임 실행 중 캐시 파일 읽기 (공유 모드)</td><td>코드 주석 근거: <code>internal/collector/cache.go</code> (Windows 공유 모드로 열어 게임 실행 중에도 읽기 가능)</td></tr>
+      <tr><td>JS 안전 정수 한계 (BigInt 필요성)</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER">MDN: Number.MAX_SAFE_INTEGER</a></td></tr>
+      <tr><td>SRGF v1.0 형식 · <code>gacha_type</code> 코드</td><td><a href="https://uigf.org/en/standards/srgf.html">uigf.org</a></td></tr>
+      <tr><td>픽업 일정 (SCHEDULE)</td><td><a href="https://github.com/Mantan21/HSR-Warp-Simulator">Mantan21/HSR-Warp-Simulator</a></td></tr>
+      <tr><td>item_id 검증</td><td><a href="https://github.com/Mar-7th/StarRailRes">Mar-7th/StarRailRes</a></td></tr>
+      <tr><td>확률 · 50/50 규칙</td><td><a href="https://www.prydwen.gg/star-rail/guides/gacha-system/">Prydwen</a></td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="gotchas">함정</h2>
+  <ul>
+    <li>authkey는 전언 기록 화면을 최근 ~24시간 내 한 번 열어야 유효하다. 없으면 조회는 SSE error로 실패(설계).</li>
+    <li><code>hsr-warp.exe</code>, <code>data/</code>, <code>config.json</code>, <code>*.tmp</code>, 구 생성물 <code>HSR_Warp_Dashboard.html</code>은 gitignore 대상.</li>
+    <li>Go가 설치돼 있어도 PATH에 없을 수 있다. 그 경우 <code>$env:Path</code>에 <code>C:\Program Files\Go\bin</code>을 prepend.</li>
+    <li>구 PowerShell 산출물 흔적: SRGF 파일의 선행 UTF-8 BOM을 <code>readSRGF</code>가 제거한다.</li>
+    <li><code>monthOf</code>는 <code>time</code> 앞 7자(<code>YYYY-MM</code>)로 월 키를 만든다. 형식 불일치 레코드는 저장 시 조용히 건너뛴다.</li>
+  </ul>
+</main>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+  const C = { collector:'#7c3aed', store:'#16a34a', server:'#2563eb', web:'#d97706', main:'#64748b' };
+  const rows = [
+    ['web/dashboard.html', 289, C.web],
+    ['internal/server/server.go', 204, C.server],
+    ['web/analyze.js', 190, C.web],
+    ['internal/collector/cache.go', 187, C.collector],
+    ['main.go', 157, C.main],
+    ['internal/store/store.go', 151, C.store],
+    ['internal/collector/fetch.go', 140, C.collector],
+    ['internal/server/config.go', 57, C.server],
+    ['internal/store/srgf.go', 45, C.store],
+  ];
+  new Chart(document.getElementById('locChart'), {
+    type: 'bar',
+    data: {
+      labels: rows.map(r => r[0]),
+      datasets: [{ data: rows.map(r => r[1]), backgroundColor: rows.map(r => r[2]),
+        categoryPercentage: 0.85, barPercentage: 0.9 }],
+    },
+    options: {
+      indexAxis: 'y',
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, title: { display: true, text: 'LOC' }, grid: { color: '#f1f5f9' } },
+        y: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 11 } } },
+      },
+    },
+  });
+</script>
+</body>
+</html>
