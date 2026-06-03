@@ -19,9 +19,6 @@ go build -ldflags="-s -w" -o hsr-warp.exe .
 # 테스트
 go test ./...          # Go 단위 테스트 (internal/collector, internal/store, internal/server)
 node analyze.test.js   # 브라우저 분석 로직(analyze.js) 단위 테스트, 통과 시 "OK ..." 후 exit 0
-
-# 합성 데이터 생성 → warp_data.sample.json (수동 확인용)
-node gen_sample.js
 ```
 
 ## Architecture

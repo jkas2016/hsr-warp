@@ -11,7 +11,6 @@
     "vet": "go vet ./...",
     "test": "go test ./... && node analyze.test.js",
     "test:go": "go test ./...",
-    "test:analyze": "node analyze.test.js",
-    "sample": "node gen_sample.js"
+    "test:analyze": "node analyze.test.js"
   }
 }

@@ -36,7 +36,6 @@ npm run build    # web/analyze.js 동기화(prebuild) → 정적 단일 exe 빌�
 npm start        # 빌드 후 hsr-warp.exe 실행
 npm test         # go test ./...  +  node analyze.test.js
 npm run vet      # go vet ./...
-npm run sample   # node gen_sample.js (합성 데이터)
 ```
 
 원하면 도구를 직접 호출해도 됩니다:
