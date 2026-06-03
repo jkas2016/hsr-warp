@@ -32,6 +32,48 @@ func TestParseAuthURL_NoURL(t *testing.T) {
 	}
 }
 
+// 실제 캐시에는 getGachaLog 외에도 HoYoLAB/이벤트용 authkey URL이 다수 섞여 있고,
+// 게임 내 전언기록 URL이 마지막이 아닐 수 있다. getGachaLog URL을 골라야 한다.
+func TestParseAuthURL_PicksGachaLogNotLast(t *testing.T) {
+	blob := []byte(
+		"\x00https://public-operation-hkrpg-sg.hoyoverse.com/common/hkrpg_gacha_record/api/getGachaLog?authkey=GOOD&lang=ko-kr&game_biz=hkrpg_global\x00" +
+			"\x00https://sg-act-public-api.hoyolab.com/common/badge/v1/login/authKey?authkey=BAD&game_biz=hkrpg_global\x00")
+	ac, err := parseAuthURL(blob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !contains(ac.APIBase, "getGachaLog") {
+		t.Fatalf("APIBase must be the getGachaLog endpoint, got: %s", ac.APIBase)
+	}
+	if contains(ac.APIBase, "hoyolab") {
+		t.Fatalf("must not pick the HoYoLAB badge URL: %s", ac.APIBase)
+	}
+	if !contains(ac.BaseQuery, "authkey=GOOD") {
+		t.Fatalf("must keep authkey from the getGachaLog URL: %s", ac.BaseQuery)
+	}
+}
+
+// 경로를 하드코딩하지 말고 캐시의 실제 경로(hkrpg_gacha_record 등)를 보존해야 한다.
+func TestParseAuthURL_PreservesActualHostAndPath(t *testing.T) {
+	blob := []byte("\x00https://public-operation-hkrpg-sg.hoyoverse.com/common/hkrpg_gacha_record/api/getGachaLog?authkey=X&lang=ko-kr\x00")
+	ac, err := parseAuthURL(blob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "https://public-operation-hkrpg-sg.hoyoverse.com/common/hkrpg_gacha_record/api/getGachaLog"
+	if ac.APIBase != want {
+		t.Fatalf("APIBase should preserve actual host+path.\n want: %s\n got:  %s", want, ac.APIBase)
+	}
+}
+
+// getGachaLog URL이 전혀 없으면(다른 authkey URL만 있으면) 명확히 실패해야 한다.
+func TestParseAuthURL_NoGachaLogURL(t *testing.T) {
+	blob := []byte("\x00https://sg-act-public-api.hoyolab.com/common/badge/v1/login/authKey?authkey=BAD&game_biz=hkrpg_global\x00")
+	if _, err := parseAuthURL(blob); err == nil {
+		t.Fatal("expected error when no getGachaLog URL is present")
+	}
+}
+
 func contains(s, sub string) bool {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {

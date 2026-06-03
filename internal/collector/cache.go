@@ -33,12 +33,14 @@ func parseAuthURL(blob []byte) (*AuthContext, error) {
 	var raw string
 	for _, m := range matches {
 		s := string(m)
-		if strings.Contains(s, "hkrpg") {
-			raw = s // 가장 최근(마지막) 항목 채택
+		// 캐시에는 HoYoLAB·이벤트용 authkey URL이 다수 섞여 있다. 게임 내 전언 기록
+		// 엔드포인트(getGachaLog)만 채택하고, 그중 가장 최근(마지막) 것을 쓴다.
+		if strings.Contains(s, "getGachaLog") {
+			raw = s
 		}
 	}
 	if raw == "" {
-		return nil, errors.New("캐시에서 authkey URL을 찾지 못했습니다. 게임에서 전언 기록 화면을 한 번 연 뒤 다시 시도하세요")
+		return nil, errors.New("캐시에서 전언 기록 API URL을 찾지 못했습니다. 게임 내에서 전언 기록 화면을 한 번 연 뒤 다시 시도하세요")
 	}
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -68,7 +70,9 @@ func parseAuthURL(blob []byte) (*AuthContext, error) {
 		}
 	}
 	return &AuthContext{
-		APIBase:   u.Scheme + "://" + u.Host + "/common/gacha_record/api/getGachaLog",
+		// 경로를 하드코딩하지 않고 캐시의 실제 호스트·경로를 그대로 쓴다.
+		// (HoYo가 /common/gacha_record → /common/hkrpg_gacha_record 처럼 바꿔도 견딘다.)
+		APIBase:   u.Scheme + "://" + u.Host + u.Path,
 		BaseQuery: strings.Join(kept, "&"),
 		Region:    region,
 		Lang:      lang,
