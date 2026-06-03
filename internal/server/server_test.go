@@ -54,3 +54,16 @@ func TestHandleConfig_PostThenGet(t *testing.T) {
 		t.Fatalf("config not persisted: %q", c.GamePath)
 	}
 }
+
+func TestHandleData_EmptyDirReturnsEmptyList(t *testing.T) {
+	dir := t.TempDir()
+	s := New(Paths{DataDir: dir, ConfigFile: filepath.Join(dir, "config.json")})
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/data", nil))
+	if rr.Code != 200 {
+		t.Fatalf("status %d", rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), `"list": []`) && !strings.Contains(rr.Body.String(), `"list":[]`) {
+		t.Fatalf("expected empty list [], got: %s", rr.Body.String())
+	}
+}

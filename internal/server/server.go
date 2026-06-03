@@ -50,6 +50,9 @@ func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if recs == nil {
+		recs = []store.Record{}
+	}
 	out := store.SRGF{List: recs}
 	if info != nil {
 		out.Info = *info
