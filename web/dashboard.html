@@ -202,7 +202,7 @@ function render(A){
 
   // banner cards
   h+=`<section><h2>배너별 현황</h2><div class="grid banners">`;
-  for(const b of A.banners){const s=b.stats,cap=b.meta.cap,pct=Math.min(100,s.currentPity5/cap*100);
+  for(const b of A.banners){if(b.type==='2')continue;const s=b.stats,cap=b.meta.cap,pct=Math.min(100,s.currentPity5/cap*100);
     h+=`<div class="card banner">
       <h3><span class="dot" style="background:${b.meta.color}"></span>${b.meta.short} 워프</h3>
       <div style="margin-top:12px"><span class="pity-num" style="color:${pityColor(s.currentPity5)}">${s.currentPity5}</span> <small>/ ${cap} 천장</small></div>
