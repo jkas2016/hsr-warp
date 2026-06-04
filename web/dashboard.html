@@ -66,6 +66,8 @@
   .name5{font-weight:600}
   .foot{color:var(--muted);font-size:12px;margin-top:30px;text-align:center;line-height:1.7}
   details summary{cursor:pointer;color:var(--gold);font-size:13px;margin-top:8px}
+  .more{margin-top:12px;padding:8px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);font-size:13px;cursor:pointer}
+  .more:hover{background:var(--line)}
 </style>
 </head>
 <body>
@@ -100,6 +102,8 @@
 const $=s=>document.querySelector(s);
 const err=$('#err'),app=$('#app');
 let charts=[];
+const PAGE_FIVES=20,PAGE_MONTH=12;
+let fivesShown=PAGE_FIVES,monthShown=PAGE_MONTH;
 const num=n=>Math.round(n).toLocaleString('ko-KR');
 const pityColor=p=>p<60?'var(--green)':p<=80?'var(--orange)':'var(--red)';
 const resText={win:'픽승',loss:'픽뚫',guaranteed:'확정',null:'-'};
@@ -154,6 +158,21 @@ fillPath();
 loadStored();
 
 function statCard(k,v,small){return `<div class="card stat"><div class="k">${k}</div><div class="v">${v}${small?` <small>${small}</small>`:''}</div></div>`;}
+function fivesRowsHTML(A,limit){
+  if(!A.all5.length)return `<tr><td colspan="5" class="muted">5★ 기록 없음</td></tr>`;
+  return A.all5.slice(0,limit).map(f=>{const showRes=f.result!=null;
+    return `<tr><td class="name5" style="color:${f.isPickup===false?'var(--muted)':'var(--gold)'}">${f.name}</td>
+      <td><span class="tag">${f.banner}</span></td>
+      <td><span class="pill" style="background:${pityColor(f.pity)}">${f.pity}</span></td>
+      <td>${showRes?`<span class="res ${resClass[f.result]}">${resText[f.result]}</span>`:'<span class="muted">-</span>'}</td>
+      <td class="muted">${f.time}</td></tr>`;}).join('');
+}
+function refreshFives(A){
+  $('#fivesBody').innerHTML=fivesRowsHTML(A,fivesShown);
+  const rest=A.all5.length-fivesShown,btn=$('#moreFives');
+  btn.style.display=rest>0?'inline-block':'none';
+  if(rest>0)btn.textContent=`더보기 (${rest}개 남음)`;
+}
 
 function render(A){
   charts.forEach(c=>c.destroy());charts=[];
@@ -231,19 +250,16 @@ function render(A){
       <td class="muted">${m.fives.map(f=>f.name).join(', ')||'-'}</td></tr>`;}
   h+=`</tbody></table></section>`;
 
-  // 5-star history
+  // 5-star history (페이징: fivesShown 개씩 더보기)
   h+=`<section><h2>5★ 획득 기록 <span class="note">(최신순)</span></h2>
-    <table><thead><tr><th>이름</th><th>배너</th><th>천장</th><th>결과</th><th>획득 시각</th></tr></thead><tbody>`;
-  for(const f of A.all5){const showRes=f.result!=null;
-    h+=`<tr><td class="name5" style="color:${f.isPickup===false?'var(--muted)':'var(--gold)'}">${f.name}</td>
-      <td><span class="tag">${f.banner}</span></td>
-      <td><span class="pill" style="background:${pityColor(f.pity)}">${f.pity}</span></td>
-      <td>${showRes?`<span class="res ${resClass[f.result]}">${resText[f.result]}</span>`:'<span class="muted">-</span>'}</td>
-      <td class="muted">${f.time}</td></tr>`;}
-  if(!A.all5.length)h+=`<tr><td colspan="5" class="muted">5★ 기록 없음</td></tr>`;
-  h+=`</tbody></table></section>`;
+    <table><thead><tr><th>이름</th><th>배너</th><th>천장</th><th>결과</th><th>획득 시각</th></tr></thead>
+    <tbody id="fivesBody"></tbody></table>
+    <button id="moreFives" class="more" style="display:none">더보기</button></section>`;
 
   app.innerHTML=h;
+  fivesShown=PAGE_FIVES;monthShown=PAGE_MONTH;
+  refreshFives(A);
+  $('#moreFives').addEventListener('click',()=>{fivesShown+=PAGE_FIVES;refreshFives(A);});
   drawCharts(A);
 }
 
