@@ -173,6 +173,19 @@ function refreshFives(A){
   btn.style.display=rest>0?'inline-block':'none';
   if(rest>0)btn.textContent=`더보기 (${rest}개 남음)`;
 }
+function monthRowsHTML(A,limit){
+  if(!A.monthly.length)return `<tr><td colspan="5" class="muted">월별 기록 없음</td></tr>`;
+  return [...A.monthly].reverse().slice(0,limit).map(m=>{const lbl=m.month.slice(0,4)+'.'+m.month.slice(4);
+    return `<tr><td><b>${lbl}</b></td><td>${m.total}</td><td class="muted">${num(m.jade)}</td>
+      <td>${m.c5?`<span class="pill" style="background:var(--gold)">${m.c5}</span>`:'<span class="muted">0</span>'}</td>
+      <td class="muted">${m.fives.map(f=>f.name).join(', ')||'-'}</td></tr>`;}).join('');
+}
+function refreshMonth(A){
+  $('#monthBody').innerHTML=monthRowsHTML(A,monthShown);
+  const rest=A.monthly.length-monthShown,btn=$('#moreMonth');
+  btn.style.display=rest>0?'inline-block':'none';
+  if(rest>0)btn.textContent=`더보기 (${rest}개월 남음)`;
+}
 
 function render(A){
   charts.forEach(c=>c.destroy());charts=[];
@@ -242,13 +255,11 @@ function render(A){
     <div class="card chart-card"><h3>월별 뽑기</h3><div class="chart-wrap"><canvas id="cMonth"></canvas></div></div>
   </div></section>`;
 
-  // monthly table
-  h+=`<section><h2>월별 집계</h2><table><thead><tr><th>월</th><th>뽑기</th><th>성옥</th><th>5★</th><th>획득 5★</th></tr></thead><tbody>`;
-  for(const m of [...A.monthly].reverse()){const lbl=m.month.slice(0,4)+'.'+m.month.slice(4);
-    h+=`<tr><td><b>${lbl}</b></td><td>${m.total}</td><td class="muted">${num(m.jade)}</td>
-      <td>${m.c5?`<span class="pill" style="background:var(--gold)">${m.c5}</span>`:'<span class="muted">0</span>'}</td>
-      <td class="muted">${m.fives.map(f=>f.name).join(', ')||'-'}</td></tr>`;}
-  h+=`</tbody></table></section>`;
+  // monthly table (페이징: monthShown 개월씩 더보기)
+  h+=`<section><h2>월별 집계</h2>
+    <table><thead><tr><th>월</th><th>뽑기</th><th>성옥</th><th>5★</th><th>획득 5★</th></tr></thead>
+    <tbody id="monthBody"></tbody></table>
+    <button id="moreMonth" class="more" style="display:none">더보기</button></section>`;
 
   // 5-star history (페이징: fivesShown 개씩 더보기)
   h+=`<section><h2>5★ 획득 기록 <span class="note">(최신순)</span></h2>
@@ -258,8 +269,9 @@ function render(A){
 
   app.innerHTML=h;
   fivesShown=PAGE_FIVES;monthShown=PAGE_MONTH;
-  refreshFives(A);
+  refreshFives(A);refreshMonth(A);
   $('#moreFives').addEventListener('click',()=>{fivesShown+=PAGE_FIVES;refreshFives(A);});
+  $('#moreMonth').addEventListener('click',()=>{monthShown+=PAGE_MONTH;refreshMonth(A);});
   drawCharts(A);
 }
 
