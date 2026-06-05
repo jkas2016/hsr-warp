@@ -1,6 +1,8 @@
 package updater
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -50,6 +52,59 @@ func TestEffectiveSchedule(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(dir, "schedule.json"), []byte("corrupt"), 0644)
 	if got := EffectiveSchedule(dir, embedded); string(got) != string(embedded) {
 		t.Fatal("corrupt data/ should fall back to embedded")
+	}
+}
+
+func releaseServer(t *testing.T, body string) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+}
+
+func TestCheckRelease(t *testing.T) {
+	body := `{"tag_name":"v1.5.0","html_url":"https://example/releases/v1.5.0","assets":[{"name":"hsr-warp-setup-1.5.0.exe","browser_download_url":"https://example/setup.exe"},{"name":"hsr-warp_1.5.0_windows_amd64.zip","browser_download_url":"https://example/zip"}]}`
+	srv := releaseServer(t, body)
+	defer srv.Close()
+	client := srv.Client()
+
+	// 더 높은 버전 → newer, setup 자산 URL.
+	got, err := CheckRelease(client, srv.URL, "1.4.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Newer || got.Version != "1.5.0" || got.URL != "https://example/setup.exe" {
+		t.Fatalf("got %+v", got)
+	}
+
+	// 같은 버전 → not newer.
+	if got, _ := CheckRelease(client, srv.URL, "1.5.0"); got.Newer {
+		t.Fatalf("equal should not be newer: %+v", got)
+	}
+
+	// dev → 스킵(외부 호출 없이 빈 결과).
+	if got, _ := CheckRelease(client, srv.URL, "dev"); got.Newer {
+		t.Fatalf("dev should skip: %+v", got)
+	}
+}
+
+func TestCheckRelease_NoSetupAssetFallsBackToHTMLURL(t *testing.T) {
+	body := `{"tag_name":"v2.0.0","html_url":"https://example/releases/v2.0.0","assets":[{"name":"hsr-warp_2.0.0_windows_amd64.zip","browser_download_url":"https://example/zip"}]}`
+	srv := releaseServer(t, body)
+	defer srv.Close()
+	got, _ := CheckRelease(srv.Client(), srv.URL, "1.0.0")
+	if !got.Newer || got.URL != "https://example/releases/v2.0.0" {
+		t.Fatalf("expected html_url fallback, got %+v", got)
+	}
+}
+
+func TestCheckRelease_NoUsableURLSuppressed(t *testing.T) {
+	// 신버전이지만 html_url 도 setup 자산도 없음 → 깨진 링크 대신 알림 보류(Newer=false).
+	body := `{"tag_name":"v2.0.0","assets":[]}`
+	srv := releaseServer(t, body)
+	defer srv.Close()
+	if got, _ := CheckRelease(srv.Client(), srv.URL, "1.0.0"); got.Newer {
+		t.Fatalf("no usable URL should suppress notification, got %+v", got)
 	}
 }
 

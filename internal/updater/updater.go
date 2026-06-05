@@ -6,6 +6,9 @@ package updater
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -70,6 +73,65 @@ func parseVer(s string) [3]int {
 		out[i] = n
 	}
 	return out
+}
+
+// CodeStatus 는 코드 채널 결과다.
+type CodeStatus struct {
+	Newer   bool   `json:"newer"`
+	Version string `json:"version"`
+	URL     string `json:"url"`
+}
+
+type release struct {
+	TagName string `json:"tag_name"`
+	HTMLURL string `json:"html_url"`
+	Assets  []struct {
+		Name string `json:"name"`
+		URL  string `json:"browser_download_url"`
+	} `json:"assets"`
+}
+
+// CheckRelease 는 releases/latest(프리릴리스·드래프트 제외) 와 current 를 semver 비교한다.
+// current 가 "" 또는 "dev" 면 외부 호출 없이 스킵. setup 자산이 있으면 그 URL, 없으면 릴리스 페이지.
+func CheckRelease(client *http.Client, apiURL, current string) (CodeStatus, error) {
+	if current == "" || current == "dev" {
+		return CodeStatus{}, nil
+	}
+	b, err := fetch(client, apiURL)
+	if err != nil {
+		return CodeStatus{}, err
+	}
+	var rel release
+	if err := json.Unmarshal(b, &rel); err != nil {
+		return CodeStatus{}, err
+	}
+	if rel.TagName == "" || CompareVersions(rel.TagName, current) <= 0 {
+		return CodeStatus{}, nil
+	}
+	url := rel.HTMLURL
+	for _, a := range rel.Assets {
+		n := strings.ToLower(a.Name)
+		if strings.Contains(n, "setup") && strings.HasSuffix(n, ".exe") {
+			url = a.URL
+			break
+		}
+	}
+	if url == "" {
+		return CodeStatus{}, nil // 신버전이나 다운로드할 곳이 없음 — 깨진 링크 알림 대신 보류.
+	}
+	return CodeStatus{Newer: true, Version: strings.TrimPrefix(rel.TagName, "v"), URL: url}, nil
+}
+
+func fetch(client *http.Client, url string) ([]byte, error) {
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB 상한
 }
 
 // EffectiveSchedule 는 서빙할 schedule.json 바이트를 고른다:
