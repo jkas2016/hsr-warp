@@ -122,6 +122,41 @@ func CheckRelease(client *http.Client, apiURL, current string) (CodeStatus, erro
 	return CodeStatus{Newer: true, Version: strings.TrimPrefix(rel.TagName, "v"), URL: url}, nil
 }
 
+// ScheduleStatus 는 데이터 채널 결과다.
+type ScheduleStatus struct {
+	Updated bool `json:"updated"`
+	Version int  `json:"version"`
+}
+
+// CheckSchedule 은 rawURL 에서 schedule.json 을 받아 검증하고, 현재 유효 version 보다 높으면
+// data/schedule.json 에 원자적으로 기록한다(인앱 갱신). 깨진 응답·동일/구버전은 무시(에러 아님).
+func CheckSchedule(client *http.Client, rawURL, dataDir string, embedded []byte) (ScheduleStatus, error) {
+	cur, _ := ScheduleVersion(EffectiveSchedule(dataDir, embedded))
+	b, err := fetch(client, rawURL)
+	if err != nil {
+		return ScheduleStatus{Version: cur}, err
+	}
+	v, ok := ScheduleVersion(b)
+	if !ok || v <= cur {
+		return ScheduleStatus{Version: cur}, nil
+	}
+	if err := writeAtomic(filepath.Join(dataDir, "schedule.json"), b); err != nil {
+		return ScheduleStatus{Version: cur}, err
+	}
+	return ScheduleStatus{Updated: true, Version: v}, nil
+}
+
+func writeAtomic(path string, b []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, b, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
+}
+
 func fetch(client *http.Client, url string) ([]byte, error) {
 	resp, err := client.Get(url)
 	if err != nil {

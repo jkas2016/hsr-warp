@@ -108,6 +108,46 @@ func TestCheckRelease_NoUsableURLSuppressed(t *testing.T) {
 	}
 }
 
+func TestCheckSchedule(t *testing.T) {
+	embedded := []byte(`{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`)
+	remote := `{"version":7,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`
+	srv := releaseServer(t, remote)
+	defer srv.Close()
+	dir := t.TempDir()
+
+	// 원격이 더 높음 → data/ 기록 + Updated.
+	got, err := CheckSchedule(srv.Client(), srv.URL, dir, embedded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Updated || got.Version != 7 {
+		t.Fatalf("got %+v", got)
+	}
+	wrote, _ := os.ReadFile(filepath.Join(dir, "schedule.json"))
+	if v, _ := ScheduleVersion(wrote); v != 7 {
+		t.Fatalf("data/schedule.json version=%d, want 7", v)
+	}
+
+	// 다시 호출 → 같은 version 이라 미갱신.
+	if got, _ := CheckSchedule(srv.Client(), srv.URL, dir, embedded); got.Updated {
+		t.Fatalf("second call should not update: %+v", got)
+	}
+}
+
+func TestCheckSchedule_InvalidRemoteIgnored(t *testing.T) {
+	embedded := []byte(`{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`)
+	srv := releaseServer(t, `garbage`)
+	defer srv.Close()
+	dir := t.TempDir()
+	got, err := CheckSchedule(srv.Client(), srv.URL, dir, embedded)
+	if err != nil || got.Updated {
+		t.Fatalf("invalid remote should be ignored: got %+v err %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "schedule.json")); err == nil {
+		t.Fatal("should not write data/schedule.json for invalid remote")
+	}
+}
+
 func TestCompareVersions(t *testing.T) {
 	cases := []struct {
 		a, b string
