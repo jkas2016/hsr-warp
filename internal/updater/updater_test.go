@@ -52,3 +52,23 @@ func TestEffectiveSchedule(t *testing.T) {
 		t.Fatal("corrupt data/ should fall back to embedded")
 	}
 }
+
+func TestCompareVersions(t *testing.T) {
+	cases := []struct {
+		a, b string
+		want int
+	}{
+		{"v1.4.0", "1.4.0", 0},
+		{"1.4.1", "1.4.0", 1},
+		{"1.4.0", "1.5.0", -1},
+		{"1.10.0", "1.9.0", 1}, // 숫자 비교(문자열 아님)
+		{"2.0.0", "1.99.99", 1},
+		{"v1.2.3-snapshot", "1.2.3", 0}, // 프리릴리스 꼬리표 무시
+		{"1.2", "1.2.0", 0},             // 빠진 자리는 0
+	}
+	for _, c := range cases {
+		if got := CompareVersions(c.a, c.b); got != c.want {
+			t.Fatalf("CompareVersions(%q,%q)=%d, want %d", c.a, c.b, got, c.want)
+		}
+	}
+}

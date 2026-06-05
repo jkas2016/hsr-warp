@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -40,6 +42,34 @@ func ScheduleVersion(b []byte) (int, bool) {
 		}
 	}
 	return f.Version, true
+}
+
+// CompareVersions 는 semver 두 개를 비교한다(-1/0/1). 앞의 'v' 무시, X.Y.Z 정수 비교, 빠진 자리는 0,
+// '-'/'+' 이후(프리릴리스·빌드메타)는 무시. 외부 의존성 없이 처리한다.
+func CompareVersions(a, b string) int {
+	pa, pb := parseVer(a), parseVer(b)
+	for i := 0; i < 3; i++ {
+		if pa[i] < pb[i] {
+			return -1
+		}
+		if pa[i] > pb[i] {
+			return 1
+		}
+	}
+	return 0
+}
+
+func parseVer(s string) [3]int {
+	s = strings.TrimPrefix(strings.TrimSpace(s), "v")
+	if i := strings.IndexAny(s, "-+"); i >= 0 {
+		s = s[:i]
+	}
+	var out [3]int
+	for i, part := range strings.SplitN(s, ".", 3) {
+		n, _ := strconv.Atoi(part)
+		out[i] = n
+	}
+	return out
 }
 
 // EffectiveSchedule 는 서빙할 schedule.json 바이트를 고른다:
