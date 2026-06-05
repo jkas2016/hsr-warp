@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"hsr-warp/internal/collector"
@@ -19,19 +20,37 @@ type Paths struct {
 	ConfigFile string
 }
 
+const (
+	defaultScheduleURL = "https://raw.githubusercontent.com/jkas2016/hsr-warp/main/web/schedule.json"
+	defaultReleaseURL  = "https://api.github.com/repos/jkas2016/hsr-warp/releases/latest"
+)
+
 // Server 는 대시보드와 API 를 제공한다.
 type Server struct {
-	paths   Paths
-	assets  fs.FS // web/ (dashboard.html, analyze.js, schedule.json). nil 이면 자산 라우트 비활성(테스트용).
-	version string
+	paths       Paths
+	assets      fs.FS // web/ (dashboard.html, analyze.js, schedule.json). nil 이면 자산 라우트 비활성(테스트용).
+	version     string
+	scheduleURL string
+	releaseURL  string
+	client      *http.Client
+	once        sync.Once
+	cached      updater.Updates
 }
 
 // New 는 자산 없이 Server 를 만든다(API 테스트용).
-func New(p Paths) *Server { return &Server{paths: p} }
+func New(p Paths) *Server { return newServer(p, nil, "") }
 
 // NewWithAssets 는 임베드 자산과 빌드 버전을 주입한다(실제 실행용).
 func NewWithAssets(p Paths, assets fs.FS, version string) *Server {
-	return &Server{paths: p, assets: assets, version: version}
+	return newServer(p, assets, version)
+}
+
+func newServer(p Paths, assets fs.FS, version string) *Server {
+	return &Server{
+		paths: p, assets: assets, version: version,
+		scheduleURL: defaultScheduleURL, releaseURL: defaultReleaseURL,
+		client: &http.Client{Timeout: 5 * time.Second},
+	}
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
@@ -47,6 +66,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/detect", s.handleDetect)
 	mux.HandleFunc("/api/fetch", s.handleFetch)
 	mux.HandleFunc("/schedule.json", s.handleSchedule)
+	mux.HandleFunc("/api/updates", s.handleUpdates)
 	if s.assets != nil {
 		mux.Handle("/", http.FileServer(http.FS(s.assets)))
 	}
@@ -217,4 +237,25 @@ func (s *Server) handleSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_, _ = w.Write(updater.EffectiveSchedule(s.paths.DataDir, emb))
+}
+
+// handleUpdates 는 첫 호출 시 두 업데이트 체크를 베스트에포트로 수행하고 프로세스 수명 동안 캐시한다.
+// 대시보드가 시작 직후 1회 호출 → "시작 시 자동 확인". 실패는 예상된 동작이라 Warn 으로만 남긴다.
+func (s *Server) handleUpdates(w http.ResponseWriter, r *http.Request) {
+	s.once.Do(func() {
+		var emb []byte
+		if s.assets != nil {
+			emb, _ = fs.ReadFile(s.assets, "schedule.json")
+		}
+		sch, err := updater.CheckSchedule(s.client, s.scheduleURL, s.paths.DataDir, emb)
+		if err != nil {
+			slog.Warn("배너 데이터 업데이트 확인 실패", "err", err)
+		}
+		code, err := updater.CheckRelease(s.client, s.releaseURL, s.version)
+		if err != nil {
+			slog.Warn("릴리스 업데이트 확인 실패", "err", err)
+		}
+		s.cached = updater.Updates{Schedule: sch, Code: code}
+	})
+	writeJSON(w, s.cached)
 }

@@ -169,6 +169,12 @@ func fetch(client *http.Client, url string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB 상한
 }
 
+// Updates 는 /api/updates 응답 본문이다.
+type Updates struct {
+	Schedule ScheduleStatus `json:"schedule"`
+	Code     CodeStatus     `json:"code"`
+}
+
 // EffectiveSchedule 는 서빙할 schedule.json 바이트를 고른다:
 // data/schedule.json 이 유효하고 version 이 내장본보다 크면 그걸, 아니면 내장본.
 // 내장본이 깨졌더라도 내장본을 그대로 돌려준다(베스트에포트 — 빌드 시 내장본 무결성은 호출부 책임).
