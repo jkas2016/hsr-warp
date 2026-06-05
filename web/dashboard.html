@@ -100,6 +100,7 @@
 const $=s=>document.querySelector(s);
 const err=$('#err'),app=$('#app');
 let charts=[];
+let scheduleData=[];
 const num=n=>Math.round(n).toLocaleString('ko-KR');
 const pityColor=p=>p<60?'var(--green)':p<=80?'var(--orange)':'var(--red)';
 const resText={win:'픽승',loss:'픽뚫',guaranteed:'확정',null:'-'};
@@ -110,9 +111,11 @@ const bannerLabel={'11':'캐릭터','12':'광추','1':'일반','2':'출발'};
 
 // 기존 데이터가 있으면 화면에 즉시 표시(조회 안 해도 과거 기록 열람 가능).
 function loadStored(){
-  fetch('/api/data').then(r=>r.json()).then(d=>{
-    if(d&&Array.isArray(d.list)&&d.list.length)render(WarpAnalyze.analyze(d));
-  }).catch(()=>{});
+  fetch('/schedule.json').then(r=>r.json()).then(j=>{scheduleData=(j&&j.schedule)||[];}).catch(()=>{}).finally(()=>{
+    fetch('/api/data').then(r=>r.json()).then(d=>{
+      if(d&&Array.isArray(d.list)&&d.list.length)render(WarpAnalyze.analyze(d,scheduleData));
+    }).catch(()=>{});
+  });
 }
 // 경로 입력란 자동 채움: config(마지막 사용) 우선, 없으면 자동탐지.
 function fillPath(){
@@ -146,7 +149,7 @@ function runFetch(){
     summary.innerHTML = s.newTotal
       ? `<span style="color:var(--green)">신규 ${s.newTotal}건</span> · ${parts.join(' · ')} · 갱신 월: ${(s.updatedMonths||[]).map(m=>m.slice(0,4)+'.'+m.slice(4)).join(', ')}`
       : '<span class="muted">변경 없음 (신규 기록 없음)</span>';
-    if(d.data&&Array.isArray(d.data.list))render(WarpAnalyze.analyze(d.data));
+    if(d.data&&Array.isArray(d.data.list))render(WarpAnalyze.analyze(d.data,scheduleData));
   });
 }
 goBtn.addEventListener('click',runFetch);
@@ -170,7 +173,7 @@ function render(A){
   const win5050=cb&&cb.win5050Rate!=null?(cb.win5050Rate*100).toFixed(0):'-';
 
   let h='';
-  if(A.unknown5>0) h+=`<div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:rgba(255,158,69,.12);color:var(--orange);font-size:13px">⚠ 미확인 5★ ${A.unknown5}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). analyze.js의 SCHEDULE를 갱신하세요.</div>`;
+  if(A.unknown5>0) h+=`<div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:rgba(255,158,69,.12);color:var(--orange);font-size:13px">⚠ 미확인 5★ ${A.unknown5}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). 최신 배너는 시작 시 자동 반영됩니다(미반영 시 잠시 후 재실행).</div>`;
   h+=`<section class="hero">
     <div class="card">
       <div class="lbl">운 지표 · 캐릭터/일반 평균 천장</div>
