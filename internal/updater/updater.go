@@ -116,8 +116,9 @@ func CheckRelease(client *http.Client, apiURL, current string) (CodeStatus, erro
 			break
 		}
 	}
-	if url == "" {
-		return CodeStatus{}, nil // 신버전이나 다운로드할 곳이 없음 — 깨진 링크 알림 대신 보류.
+	if !strings.HasPrefix(url, "https://") {
+		// 다운로드 URL 이 없거나 https 가 아니면 알림 보류(href 에 javascript: 등 주입 방지).
+		return CodeStatus{}, nil
 	}
 	return CodeStatus{Newer: true, Version: strings.TrimPrefix(rel.TagName, "v"), URL: url}, nil
 }

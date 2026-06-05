@@ -108,6 +108,16 @@ func TestCheckRelease_NoUsableURLSuppressed(t *testing.T) {
 	}
 }
 
+func TestCheckRelease_NonHTTPSURLSuppressed(t *testing.T) {
+	// https 아닌 URL(예: javascript:)은 알림 보류 — href 주입 방지.
+	body := `{"tag_name":"v2.0.0","html_url":"javascript:alert(1)","assets":[]}`
+	srv := releaseServer(t, body)
+	defer srv.Close()
+	if got, _ := CheckRelease(srv.Client(), srv.URL, "1.0.0"); got.Newer {
+		t.Fatalf("non-https URL should suppress notification, got %+v", got)
+	}
+}
+
 func TestCheckSchedule(t *testing.T) {
 	embedded := []byte(`{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`)
 	remote := `{"version":7,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`
