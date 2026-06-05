@@ -10,6 +10,7 @@ import (
 
 	"hsr-warp/internal/collector"
 	"hsr-warp/internal/store"
+	"hsr-warp/internal/updater"
 )
 
 // Paths 는 서버가 사용할 파일 경로 모음이다.
@@ -20,15 +21,18 @@ type Paths struct {
 
 // Server 는 대시보드와 API 를 제공한다.
 type Server struct {
-	paths  Paths
-	assets fs.FS // web/ (dashboard.html, analyze.js). nil 이면 자산 라우트 비활성(테스트용).
+	paths   Paths
+	assets  fs.FS // web/ (dashboard.html, analyze.js, schedule.json). nil 이면 자산 라우트 비활성(테스트용).
+	version string
 }
 
 // New 는 자산 없이 Server 를 만든다(API 테스트용).
 func New(p Paths) *Server { return &Server{paths: p} }
 
-// NewWithAssets 는 임베드 자산을 주입한다(실제 실행용).
-func NewWithAssets(p Paths, assets fs.FS) *Server { return &Server{paths: p, assets: assets} }
+// NewWithAssets 는 임베드 자산과 빌드 버전을 주입한다(실제 실행용).
+func NewWithAssets(p Paths, assets fs.FS, version string) *Server {
+	return &Server{paths: p, assets: assets, version: version}
+}
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -42,6 +46,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/detect", s.handleDetect)
 	mux.HandleFunc("/api/fetch", s.handleFetch)
+	mux.HandleFunc("/schedule.json", s.handleSchedule)
 	if s.assets != nil {
 		mux.Handle("/", http.FileServer(http.FS(s.assets)))
 	}
@@ -201,4 +206,15 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		},
 		"data": out,
 	})
+}
+
+// handleSchedule 은 배너 일정 데이터를 서빙한다. data/schedule.json 이 유효하고 내장본보다
+// version 이 높으면 그걸, 아니면 내장본을 준다(updater.EffectiveSchedule).
+func (s *Server) handleSchedule(w http.ResponseWriter, r *http.Request) {
+	var emb []byte
+	if s.assets != nil {
+		emb, _ = fs.ReadFile(s.assets, "schedule.json")
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write(updater.EffectiveSchedule(s.paths.DataDir, emb))
 }

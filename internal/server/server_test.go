@@ -6,9 +6,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"hsr-warp/internal/store"
 )
@@ -88,5 +90,30 @@ func TestHandleData_EmptyDirReturnsEmptyList(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), `"list": []`) && !strings.Contains(rr.Body.String(), `"list":[]`) {
 		t.Fatalf("expected empty list [], got: %s", rr.Body.String())
+	}
+}
+
+func TestHandleSchedule_DataOverridesEmbedded(t *testing.T) {
+	embedded := []byte(`{"version":1,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`)
+	assets := fstest.MapFS{"schedule.json": {Data: embedded}}
+	dir := t.TempDir()
+	s := NewWithAssets(Paths{DataDir: dir, ConfigFile: filepath.Join(dir, "config.json")}, assets, "dev")
+
+	// data/ 없음 → 내장본.
+	rr := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/schedule.json", nil))
+	if !strings.Contains(rr.Body.String(), `"version":1`) {
+		t.Fatalf("expected embedded v1, got %s", rr.Body.String())
+	}
+
+	// 더 높은 data/ → data/.
+	higher := []byte(`{"version":9,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`)
+	if err := os.WriteFile(filepath.Join(dir, "schedule.json"), higher, 0644); err != nil {
+		t.Fatal(err)
+	}
+	rr = httptest.NewRecorder()
+	s.Handler().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/schedule.json", nil))
+	if !strings.Contains(rr.Body.String(), `"version":9`) {
+		t.Fatalf("expected data/ v9, got %s", rr.Body.String())
 	}
 }
