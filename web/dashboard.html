@@ -72,6 +72,7 @@
   <div>
     <h1>Honkai: Star Rail <span>워프 대시보드</span></h1>
     <div class="sub" id="subline">매달 자동 갱신 · 모든 분석은 로컬에서만 처리됩니다.</div>
+    <div id="updateBar"></div>
   </div>
 
   <div id="panel" class="card" style="margin-top:20px">
@@ -100,6 +101,7 @@
 const $=s=>document.querySelector(s);
 const err=$('#err'),app=$('#app');
 let charts=[];
+let scheduleData=[];
 const num=n=>Math.round(n).toLocaleString('ko-KR');
 const pityColor=p=>p<60?'var(--green)':p<=80?'var(--orange)':'var(--red)';
 const resText={win:'픽승',loss:'픽뚫',guaranteed:'확정',null:'-'};
@@ -108,11 +110,30 @@ const resClass={win:'win',loss:'loss',guaranteed:'guar'};
 const pathInput=$('#path'),goBtn=$('#go'),progress=$('#progress'),summary=$('#summary');
 const bannerLabel={'11':'캐릭터','12':'광추','1':'일반','2':'출발'};
 
+// 시작 시 1회 업데이트 확인(버튼 없음, 베스트에포트). 렌더를 막지 않도록 loadStored 와 병렬로 돈다.
+// 배너 데이터가 실제로 갱신된 경우에만 새 일정으로 다시 렌더한다.
+function checkUpdates(){
+  fetch('/api/updates').then(r=>r.json()).then(u=>{
+    const bar=$('#updateBar'); if(!bar||!u)return;
+    let html='';
+    if(u.code&&u.code.newer){
+      html+=`<div style="margin:14px 0 0;padding:10px 14px;border-radius:10px;background:rgba(164,116,255,.14);color:var(--txt);font-size:13px">새 버전 <b>v${u.code.version}</b>가 나왔습니다 — <a href="${u.code.url}" target="_blank" rel="noopener" style="color:var(--gold);font-weight:700">설치본 다운로드</a><span id="updateClose" style="float:right;cursor:pointer;color:var(--muted)">✕</span></div>`;
+    }
+    if(u.schedule&&u.schedule.updated){
+      html+=`<div style="margin:14px 0 0;padding:8px 14px;border-radius:10px;background:rgba(82,211,154,.12);color:var(--green);font-size:12.5px">배너 데이터 v${u.schedule.version}로 갱신되었습니다.</div>`;
+      loadStored(); // 갱신된 일정으로 다시 렌더
+    }
+    bar.innerHTML=html;
+    const c=$('#updateClose'); if(c)c.addEventListener('click',()=>{bar.innerHTML='';});
+  }).catch(()=>{});
+}
 // 기존 데이터가 있으면 화면에 즉시 표시(조회 안 해도 과거 기록 열람 가능).
 function loadStored(){
-  fetch('/api/data').then(r=>r.json()).then(d=>{
-    if(d&&Array.isArray(d.list)&&d.list.length)render(WarpAnalyze.analyze(d));
-  }).catch(()=>{});
+  fetch('/schedule.json').then(r=>r.json()).then(j=>{scheduleData=(j&&j.schedule)||[];}).catch(()=>{}).finally(()=>{
+    fetch('/api/data').then(r=>r.json()).then(d=>{
+      if(d&&Array.isArray(d.list)&&d.list.length)render(WarpAnalyze.analyze(d,scheduleData));
+    }).catch(()=>{});
+  });
 }
 // 경로 입력란 자동 채움: config(마지막 사용) 우선, 없으면 자동탐지.
 function fillPath(){
@@ -146,12 +167,13 @@ function runFetch(){
     summary.innerHTML = s.newTotal
       ? `<span style="color:var(--green)">신규 ${s.newTotal}건</span> · ${parts.join(' · ')} · 갱신 월: ${(s.updatedMonths||[]).map(m=>m.slice(0,4)+'.'+m.slice(4)).join(', ')}`
       : '<span class="muted">변경 없음 (신규 기록 없음)</span>';
-    if(d.data&&Array.isArray(d.data.list))render(WarpAnalyze.analyze(d.data));
+    if(d.data&&Array.isArray(d.data.list))render(WarpAnalyze.analyze(d.data,scheduleData));
   });
 }
 goBtn.addEventListener('click',runFetch);
 fillPath();
 loadStored();
+checkUpdates();
 
 function statCard(k,v,small){return `<div class="card stat"><div class="k">${k}</div><div class="v">${v}${small?` <small>${small}</small>`:''}</div></div>`;}
 
@@ -170,7 +192,7 @@ function render(A){
   const win5050=cb&&cb.win5050Rate!=null?(cb.win5050Rate*100).toFixed(0):'-';
 
   let h='';
-  if(A.unknown5>0) h+=`<div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:rgba(255,158,69,.12);color:var(--orange);font-size:13px">⚠ 미확인 5★ ${A.unknown5}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). analyze.js의 SCHEDULE를 갱신하세요.</div>`;
+  if(A.unknown5>0) h+=`<div style="margin:0 0 16px;padding:10px 14px;border-radius:10px;background:rgba(255,158,69,.12);color:var(--orange);font-size:13px">⚠ 미확인 5★ ${A.unknown5}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). 최신 배너는 시작 시 자동 반영됩니다(미반영 시 잠시 후 재실행).</div>`;
   h+=`<section class="hero">
     <div class="card">
       <div class="lbl">운 지표 · 캐릭터/일반 평균 천장</div>

@@ -104,7 +104,7 @@
       <tr><th>프로덕션 Go</th><td>약 941 LOC, 4개 패키지 (main + internal 3)</td></tr>
       <tr><th>분석 엔진</th><td><code>web/analyze.js</code> 190 LOC, 외부 의존성 0</td></tr>
       <tr><th>런타임 의존</th><td>Go 표준 라이브러리만. 브라우저는 차트용 Chart.js만 CDN 사용</td></tr>
-      <tr><th>픽업 일정</th><td><code>SCHEDULE</code> 57개 항목 (1.0 ~ 4.3, 2023-04 ~ 2026-07)</td></tr>
+      <tr><th>픽업 일정</th><td><code>web/schedule.json</code> 57개 항목 (1.0 ~ 4.3, 2023-04 ~ 2026-07) · 시작 시 <code>main</code>에서 자동 갱신</td></tr>
     </tbody>
   </table>
 
@@ -269,8 +269,8 @@ else { f.result = 'loss'; guaranteed = true; }                     <span class="
   </p>
   <div class="warn">
     <b>신규 패치 출시 시</b>
-    <code>SCHEDULE</code> 배열에 <code>{s, e, c, l}</code>을 추가한다 — <code>s</code>/<code>e</code>=기간,
-    <code>c</code>=캐릭터 픽업 item_id, <code>l</code>=광추 픽업 item_id. 누락하면 그 기간 5★는
+    <code>web/schedule.json</code>의 <code>schedule</code> 배열에 <code>{s, e, c, l}</code>을 추가하고 최상위 <code>version</code>을 +1 한다 — <code>s</code>/<code>e</code>=기간,
+    <code>c</code>=캐릭터 픽업 item_id, <code>l</code>=광추 픽업 item_id. <code>main</code>에 push 하면 사용자 앱이 시작 시 자동으로 받아 반영한다(릴리스 불필요). 누락하면 그 기간 5★는
     <span class="hold">unidentified(미확인)</span>로 표시되어 "패치 미반영" 신호 역할을 한다.
   </div>
 
@@ -327,7 +327,7 @@ else { f.result = 'loss'; guaranteed = true; }                     <span class="
   <table>
     <thead><tr><th>주제</th><th>근거</th></tr></thead>
     <tbody>
-      <tr><td>50/50 판정 로직 (<code>wasPickup</code>, <code>SCHEDULE</code>)</td><td><code>web/analyze.js</code></td></tr>
+      <tr><td>50/50 판정 로직 (<code>wasPickup</code>)</td><td><code>web/analyze.js</code> (로직) · <code>web/schedule.json</code> (픽업 일정 데이터)</td></tr>
       <tr><td>비파괴 저장 (<code>WriteAffectedMonths</code>)</td><td><code>internal/store/store.go</code></td></tr>
       <tr><td>authkey 추출·timestamp 선택</td><td><code>internal/collector/cache.go</code></td></tr>
       <tr><td>증분 조회·retcode 처리</td><td><code>internal/collector/fetch.go</code></td></tr>
