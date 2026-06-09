@@ -162,6 +162,23 @@
     };
   }
 
+  // 각 버전 윈도우의 요약을 비교표 행으로. 뽑기 0 버전 제외. 캐릭(11) 기준 천장·50/50.
+  function analyzeVersions(full, data, versions) {
+    const fmt = ms => ms === Infinity ? '' : new Date(ms).toISOString().slice(0, 10);
+    return versionWindows(versions).map(w => {
+      const a = filterAnalysis(full, data, w);
+      if (!a.total) return null;
+      const cb = a.banners.find(b => b.type === '11');
+      return {
+        v: w.v, s: fmt(w.s), e: fmt(w.e),
+        total: a.total, jade: a.jade, count5: a.count5,
+        charAvgPity: cb ? cb.stats.avgPity5 : null,
+        charCWins: cb ? cb.stats.cWins : 0,
+        charCLoss: cb ? cb.stats.cLoss : 0,
+      };
+    }).filter(Boolean);
+  }
+
   function analyze(data, schedule) {
     const list = Array.isArray(data.list) ? data.list : [];
     const groups = {}; for (const k of ORDER) groups[k] = [];
@@ -193,7 +210,7 @@
     };
   }
 
-  const api = { analyze, analyzeBanner, aggregateFives, filterAnalysis, versionWindows, monthly, BANNERS, ORDER };
+  const api = { analyze, analyzeBanner, aggregateFives, filterAnalysis, versionWindows, analyzeVersions, monthly, BANNERS, ORDER };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WarpAnalyze = api;
 })(typeof window !== 'undefined' ? window : globalThis);

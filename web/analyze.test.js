@@ -166,4 +166,21 @@ const whole = filterAnalysis(full, vdata, wholeWin);
 assert.strictEqual(whole.count5, full.count5, '전체창 5★ 수 일치');
 assert.strictEqual(whole.total, full.total, '전체창 총뽑기 일치');
 
+// ---- analyzeVersions: 버전별 비교 행 ----
+const { analyzeVersions } = require('./analyze.js');
+// 위 Task2의 full/vdata 재사용(3.6 loss + 3.7 guaranteed). VERS=3.6,3.7,3.8
+const rows = analyzeVersions(full, vdata, VERS);
+assert.strictEqual(rows.length, 2, '뽑기 있는 3.6·3.7만(3.8 제외)');
+const row37 = rows.find(r => r.v === '3.7');
+assert.strictEqual(row37.count5, 1);
+assert.strictEqual(row37.charCWins + row37.charCLoss, 0, '3.7은 확정뿐(contested 0)');
+assert.strictEqual(row37.total, 30);
+const row36 = rows.find(r => r.v === '3.6');
+assert.strictEqual(row36.charCLoss, 1, '3.6 픽뚫 1');
+assert.strictEqual(row36.s, '2025-09-23', '3.6 시작일');
+assert.strictEqual(row36.e, '2025-11-04', '3.6 끝=3.7 시작');
+// 방어: versions 없으면 빈 배열
+assert.deepStrictEqual(analyzeVersions(full, vdata, []), [], '빈 versions → []');
+assert.deepStrictEqual(analyzeVersions(full, vdata, undefined), [], 'undefined → []');
+
 console.log('OK  all analyze tests passed');
