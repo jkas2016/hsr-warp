@@ -574,9 +574,9 @@ function renderVersionTable(selV){
   const rows=WarpAnalyze.analyzeVersions(lastFull,{list:lastList},versionsData);
   if(!rows.length)return '';
   const body=rows.slice().reverse().map(r=>{
-    const sel=r.v===selV?' style="background:var(--panel2)"':'';
+    const sel=r.v===selV?'background:var(--panel2);':'';
     const wl=r.charCWins+r.charCLoss;
-    return `<tr class="vrow" data-v="${r.v}"${sel} style="cursor:pointer">
+    return `<tr class="vrow" data-v="${r.v}" style="${sel}cursor:pointer">
       <td><b>${r.v}</b></td>
       <td class="muted">${r.s} ~ ${r.e||'현재'}</td>
       <td>${num(r.total)}</td>
