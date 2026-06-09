@@ -1,6 +1,6 @@
 const assert = require('assert');
 const { analyzeBanner, analyze, monthly, BANNERS, aggregateFives } = require('./analyze.js');
-const { schedule } = require('./schedule.json'); // 배너 일정은 데이터 파일에서 주입
+const { schedule, versions } = require('./schedule.json'); // 배너 일정은 데이터 파일에서 주입
 
 let id = 1000n;
 // 3.7 phase 1 (2025-11-04..11-25): featured char includes 1415,1409 ; featured lc includes 23052.
@@ -182,5 +182,16 @@ assert.strictEqual(row36.e, '2025-11-04', '3.6 끝=3.7 시작');
 // 방어: versions 없으면 빈 배열
 assert.deepStrictEqual(analyzeVersions(full, vdata, []), [], '빈 versions → []');
 assert.deepStrictEqual(analyzeVersions(full, vdata, undefined), [], 'undefined → []');
+
+// ---- schedule.json versions 데이터 검증 ----
+assert.ok(Array.isArray(versions) && versions.length >= 28, 'versions 28개 이상');
+const W = versionWindows(versions);
+for (let i = 1; i < W.length; i++) assert.ok(W[i].s >= W[i - 1].s, 'versions 시각 오름차순');
+const find = v => versions.find(x => x.v === v);
+assert.strictEqual(find('3.7').s, '2025-11-04', '3.7 앵커(analyze.test의 3.7 p1과 일치)');
+assert.strictEqual(find('1.0').s, '2023-04-26', '1.0 = 글로벌 출시');
+assert.strictEqual(find('4.0').s, '2026-02-12', '4.0 실제 패치일');
+assert.ok(find('3.8'), '3.8 존재(마지막 3.x)');
+assert.ok(!versions.find(x => x.v === '3.9'), '3.9 없음');
 
 console.log('OK  all analyze tests passed');
