@@ -100,6 +100,68 @@
     return Object.values(m).sort((a, b) => a.month.localeCompare(b.month));
   }
 
+  const dms = t => Date.parse(String(t).slice(0, 10)); // 'YYYY-MM-DD ...' → ms (date 단위 버킷)
+
+  // versions [{v,s}] → s 오름차순 정렬된 윈도우 [{v, s(ms), e(ms)}]. 마지막 e=Infinity.
+  function versionWindows(versions) {
+    const vs = (versions || []).filter(x => x && x.v && x.s)
+      .map(x => ({ v: x.v, s: Date.parse(x.s) }))
+      .filter(x => !isNaN(x.s))
+      .sort((a, b) => a.s - b.s);
+    return vs.map((x, i) => ({ v: x.v, s: x.s, e: i + 1 < vs.length ? vs[i + 1].s : Infinity }));
+  }
+
+  // 전체 분석 결과(full)를 한 윈도우 {s,e}(ms)로 필터해 analyze()와 같은 모양으로 반환.
+  // 분류된 fives는 시각 필터만(천장·result 재계산 금지), 뽑기 횟수는 원본 레코드를 시각 버킷.
+  function filterAnalysis(full, data, win) {
+    const inWin = t => { const ms = dms(t); return ms >= win.s && ms < win.e; };
+    const list = (Array.isArray(data.list) ? data.list : []).filter(r => inWin(r.time));
+
+    // gacha_type별 원본 카운트(천장 무관, 시각 버킷)
+    const cnt = {}; for (const k of ORDER) cnt[k] = { total: 0, c4: 0, c3: 0 };
+    for (const r of list) {
+      const t = String(r.gacha_type); if (!cnt[t]) continue;
+      cnt[t].total++;
+      const rk = String(r.rank_type);
+      if (rk === '4') cnt[t].c4++; else if (rk !== '5') cnt[t].c3++;
+    }
+
+    const banners = full.banners.map(b => {
+      const fives = b.stats.fives.filter(f => inWin(f.time));
+      const c = cnt[b.type] || { total: 0, c4: 0, c3: 0 };
+      return {
+        type: b.type, meta: b.meta,
+        stats: {
+          total: c.total, jade: c.total * 160, count4: c.c4, count3: c.c3,
+          currentPity5: null, currentPity4: null, currentGuaranteed: false,
+          ...aggregateFives(fives, b.meta),
+          fives,
+        },
+      };
+    }).filter(b => b.stats.total > 0);
+
+    const all5 = banners.flatMap(b => b.stats.fives.map(f => ({ ...f, banner: b.meta.short, gacha_type: b.type })));
+    all5.sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
+    const charFives = banners.filter(b => b.type === '11' || b.type === '1').flatMap(b => b.stats.fives.map(f => f.pity));
+    const lim = banners.find(b => b.type === '11'), lc = banners.find(b => b.type === '12');
+    return {
+      info: full.info || {},
+      total: list.length,
+      jade: list.length * 160,
+      count5: banners.reduce((s, b) => s + b.stats.count5, 0),
+      count4: banners.reduce((s, b) => s + b.stats.count4, 0),
+      count3: banners.reduce((s, b) => s + b.stats.count3, 0),
+      unknown5: banners.reduce((s, b) => s + (b.stats.unknown5 || 0), 0),
+      banners, all5, monthly: monthly(list),
+      luck: {
+        charAvgPity: mean(charFives),
+        charLuckPct: charFives.length ? (62.5 - mean(charFives)) / 62.5 * 100 : null,
+        charBanner: lim ? lim.stats : null,
+        lcBanner: lc ? lc.stats : null,
+      },
+    };
+  }
+
   function analyze(data, schedule) {
     const list = Array.isArray(data.list) ? data.list : [];
     const groups = {}; for (const k of ORDER) groups[k] = [];
@@ -131,7 +193,7 @@
     };
   }
 
-  const api = { analyze, analyzeBanner, aggregateFives, monthly, BANNERS, ORDER };
+  const api = { analyze, analyzeBanner, aggregateFives, filterAnalysis, versionWindows, monthly, BANNERS, ORDER };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WarpAnalyze = api;
 })(typeof window !== 'undefined' ? window : globalThis);

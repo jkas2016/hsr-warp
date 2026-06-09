@@ -117,4 +117,53 @@ assert.strictEqual(agg.worstPity, 80);
 assert.ok(Math.abs(agg.avgPity5 - 52.5) < 1e-9, '(70+50+80+10)/4');
 assert.ok(Math.abs(agg.luckPct - (62.5 - 52.5) / 62.5 * 100) < 1e-9, 'luckPct from sample');
 
+// ---- filterAnalysis: 버전 경계를 넘는 5★의 천장·결과 보존 ----
+const { filterAnalysis, versionWindows } = require('./analyze.js');
+const VERS = [{ v: '3.6', s: '2025-09-23' }, { v: '3.7', s: '2025-11-04' }, { v: '3.8', s: '2025-12-16' }];
+
+// 윈도우: 3.7 = [2025-11-04, 2025-12-16)
+const w = versionWindows(VERS);
+assert.strictEqual(w.length, 3);
+assert.strictEqual(w[1].v, '3.7');
+assert.strictEqual(w[2].e, Infinity, '마지막 버전 끝은 무한');
+
+// 시나리오: 3.6에서 픽뚫(loss→확정) 적립, 3.7에서 70천장 확정 5★.
+id = 9000n;
+const r5t = (iid, t) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'n', item_type: 'C', time: t, gacha_type: '11' });
+const r3t = (t) => ({ id: String(id++), rank_type: '3', item_id: '0', name: 'y', item_type: 'C', time: t, gacha_type: '11' });
+const recs = [];
+recs.push(r5t(1102, '2025-10-01 00:00:00'));           // 3.6: Seele 비픽업 → loss → 확정
+for (let i = 0; i < 69; i++) recs.push(r3t(i < 40 ? '2025-11-01 00:00:00' : '2025-11-10 00:00:00')); // 천장 적립(3.6→3.7 경계 넘음)
+recs.push(r5t(1415, '2025-11-10 12:00:00'));           // 3.7: 확정 획득(70천장)
+
+const vdata = { info: {}, list: recs };
+const full = analyze(vdata, schedule);
+const v37 = filterAnalysis(full, vdata, w[1]); // 3.7 윈도우
+
+const b11 = v37.banners.find(b => b.type === '11');
+const five = b11.stats.fives.find(f => f.item_id === '1415');
+assert.ok(five, '3.7 윈도우에 1415 포함');
+assert.strictEqual(five.pity, 70, '천장은 경계 넘어 적립된 70 그대로(잘리지 않음)');
+assert.strictEqual(five.result, 'guaranteed', '3.6 픽뚫의 확정 상태 보존');
+assert.strictEqual(b11.stats.gWins, 1, '확정 획득 1');
+assert.strictEqual(b11.stats.contested, 0, '3.7엔 contested 없음(확정만)');
+
+// 뽑기 횟수는 시각 윈도우로 버킷: 3.7창엔 r3t 29개(2025-11-10) + 5★ 1개 = 30
+assert.strictEqual(b11.stats.count5, 1, '3.7창 5★ 1개');
+assert.strictEqual(b11.stats.total, 30, '3.7창 뽑기 30(11-10 29건 + 5★)');
+assert.strictEqual(b11.stats.jade, 4800, '30*160');
+assert.strictEqual(b11.stats.currentPity5, null, '과거 윈도우는 현재천장 의미없음 → null');
+
+// 3.6 윈도우엔 loss 5★ + 3성 40개
+const v36 = filterAnalysis(full, vdata, w[0]);
+const b11_36 = v36.banners.find(b => b.type === '11');
+assert.strictEqual(b11_36.stats.cLoss, 1, '3.6 픽뚫 1');
+assert.strictEqual(b11_36.stats.total, 41, '3.6창 뽑기 41(loss 5★ + 3성 40)');
+
+// 불변식: 전체 윈도우 필터 == analyze 핵심 수치
+const wholeWin = { v: 'all', s: 0, e: Infinity };
+const whole = filterAnalysis(full, vdata, wholeWin);
+assert.strictEqual(whole.count5, full.count5, '전체창 5★ 수 일치');
+assert.strictEqual(whole.total, full.total, '전체창 총뽑기 일치');
+
 console.log('OK  all analyze tests passed');
