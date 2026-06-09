@@ -213,6 +213,26 @@ function applyVersionFilter(v){
   render(WarpAnalyze.filterAnalysis(lastFull,{list:lastList},w),false);
 }
 
+function renderVersionTable(selV){
+  if(!lastFull||!WarpAnalyze.analyzeVersions)return '';
+  const rows=WarpAnalyze.analyzeVersions(lastFull,{list:lastList},versionsData);
+  if(!rows.length)return '';
+  const body=rows.slice().reverse().map(r=>{
+    const sel=r.v===selV?'background:var(--panel2);':'';
+    const wl=r.charCWins+r.charCLoss;
+    return `<tr class="vrow" data-v="${r.v}" style="${sel}cursor:pointer">
+      <td><b>${r.v}</b></td>
+      <td class="muted">${r.s} ~ ${r.e||'현재'}</td>
+      <td>${num(r.total)}</td>
+      <td>${r.count5?`<span class="pill" style="background:var(--gold)">${r.count5}</span>`:'<span class="muted">0</span>'}</td>
+      <td>${r.charAvgPity?r.charAvgPity.toFixed(1):'-'}</td>
+      <td>${wl?`<span style="color:var(--gold)">${r.charCWins}</span> / <span style="color:var(--red)">${r.charCLoss}</span>`:'<span class="muted">-</span>'}</td>
+    </tr>`;}).join('');
+  return `<section><h2>버전별 비교 <span class="note">(행 클릭 = 해당 버전 보기)</span></h2>
+    <table><thead><tr><th>버전</th><th>기간</th><th>뽑기</th><th>5★</th><th>캐릭 평균천장</th><th>캐릭 픽승/픽뚫</th></tr></thead>
+    <tbody>${body}</tbody></table></section>`;
+}
+
 function render(A,isFull){
   charts.forEach(c=>c.destroy());charts=[];
   app.style.display='block';
@@ -259,6 +279,8 @@ function render(A,isFull){
     ${statCard('5★ 확률',(A.total?A.count5/A.total*100:0).toFixed(2),'%')}
   </div></section>`;
 
+  h+=renderVersionTable(isFull?'__none__':(($('#versionSel')||{}).value||'__none__'));
+
   // banner cards
   h+=`<section><h2>배너별 현황</h2><div class="grid banners">`;
   for(const b of A.banners){const s=b.stats,cap=b.meta.cap,pct=Math.min(100,(s.currentPity5||0)/cap*100);
@@ -303,6 +325,10 @@ function render(A,isFull){
   h+=`</tbody></table></section>`;
 
   app.innerHTML=h;
+  app.querySelectorAll('.vrow').forEach(tr=>tr.addEventListener('click',()=>{
+    const sel=$('#versionSel'); if(!sel)return;
+    sel.value=tr.dataset.v; applyVersionFilter(tr.dataset.v);
+  }));
   drawCharts(A);
 }
 
