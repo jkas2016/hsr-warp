@@ -89,6 +89,13 @@
     <div id="err" class="err"></div>
   </div>
 
+  <div id="versionBar" style="display:none;margin-top:18px;align-items:center;gap:10px;flex-wrap:wrap">
+    <label for="versionSel" style="color:var(--muted);font-size:13px">버전 구간</label>
+    <select id="versionSel" style="padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-size:14px;cursor:pointer">
+      <option value="__all__">전체</option>
+    </select>
+  </div>
+
   <div id="app"></div>
 
   <div class="foot">
@@ -102,6 +109,9 @@ const $=s=>document.querySelector(s);
 const err=$('#err'),app=$('#app');
 let charts=[];
 let scheduleData=[];
+let versionsData=[];   // schedule.json versions
+let lastFull=null;     // 가장 최근 analyze() 전체 결과(필터의 원본)
+let lastList=[];       // 가장 최근 원본 레코드(필터가 시각 버킷에 사용)
 const num=n=>Math.round(n).toLocaleString('ko-KR');
 const pityColor=p=>p<60?'var(--green)':p<=80?'var(--orange)':'var(--red)';
 const resText={win:'픽승',loss:'픽뚫',guaranteed:'확정',null:'-'};
@@ -129,9 +139,9 @@ function checkUpdates(){
 }
 // 기존 데이터가 있으면 화면에 즉시 표시(조회 안 해도 과거 기록 열람 가능).
 function loadStored(){
-  fetch('/schedule.json').then(r=>r.json()).then(j=>{scheduleData=(j&&j.schedule)||[];}).catch(()=>{}).finally(()=>{
+  fetch('/schedule.json').then(r=>r.json()).then(j=>{scheduleData=(j&&j.schedule)||[];versionsData=(j&&j.versions)||[];}).catch(()=>{}).finally(()=>{
     fetch('/api/data').then(r=>r.json()).then(d=>{
-      if(d&&Array.isArray(d.list)&&d.list.length)render(WarpAnalyze.analyze(d,scheduleData));
+      if(d&&Array.isArray(d.list)&&d.list.length){lastList=d.list;renderFull(WarpAnalyze.analyze(d,scheduleData));}
     }).catch(()=>{});
   });
 }
@@ -167,17 +177,43 @@ function runFetch(){
     summary.innerHTML = s.newTotal
       ? `<span style="color:var(--green)">신규 ${s.newTotal}건</span> · ${parts.join(' · ')} · 갱신 월: ${(s.updatedMonths||[]).map(m=>m.slice(0,4)+'.'+m.slice(4)).join(', ')}`
       : '<span class="muted">변경 없음 (신규 기록 없음)</span>';
-    if(d.data&&Array.isArray(d.data.list))render(WarpAnalyze.analyze(d.data,scheduleData));
+    if(d.data&&Array.isArray(d.data.list)){lastList=d.data.list;renderFull(WarpAnalyze.analyze(d.data,scheduleData));}
   });
 }
 goBtn.addEventListener('click',runFetch);
+$('#versionSel').addEventListener('change',e=>applyVersionFilter(e.target.value));
 fillPath();
 loadStored();
 checkUpdates();
 
 function statCard(k,v,small){return `<div class="card stat"><div class="k">${k}</div><div class="v">${v}${small?` <small>${small}</small>`:''}</div></div>`;}
 
-function render(A){
+function renderFull(A){           // analyze() 전체 결과 진입점
+  lastFull=A;
+  buildVersionDropdown(A);
+  const sel=$('#versionSel');
+  applyVersionFilter(sel?sel.value:'__all__');
+}
+function buildVersionDropdown(A){
+  const bar=$('#versionBar'),sel=$('#versionSel');
+  if(!bar||!sel||!WarpAnalyze.analyzeVersions)return;
+  const rows=WarpAnalyze.analyzeVersions(A,{list:lastList},versionsData);
+  if(!rows.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  const cur=sel.value||'__all__';
+  sel.innerHTML='<option value="__all__">전체</option>'+
+    rows.slice().reverse().map(r=>`<option value="${r.v}">${r.v} (${r.s} ~ ${r.e||'현재'})</option>`).join('');
+  sel.value=[...sel.options].some(o=>o.value===cur)?cur:'__all__';
+}
+function applyVersionFilter(v){
+  if(!lastFull)return;
+  if(v==='__all__'){render(lastFull,true);return;}
+  const w=WarpAnalyze.versionWindows(versionsData).find(x=>x.v===v);
+  if(!w){render(lastFull,true);return;}
+  render(WarpAnalyze.filterAnalysis(lastFull,{list:lastList},w),false);
+}
+
+function render(A,isFull){
   charts.forEach(c=>c.destroy());charts=[];
   app.style.display='block';
   const uid=A.info.uid||'-';
@@ -204,7 +240,8 @@ function render(A){
       <div class="lbl">픽승률 · 캐릭터 50/50</div>
       <div class="big" style="color:var(--gold)">${win5050}<small style="font-size:16px;color:var(--muted)"> %</small></div>
       <div class="desc">${cb?`50/50 승부 ${cb.contested}회 중 <b style="color:var(--gold)">${cb.cWins}승</b> · ${cb.cLoss}패 · 확정 ${cb.gWins}회 획득`:'데이터 없음'}</div>
-      ${cb&&cb.currentGuaranteed?'<span class="badge g">다음 5★ 확정 (픽뚫 상태)</span>':(cb?'<span class="badge ok">다음 5★ 50/50</span>':'')}
+      ${isFull?(cb&&cb.currentGuaranteed?'<span class="badge g">다음 5★ 확정 (픽뚫 상태)</span>':(cb?'<span class="badge ok">다음 5★ 50/50</span>':'')):''}
+
     </div>
     <div class="card">
       <div class="lbl">평균 천장 · 캐릭터</div>
@@ -224,16 +261,16 @@ function render(A){
 
   // banner cards
   h+=`<section><h2>배너별 현황</h2><div class="grid banners">`;
-  for(const b of A.banners){const s=b.stats,cap=b.meta.cap,pct=Math.min(100,s.currentPity5/cap*100);
+  for(const b of A.banners){const s=b.stats,cap=b.meta.cap,pct=Math.min(100,(s.currentPity5||0)/cap*100);
     h+=`<div class="card banner">
       <h3><span class="dot" style="background:${b.meta.color}"></span>${b.meta.short} 워프</h3>
-      <div style="margin-top:12px"><span class="pity-num" style="color:${pityColor(s.currentPity5)}">${s.currentPity5}</span> <small>/ ${cap} 천장</small></div>
-      <div class="bar"><i style="width:${pct}%;background:${pityColor(s.currentPity5)}"></i></div>
+      ${isFull?`<div style="margin-top:12px"><span class="pity-num" style="color:${pityColor(s.currentPity5)}">${s.currentPity5}</span> <small>/ ${cap} 천장</small></div>
+      <div class="bar"><i style="width:${pct}%;background:${pityColor(s.currentPity5)}"></i></div>`:''}
       <div class="row"><span>총 뽑기</span><b>${num(s.total)}</b></div>
       <div class="row"><span>5★ 획득</span><b>${s.count5}</b></div>
       <div class="row"><span>평균 천장</span><b>${s.avgPity5?s.avgPity5.toFixed(1):'-'}</b></div>
       ${b.meta.kind==='limited'?`<div class="row"><span>픽승 / 픽뚫 / 확정</span><b>${s.cWins} / ${s.cLoss} / ${s.gWins}</b></div>`:''}
-      ${b.meta.kind==='limited'&&s.currentGuaranteed?'<span class="badge g">다음 확정</span>':''}
+      ${isFull&&b.meta.kind==='limited'&&s.currentGuaranteed?'<span class="badge g">다음 확정</span>':''}
     </div>`;}
   h+=`</div></section>`;
 
