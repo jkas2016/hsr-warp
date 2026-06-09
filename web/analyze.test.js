@@ -184,6 +184,9 @@ assert.deepStrictEqual(analyzeVersions(full, vdata, []), [], '빈 versions → [
 assert.deepStrictEqual(analyzeVersions(full, vdata, undefined), [], 'undefined → []');
 
 // ---- schedule.json versions 데이터 검증 ----
+// 날짜 출처: 1.0–3.8 = in-repo schedule 배너 1페이즈 시작일(앵커 1.0/3.0/3.4/3.7로 검증, cadence 근사).
+// 4.0–4.3 = HoYoverse 실제 패치일. 4.1은 검증된 4주 단축 버전이라 4.1→4.2 간격 28일이 정상(오타 아님).
+// 아래 단언은 데이터 고정용(우발적 수정 감지)이지 실세계 날짜 증명이 아니다.
 assert.ok(Array.isArray(versions) && versions.length >= 28, 'versions 28개 이상');
 const W = versionWindows(versions);
 for (let i = 1; i < W.length; i++) assert.ok(W[i].s >= W[i - 1].s, 'versions 시각 오름차순');

@@ -261,7 +261,6 @@ function render(A,isFull){
       <div class="big" style="color:var(--gold)">${win5050}<small style="font-size:16px;color:var(--muted)"> %</small></div>
       <div class="desc">${cb?`50/50 승부 ${cb.contested}회 중 <b style="color:var(--gold)">${cb.cWins}승</b> · ${cb.cLoss}패 · 확정 ${cb.gWins}회 획득`:'데이터 없음'}</div>
       ${isFull?(cb&&cb.currentGuaranteed?'<span class="badge g">다음 5★ 확정 (픽뚫 상태)</span>':(cb?'<span class="badge ok">다음 5★ 50/50</span>':'')):''}
-
     </div>
     <div class="card">
       <div class="lbl">평균 천장 · 캐릭터</div>
