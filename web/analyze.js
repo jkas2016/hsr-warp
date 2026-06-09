@@ -29,13 +29,34 @@
     return false;
   }
 
+  // 이미 분류된 5★ 배열에서 요약치를 재계산한다(천장·result·isPickup은 입력값 그대로 사용 — 재분류 금지).
+  function aggregateFives(fives, meta) {
+    const pities = fives.map(f => f.pity);
+    const cWins = fives.filter(f => f.result === 'win').length;
+    const cLoss = fives.filter(f => f.result === 'loss').length;
+    const gWins = fives.filter(f => f.result === 'guaranteed').length;
+    const contested = cWins + cLoss;
+    const unknown5 = fives.filter(f => f.unidentified).length;
+    const avg = mean(pities);
+    return {
+      count5: fives.length,
+      avgPity5: avg,
+      bestPity: pities.length ? Math.min(...pities) : null,
+      worstPity: pities.length ? Math.max(...pities) : null,
+      luckPct: (meta.expAvg && pities.length) ? (meta.expAvg - avg) / meta.expAvg * 100 : null,
+      contested, cWins, cLoss, gWins, unknown5,
+      win5050Rate: contested ? cWins / contested : null,
+      pickupTotal: cWins + gWins,
+    };
+  }
+
   function analyzeBanner(records, meta, schedule) {
     schedule = schedule || [];
     const schedEnd = schedule.length ? Date.parse(schedule[schedule.length - 1].e) : 0;
     const list = records.slice().sort(byId);
     const poolKey = meta.pool === 'char' ? 'c' : meta.pool === 'lc' ? 'l' : null; // schedule 픽업 키
-    let p5 = 0, p4 = 0, c5 = 0, c4 = 0, c3 = 0;
-    let guaranteed = false, contested = 0, cWins = 0, cLoss = 0, gWins = 0, unknown5 = 0;
+    let p5 = 0, p4 = 0, c4 = 0, c3 = 0;
+    let guaranteed = false;
     const fives = [];
     for (const r of list) {
       p5++; p4++;
@@ -45,28 +66,22 @@
         const f = { name: r.name, item_id: id, item_type: r.item_type, time: r.time, pity: p5, result: null, isPickup: null, fromGuarantee: false, unidentified: false };
         if (meta.kind === 'limited') {
           const t = Date.parse(String(r.time).slice(0, 10));
-          if (!(t < schedEnd)) { f.unidentified = true; unknown5++; }  // 일정 범위 밖(신규 패치 미반영) — 판정 보류
+          if (!(t < schedEnd)) { f.unidentified = true; }              // 일정 범위 밖(신규 패치 미반영) — 판정 보류
           else {
             f.isPickup = wasPickup(id, t, poolKey, schedule);          // 그 시점 픽업이면 픽승, 아니면 픽뚫
-            if (guaranteed) { f.result = 'guaranteed'; f.fromGuarantee = true; gWins++; guaranteed = false; }
-            else { contested++; if (f.isPickup) { f.result = 'win'; cWins++; } else { f.result = 'loss'; cLoss++; guaranteed = true; } }
+            if (guaranteed) { f.result = 'guaranteed'; f.fromGuarantee = true; guaranteed = false; }
+            else { if (f.isPickup) { f.result = 'win'; } else { f.result = 'loss'; guaranteed = true; } }
           }
         }
-        fives.push(f); c5++; p5 = 0; p4 = 0;
+        fives.push(f); p5 = 0; p4 = 0;
       } else if (rank === '4') { c4++; p4 = 0; }
       else { c3++; }
     }
-    const pities = fives.map(f => f.pity);
     return {
-      total: list.length, jade: list.length * 160, count5: c5, count4: c4, count3: c3,
+      total: list.length, jade: list.length * 160, count4: c4, count3: c3,
       currentPity5: p5, currentPity4: p4,
-      avgPity5: mean(pities), bestPity: pities.length ? Math.min(...pities) : null, worstPity: pities.length ? Math.max(...pities) : null,
-      // luck vs theoretical average (lower pity = luckier); positive % = lucky
-      luckPct: (meta.expAvg && pities.length) ? (meta.expAvg - mean(pities)) / meta.expAvg * 100 : null,
-      // 50/50
-      contested, cWins, cLoss, gWins, unknown5,
-      win5050Rate: contested ? cWins / contested : null,
-      pickupTotal: cWins + gWins, currentGuaranteed: guaranteed,
+      ...aggregateFives(fives, meta),
+      currentGuaranteed: guaranteed,
       fives,
     };
   }
@@ -116,7 +131,7 @@
     };
   }
 
-  const api = { analyze, analyzeBanner, monthly, BANNERS, ORDER };
+  const api = { analyze, analyzeBanner, aggregateFives, monthly, BANNERS, ORDER };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WarpAnalyze = api;
 })(typeof window !== 'undefined' ? window : globalThis);

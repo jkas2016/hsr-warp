@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { analyzeBanner, analyze, monthly, BANNERS } = require('./analyze.js');
+const { analyzeBanner, analyze, monthly, BANNERS, aggregateFives } = require('./analyze.js');
 const { schedule } = require('./schedule.json'); // 배너 일정은 데이터 파일에서 주입
 
 let id = 1000n;
@@ -95,5 +95,26 @@ assert.ok(A.all5[0].time >= A.all5[A.all5.length - 1].time, 'all5 newest first')
 id = 8000n;
 const noSched = analyzeBanner([r5(1415)], BANNERS['11'], []);
 assert.strictEqual(noSched.fives[0].unidentified, true, 'empty schedule -> unidentified, no throw');
+
+// ---- aggregateFives: 분류된 fives에서 요약치 재계산 ----
+const sampleFives = [
+  { pity: 70, result: 'guaranteed', fromGuarantee: true, unidentified: false },
+  { pity: 50, result: 'win',  fromGuarantee: false, unidentified: false },
+  { pity: 80, result: 'loss', fromGuarantee: false, unidentified: false },
+  { pity: 10, result: null, fromGuarantee: false, unidentified: true },
+];
+const agg = aggregateFives(sampleFives, BANNERS['11']);
+assert.strictEqual(agg.count5, 4);
+assert.strictEqual(agg.contested, 2, 'win+loss=contested');
+assert.strictEqual(agg.cWins, 1);
+assert.strictEqual(agg.cLoss, 1);
+assert.strictEqual(agg.gWins, 1);
+assert.strictEqual(agg.unknown5, 1);
+assert.strictEqual(agg.pickupTotal, 2, 'cWins+gWins');
+assert.ok(Math.abs(agg.win5050Rate - 0.5) < 1e-9, '1승/2contested');
+assert.strictEqual(agg.bestPity, 10);
+assert.strictEqual(agg.worstPity, 80);
+assert.ok(Math.abs(agg.avgPity5 - 52.5) < 1e-9, '(70+50+80+10)/4');
+assert.ok(Math.abs(agg.luckPct - (62.5 - 52.5) / 62.5 * 100) < 1e-9, 'luckPct from sample');
 
 console.log('OK  all analyze tests passed');
