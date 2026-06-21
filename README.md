@@ -67,7 +67,7 @@
 - **월별 집계** — 월별 뽑기 수·성옥·획득 5★.
 
 ### 판정 기준
-- **50/50**: 5★ 획득 **시점의 배너 픽업(rate-up)** 대상이면 **픽승**, 아니면 **픽뚫**으로 봅니다. 시점 기반이라 상시풀 편입·리런·콜라보·Celestial Invitation을 정확히 처리합니다(픽업 일정은 `web/analyze.js`의 `SCHEDULE`).
+- **50/50**: 5★ 획득 **시점의 배너 픽업(rate-up)** 대상이면 **픽승**, 아니면 **픽뚫**으로 봅니다. 시점 기반이라 상시풀 편입·리런·콜라보·Celestial Invitation을 정확히 처리합니다(픽업 일정 데이터는 `web/schedule.json`).
 - 픽업 일정에 없는 시점(주로 갓 나온 신규 패치)의 5★는 **미확인**으로 표시됩니다 — 일정을 갱신하면 해소됩니다.
 - 공식 확률/천장: 캐릭터 0.6%(종합 1.6%)/하드천장 90, 광추 0.8%/하드천장 80.
 
@@ -101,9 +101,9 @@ go test ./...
 node web/analyze.test.js
 ```
 
-- 분석 로직은 `web/analyze.js` 단일 소스이며, 단위 테스트는 `web/analyze.test.js`(`node web/analyze.test.js`)가 같은 디렉터리에서 검증합니다.
+- 분석 로직은 `web/analyze.js`, 배너 픽업 일정 데이터는 `web/schedule.json` 단일 소스이며, 단위 테스트는 `web/analyze.test.js`(`node web/analyze.test.js`)가 같은 디렉터리에서 검증합니다.
 - 아이콘 변경: `go run ./tools/genicon` → `goversioninfo -64 -o resource_windows_amd64.syso` 로 재생성.
-- 신규 패치 출시 시 `web/analyze.js`의 `SCHEDULE` 배열에 새 페이즈 `{s,e,c,l}`를 추가하세요(c=캐릭터·l=광추 픽업 item_id; 픽업=Mantan21/HSR-Warp-Simulator, item_id=StarRailRes). 누락 시 그 시점 5★가 '미확인'으로 표시됩니다.
+- 신규 패치 출시 시 `web/schedule.json`의 `schedule` 배열에 새 페이즈 `{s,e,c,l}`를 추가하고 최상위 `version`을 +1 하세요(c=캐릭터·l=광추 픽업 item_id; 픽업=Mantan21/HSR-Warp-Simulator, item_id=StarRailRes). `main`에 push 하면 사용자 앱이 시작 시 자동으로 받아 반영합니다(릴리스 불필요). 누락 시 그 시점 5★가 '미확인'으로 표시됩니다.
 
 **출처** — SRGF 형식: <https://uigf.org/en/standards/srgf.html> · 확률·50/50: <https://www.prydwen.gg/star-rail/guides/gacha-system/> · item_id: <https://github.com/Mar-7th/StarRailRes> · 추출 원리: <https://github.com/biuuu/star-rail-warp-export>
 

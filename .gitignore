@@ -1,3 +1,6 @@
+# Mac OS
+.DS_Store
+
 # Node deps (package.json has no dependencies; nothing to install)
 node_modules/
 
@@ -25,6 +28,9 @@ logs/
 # Generated sample data (regenerate with: npm run sample)
 warp_data.sample.json
 
+# Inno Setup 컴파일 출력 (CI 전용; 로컬에서 생성되더라도 추적 안 함)
+installer/Output/
+
 # 로컬 기획 산출물(superpowers) · 개발 도구 — 추적 안 함
-docs/superpowers/
+.superpowers/
 tools/

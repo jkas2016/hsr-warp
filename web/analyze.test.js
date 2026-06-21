@@ -1,5 +1,6 @@
 const assert = require('assert');
-const { analyzeBanner, analyze, monthly, BANNERS } = require('./analyze.js');
+const { analyzeBanner, analyze, monthly, BANNERS, aggregateFives } = require('./analyze.js');
+const { schedule, versions } = require('./schedule.json'); // 배너 일정은 데이터 파일에서 주입
 
 let id = 1000n;
 // 3.7 phase 1 (2025-11-04..11-25): featured char includes 1415,1409 ; featured lc includes 23052.
@@ -9,7 +10,7 @@ const r34 = (rank, time = T) => ({ id: String(id++), rank_type: String(rank), it
 
 // ---- pity ----
 const seq = ['3', '3', '3', '4', '3'].map(r => r34(r)).concat([r5(1415)]); // 6 pulls, 5* at pity 6
-const b = analyzeBanner(seq, BANNERS['11']);
+const b = analyzeBanner(seq, BANNERS['11'], schedule);
 assert.strictEqual(b.total, 6);
 assert.strictEqual(b.count5, 1);
 assert.strictEqual(b.fives[0].pity, 6, 'pity counts the winning pull');
@@ -23,7 +24,7 @@ const banner11 = [
   r5(1409),  // featured -> contested WIN
   r5(1102),  // not featured -> contested LOSS -> guaranteed
 ];
-const s = analyzeBanner(banner11, BANNERS['11']);
+const s = analyzeBanner(banner11, BANNERS['11'], schedule);
 assert.strictEqual(s.contested, 3, '3 contested (#1,#3,#4)');
 assert.strictEqual(s.cWins, 1, '1 contested win');
 assert.strictEqual(s.cLoss, 2, '2 contested losses');
@@ -36,16 +37,15 @@ assert.deepStrictEqual(s.fives.map(f => f.isPickup), [false, true, true, false])
 assert.strictEqual(s.unknown5, 0, 'all ids covered by schedule');
 
 // ---- core fix: win/loss depends on TIME, not pool membership ----
-// Seele(1102) is a featured pickup ONLY at her own banners (1.0 p1); a LOSS elsewhere.
 id = 5200n;
-const win10 = analyzeBanner([r5(1102, '2023-05-01 00:00:00')], BANNERS['11']); // 1.0 p1: Seele featured
+const win10 = analyzeBanner([r5(1102, '2023-05-01 00:00:00')], BANNERS['11'], schedule); // 1.0 p1: Seele featured
 assert.strictEqual(win10.fives[0].result, 'win', 'Seele during 1.0 p1 = 픽승');
-const loss37 = analyzeBanner([r5(1102, '2025-11-10 00:00:00')], BANNERS['11']); // 3.7 p1: not featured
+const loss37 = analyzeBanner([r5(1102, '2025-11-10 00:00:00')], BANNERS['11'], schedule); // 3.7 p1: not featured
 assert.strictEqual(loss37.fives[0].result, 'loss', 'Seele during 3.7 p1 = 픽뚫');
 
 // ---- unidentified: time outside the known schedule ----
 id = 5500n;
-const u = analyzeBanner([r5(1415, '2030-01-01 00:00:00')], BANNERS['11']);
+const u = analyzeBanner([r5(1415, '2030-01-01 00:00:00')], BANNERS['11'], schedule);
 assert.strictEqual(u.fives[0].unidentified, true, 'no period -> unidentified');
 assert.strictEqual(u.fives[0].result, null, 'unidentified not classified');
 assert.strictEqual(u.fives[0].isPickup, null);
@@ -55,13 +55,13 @@ assert.strictEqual(u.contested, 0, 'unidentified excluded from 50/50');
 // ---- light cone (banner 12), 3.7 p1: 23052 featured, 23000 standard ----
 const r5lc = (iid, time = T) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'z', item_type: 'L', time, gacha_type: '12' });
 const banner12 = [r5lc(23000) /*standard -> loss*/, r5lc(23052) /*featured -> guaranteed*/];
-const sl = analyzeBanner(banner12, BANNERS['12']);
+const sl = analyzeBanner(banner12, BANNERS['12'], schedule);
 assert.deepStrictEqual(sl.fives.map(f => f.result), ['loss', 'guaranteed'], 'LC: loss then guaranteed');
 assert.strictEqual(sl.unknown5, 0);
 
 // ---- luck (소프트천장/early 제거 확인) ----
 id = 6000n;
-const lk = analyzeBanner([r5(1415)], BANNERS['11']); // pity 1, featured -> 픽승, 매우 행운
+const lk = analyzeBanner([r5(1415)], BANNERS['11'], schedule); // pity 1, featured -> 픽승, 매우 행운
 assert.ok(lk.luckPct > 90, 'pity 1 is ~98% luckier than 62.5 avg');
 assert.strictEqual(lk.fives[0].result, 'win');
 assert.ok(!('earlyCount' in lk), 'soft-pity earlyCount removed');
@@ -84,11 +84,117 @@ assert.strictEqual(mo[1].month, '202502');
 // ---- analyze() integration ----
 id = 7000n;
 const data = { info: { uid: '1' }, list: [r5(1102), r5(1415), r34(3), { ...r5lc(23000) }] };
-const A = analyze(data);
+const A = analyze(data, schedule);
 assert.ok(A.banners.length >= 1);
 assert.strictEqual(A.count5, 3);
 assert.strictEqual(A.unknown5, 0, 'account-wide unknown5 exposed');
 assert.ok(A.luck.charBanner, 'char banner luck present');
 assert.ok(A.all5[0].time >= A.all5[A.all5.length - 1].time, 'all5 newest first');
+
+// ---- schedule 누락 방어: throw 없이 모두 unidentified ----
+id = 8000n;
+const noSched = analyzeBanner([r5(1415)], BANNERS['11'], []);
+assert.strictEqual(noSched.fives[0].unidentified, true, 'empty schedule -> unidentified, no throw');
+
+// ---- aggregateFives: 분류된 fives에서 요약치 재계산 ----
+const sampleFives = [
+  { pity: 70, result: 'guaranteed', fromGuarantee: true, unidentified: false },
+  { pity: 50, result: 'win',  fromGuarantee: false, unidentified: false },
+  { pity: 80, result: 'loss', fromGuarantee: false, unidentified: false },
+  { pity: 10, result: null, fromGuarantee: false, unidentified: true },
+];
+const agg = aggregateFives(sampleFives, BANNERS['11']);
+assert.strictEqual(agg.count5, 4);
+assert.strictEqual(agg.contested, 2, 'win+loss=contested');
+assert.strictEqual(agg.cWins, 1);
+assert.strictEqual(agg.cLoss, 1);
+assert.strictEqual(agg.gWins, 1);
+assert.strictEqual(agg.unknown5, 1);
+assert.strictEqual(agg.pickupTotal, 2, 'cWins+gWins');
+assert.ok(Math.abs(agg.win5050Rate - 0.5) < 1e-9, '1승/2contested');
+assert.strictEqual(agg.bestPity, 10);
+assert.strictEqual(agg.worstPity, 80);
+assert.ok(Math.abs(agg.avgPity5 - 52.5) < 1e-9, '(70+50+80+10)/4');
+assert.ok(Math.abs(agg.luckPct - (62.5 - 52.5) / 62.5 * 100) < 1e-9, 'luckPct from sample');
+
+// ---- filterAnalysis: 버전 경계를 넘는 5★의 천장·결과 보존 ----
+const { filterAnalysis, versionWindows } = require('./analyze.js');
+const VERS = [{ v: '3.6', s: '2025-09-23' }, { v: '3.7', s: '2025-11-04' }, { v: '3.8', s: '2025-12-16' }];
+
+// 윈도우: 3.7 = [2025-11-04, 2025-12-16)
+const w = versionWindows(VERS);
+assert.strictEqual(w.length, 3);
+assert.strictEqual(w[1].v, '3.7');
+assert.strictEqual(w[2].e, Infinity, '마지막 버전 끝은 무한');
+
+// 시나리오: 3.6에서 픽뚫(loss→확정) 적립, 3.7에서 70천장 확정 5★.
+id = 9000n;
+const r5t = (iid, t) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'n', item_type: 'C', time: t, gacha_type: '11' });
+const r3t = (t) => ({ id: String(id++), rank_type: '3', item_id: '0', name: 'y', item_type: 'C', time: t, gacha_type: '11' });
+const recs = [];
+recs.push(r5t(1102, '2025-10-01 00:00:00'));           // 3.6: Seele 비픽업 → loss → 확정
+for (let i = 0; i < 69; i++) recs.push(r3t(i < 40 ? '2025-11-01 00:00:00' : '2025-11-10 00:00:00')); // 천장 적립(3.6→3.7 경계 넘음)
+recs.push(r5t(1415, '2025-11-10 12:00:00'));           // 3.7: 확정 획득(70천장)
+
+const vdata = { info: {}, list: recs };
+const full = analyze(vdata, schedule);
+const v37 = filterAnalysis(full, vdata, w[1]); // 3.7 윈도우
+
+const b11 = v37.banners.find(b => b.type === '11');
+const five = b11.stats.fives.find(f => f.item_id === '1415');
+assert.ok(five, '3.7 윈도우에 1415 포함');
+assert.strictEqual(five.pity, 70, '천장은 경계 넘어 적립된 70 그대로(잘리지 않음)');
+assert.strictEqual(five.result, 'guaranteed', '3.6 픽뚫의 확정 상태 보존');
+assert.strictEqual(b11.stats.gWins, 1, '확정 획득 1');
+assert.strictEqual(b11.stats.contested, 0, '3.7엔 contested 없음(확정만)');
+
+// 뽑기 횟수는 시각 윈도우로 버킷: 3.7창엔 r3t 29개(2025-11-10) + 5★ 1개 = 30
+assert.strictEqual(b11.stats.count5, 1, '3.7창 5★ 1개');
+assert.strictEqual(b11.stats.total, 30, '3.7창 뽑기 30(11-10 29건 + 5★)');
+assert.strictEqual(b11.stats.jade, 4800, '30*160');
+assert.strictEqual(b11.stats.currentPity5, null, '과거 윈도우는 현재천장 의미없음 → null');
+
+// 3.6 윈도우엔 loss 5★ + 3성 40개
+const v36 = filterAnalysis(full, vdata, w[0]);
+const b11_36 = v36.banners.find(b => b.type === '11');
+assert.strictEqual(b11_36.stats.cLoss, 1, '3.6 픽뚫 1');
+assert.strictEqual(b11_36.stats.total, 41, '3.6창 뽑기 41(loss 5★ + 3성 40)');
+
+// 불변식: 전체 윈도우 필터 == analyze 핵심 수치
+const wholeWin = { v: 'all', s: 0, e: Infinity };
+const whole = filterAnalysis(full, vdata, wholeWin);
+assert.strictEqual(whole.count5, full.count5, '전체창 5★ 수 일치');
+assert.strictEqual(whole.total, full.total, '전체창 총뽑기 일치');
+
+// ---- analyzeVersions: 버전별 비교 행 ----
+const { analyzeVersions } = require('./analyze.js');
+// 위 Task2의 full/vdata 재사용(3.6 loss + 3.7 guaranteed). VERS=3.6,3.7,3.8
+const rows = analyzeVersions(full, vdata, VERS);
+assert.strictEqual(rows.length, 2, '뽑기 있는 3.6·3.7만(3.8 제외)');
+const row37 = rows.find(r => r.v === '3.7');
+assert.strictEqual(row37.count5, 1);
+assert.strictEqual(row37.charCWins + row37.charCLoss, 0, '3.7은 확정뿐(contested 0)');
+assert.strictEqual(row37.total, 30);
+const row36 = rows.find(r => r.v === '3.6');
+assert.strictEqual(row36.charCLoss, 1, '3.6 픽뚫 1');
+assert.strictEqual(row36.s, '2025-09-23', '3.6 시작일');
+assert.strictEqual(row36.e, '2025-11-04', '3.6 끝=3.7 시작');
+// 방어: versions 없으면 빈 배열
+assert.deepStrictEqual(analyzeVersions(full, vdata, []), [], '빈 versions → []');
+assert.deepStrictEqual(analyzeVersions(full, vdata, undefined), [], 'undefined → []');
+
+// ---- schedule.json versions 데이터 검증 ----
+// 날짜 출처: 1.0–3.8 = in-repo schedule 배너 1페이즈 시작일(앵커 1.0/3.0/3.4/3.7로 검증, cadence 근사).
+// 4.0–4.3 = HoYoverse 실제 패치일. 4.1은 검증된 4주 단축 버전이라 4.1→4.2 간격 28일이 정상(오타 아님).
+// 아래 단언은 데이터 고정용(우발적 수정 감지)이지 실세계 날짜 증명이 아니다.
+assert.ok(Array.isArray(versions) && versions.length >= 28, 'versions 28개 이상');
+const W = versionWindows(versions);
+for (let i = 1; i < W.length; i++) assert.ok(W[i].s >= W[i - 1].s, 'versions 시각 오름차순');
+const find = v => versions.find(x => x.v === v);
+assert.strictEqual(find('3.7').s, '2025-11-04', '3.7 앵커(analyze.test의 3.7 p1과 일치)');
+assert.strictEqual(find('1.0').s, '2023-04-26', '1.0 = 글로벌 출시');
+assert.strictEqual(find('4.0').s, '2026-02-12', '4.0 실제 패치일');
+assert.ok(find('3.8'), '3.8 존재(마지막 3.x)');
+assert.ok(!versions.find(x => x.v === '3.9'), '3.9 없음');
 
 console.log('OK  all analyze tests passed');

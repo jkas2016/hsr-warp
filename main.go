@@ -24,7 +24,7 @@ import (
 //go:generate go run ./tools/genicon
 //go:generate goversioninfo -64 -o resource_windows_amd64.syso
 
-//go:embed web/dashboard.html web/analyze.js web/favicon.ico web/favicon.svg
+//go:embed web/dashboard.html web/analyze.js web/schedule.json web/favicon.ico web/favicon.svg
 var webFiles embed.FS
 
 // version 은 릴리스 빌드 시 goreleaser 가 ldflags(-X main.version)로 주입한다.
@@ -141,7 +141,7 @@ func main() {
 	if err != nil {
 		fatal("자산 로드 실패", "err", err)
 	}
-	srv := server.NewWithAssets(paths, assets)
+	srv := server.NewWithAssets(paths, assets, version)
 
 	ln, port, err := freeListener(8787)
 	if err != nil {
