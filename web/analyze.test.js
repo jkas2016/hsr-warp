@@ -185,16 +185,18 @@ assert.deepStrictEqual(analyzeVersions(full, vdata, undefined), [], 'undefined �
 
 // ---- schedule.json versions 데이터 검증 ----
 // 날짜 출처: 1.0–3.8 = in-repo schedule 배너 1페이즈 시작일(앵커 1.0/3.0/3.4/3.7로 검증, cadence 근사).
-// 4.0–4.3 = HoYoverse 실제 패치일. 4.1은 검증된 4주 단축 버전이라 4.1→4.2 간격 28일이 정상(오타 아님).
+// 4.0–4.4 = HoYoverse 실제 패치일(Asia/CST 서버 글로벌 출시일). 4.1은 검증된 4주 단축 버전이라 4.1→4.2 간격 28일이 정상(오타 아님).
 // 아래 단언은 데이터 고정용(우발적 수정 감지)이지 실세계 날짜 증명이 아니다.
-assert.ok(Array.isArray(versions) && versions.length >= 28, 'versions 28개 이상');
+assert.ok(Array.isArray(versions) && versions.length >= 29, 'versions 29개 이상');
 const W = versionWindows(versions);
 for (let i = 1; i < W.length; i++) assert.ok(W[i].s >= W[i - 1].s, 'versions 시각 오름차순');
 const find = v => versions.find(x => x.v === v);
 assert.strictEqual(find('3.7').s, '2025-11-04', '3.7 앵커(analyze.test의 3.7 p1과 일치)');
 assert.strictEqual(find('1.0').s, '2023-04-26', '1.0 = 글로벌 출시');
 assert.strictEqual(find('4.0').s, '2026-02-12', '4.0 실제 패치일');
+assert.strictEqual(find('4.4').s, '2026-07-15', '4.4 실제 패치일(Asia/CST 글로벌 출시일, 수요일)');
 assert.ok(find('3.8'), '3.8 존재(마지막 3.x)');
 assert.ok(!versions.find(x => x.v === '3.9'), '3.9 없음');
+assert.ok(!versions.find(x => x.v === '4.5'), '4.5 없음(마지막은 4.4)');
 
 console.log('OK  all analyze tests passed');
