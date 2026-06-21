@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-자가 호스팅 HSR 워프(가챠) 기록 추적기. 단일 Go exe가 게임 캐시에서 authkey를 뽑아 `getGachaLog` API를 증분 호출 → SRGF v1.0로 월별 저장 → 내장 대시보드를 로컬 HTTP+SSE로 서빙. 분석은 브라우저 `web/analyze.js`. 전부 로컬.
+자가 호스팅 HSR 워프(가챠) 기록 추적기. 단일 Go exe가 게임 캐시에서 authkey를 뽑아 `getGachaLog` API를 증분 호출 → SRGF v1.0로 월별 저장 → 내장 React 대시보드(디자인 시스템 킷, `web/ui_kits/dashboard/`)를 로컬 HTTP+SSE로 서빙. 분석은 브라우저 `web/analyze.js`. 가챠 데이터 수집·자산(폰트·라이브러리 CDN)엔 인터넷이 필요하지만 **사용자 기록은 외부로 전송하지 않는다** — 수집·분석·저장 전부 로컬 처리(개인정보 보안이 핵심, 오프라인 동작이 목표가 아님).
 
 > 상세 구조·도메인 규칙·로깅은 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. 아래는 명령어와 깨지기 쉬운 핵심만.
 
@@ -21,5 +21,6 @@ go test ./... && node web/analyze.test.js       # 전체 테스트
 - **ID는 거대 정수**: 비교는 Go `math/big`(`idLess`), JS `BigInt`. `Number`/float 금지.
 - **저장은 비파괴**: `WriteAffectedMonths`는 신규 생긴 월만 재작성, 나머지 보존. `TestWriteAffectedMonths_PreservesUntouchedMonths`가 강제.
 - **50/50 판정은 `web/analyze.js` 단일 소스**: 신규 패치마다 `SCHEDULE`에 `{s,e,c,l}` 추가 (상세는 ARCHITECTURE.md).
+- **대시보드는 React DS 킷**: `web/ui_kits/dashboard/`(진입 `index.html`, 서빙 URL `/ui_kits/dashboard/`). `data.js`가 `analyze.js` 출력을 킷 컴포넌트용 `WARP_DATA` 형태로 어댑트할 뿐 — 분석 로직은 `analyze.js` 단일 소스를 유지하고 킷에서 재구현하지 않는다. `main.go`의 `go:embed`는 `all:web`(언더스코어로 시작하는 `_ds_bundle.js`를 포함하려면 `all:` 필요).
 - **에러 로그엔 항상 스택**: 새 로그는 `log` 말고 `slog` 사용 (`stackHandler`가 ERROR에 스택 자동 첨부).
 - **authkey는 게임 전언 기록 화면을 ~24h 내 열어야 유효**. 없으면 조회는 SSE error(설계된 동작).

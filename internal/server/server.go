@@ -28,7 +28,7 @@ const (
 // Server 는 대시보드와 API 를 제공한다.
 type Server struct {
 	paths       Paths
-	assets      fs.FS // web/ (dashboard.html, analyze.js, schedule.json). nil 이면 자산 라우트 비활성(테스트용).
+	assets      fs.FS // web/ (대시보드 UI 킷, analyze.js, schedule.json). nil 이면 자산 라우트 비활성(테스트용).
 	version     string
 	scheduleURL string
 	releaseURL  string

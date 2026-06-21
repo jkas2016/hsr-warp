@@ -1,0 +1,68 @@
+// First-run query card — game-path input + gold 조회 button. Runs the real
+// incremental fetch over SSE (window.WarpData.runFetch via the runFetch prop),
+// showing per-banner live counts as progress events arrive, then onLoaded(data).
+function QueryPanel({ runFetch, onLoaded }) {
+  const { Input, Button, Card } = window.HSRWarpDesignSystem_4a0d44;
+  const [path, setPath] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [prog, setProg] = React.useState(null); // { 배너이름: 누적신규건수 } | null
+  const [err, setErr] = React.useState('');
+
+  // 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지.
+  React.useEffect(() => { window.WarpData.configPath().then((p) => { if (p) setPath(p); }); }, []);
+
+  async function run() {
+    if (busy) return;
+    const p = (path || '').trim();
+    if (!p) { setErr('게임 경로를 입력하세요.'); return; }
+    setBusy(true); setErr(''); setProg({});
+    try {
+      const data = await runFetch(p, (banner, added) => setProg((cur) => ({ ...(cur || {}), [banner]: added })));
+      setBusy(false);
+      onLoaded(data);
+    } catch (e) {
+      setBusy(false);
+      setErr(e.message || '조회에 실패했습니다.');
+    }
+  }
+
+  // 표준 3배너는 항상, 출발은 신규가 잡힐 때만 표시.
+  const order = ['캐릭터', '광추', '일반'];
+  const shown = prog ? order.concat(prog['출발'] != null ? ['출발'] : []) : [];
+
+  return (
+    <Card padding={18} style={{ marginTop: 20 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Input value={path} onChange={(e) => setPath(e.target.value)}
+          placeholder="게임 경로 (…\Star Rail Games)" style={{ flex: 1, minWidth: 280 }} />
+        <Button onClick={run} disabled={busy}>{busy ? '조회 중…' : '조회'}</Button>
+      </div>
+      {!busy && !prog && !err && (
+        <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 9 }}>
+          게임에서 <b style={{ color: 'var(--txt)' }}>전언 기록</b> 화면을 최근 24시간 내 한 번 연 뒤 조회하세요.
+          기존 데이터는 안전하게 보존되며 신규만 추가됩니다.
+        </div>
+      )}
+      {err && <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>{err}</div>}
+      {prog && shown.length > 0 && (
+        <div style={{ marginTop: 14, display: 'grid', gap: 9 }}>
+          {shown.map((k) => {
+            const added = prog[k] || 0;
+            return (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 52, fontSize: 12.5, color: 'var(--muted)' }}>{k}</span>
+                <div style={{ flex: 1, height: 7, borderRadius: 'var(--r-pill)', background: 'var(--panel-2)', overflow: 'hidden' }}>
+                  <div className={busy ? 'indet' : ''} style={{ height: '100%', borderRadius: 'var(--r-pill)', background: 'var(--grad-gold)', width: busy ? '42%' : '100%' }} />
+                </div>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: busy ? 'var(--gold-ink)' : 'var(--green)', width: 54, textAlign: 'right' }}>
+                  {busy ? `+${added}…` : `+${added} ✓`}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+window.QueryPanel = QueryPanel;
