@@ -66,6 +66,8 @@
   .name5{font-weight:600}
   .foot{color:var(--muted);font-size:12px;margin-top:30px;text-align:center;line-height:1.7}
   details summary{cursor:pointer;color:var(--gold);font-size:13px;margin-top:8px}
+  .more{margin-top:12px;padding:8px 16px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--txt);font-size:13px;cursor:pointer}
+  .more:hover{background:var(--line)}
 </style>
 </head>
 <body>
@@ -112,6 +114,8 @@ let scheduleData=[];
 let versionsData=[];   // schedule.json versions
 let lastFull=null;     // 가장 최근 analyze() 전체 결과(필터의 원본)
 let lastList=[];       // 가장 최근 원본 레코드(필터가 시각 버킷에 사용)
+const PAGE_FIVES=20,PAGE_MONTH=12;
+let fivesShown=PAGE_FIVES,monthShown=PAGE_MONTH;
 const num=n=>Math.round(n).toLocaleString('ko-KR');
 const pityColor=p=>p<60?'var(--green)':p<=80?'var(--orange)':'var(--red)';
 const resText={win:'픽승',loss:'픽뚫',guaranteed:'확정',null:'-'};
@@ -187,6 +191,34 @@ loadStored();
 checkUpdates();
 
 function statCard(k,v,small){return `<div class="card stat"><div class="k">${k}</div><div class="v">${v}${small?` <small>${small}</small>`:''}</div></div>`;}
+function fivesRowsHTML(A,limit){
+  if(!A.all5.length)return `<tr><td colspan="5" class="muted">5★ 기록 없음</td></tr>`;
+  return A.all5.slice(0,limit).map(f=>{const showRes=f.result!=null;
+    return `<tr><td class="name5" style="color:${f.isPickup===false?'var(--muted)':'var(--gold)'}">${f.name}</td>
+      <td><span class="tag">${f.banner}</span></td>
+      <td><span class="pill" style="background:${pityColor(f.pity)}">${f.pity}</span></td>
+      <td>${showRes?`<span class="res ${resClass[f.result]}">${resText[f.result]}</span>`:'<span class="muted">-</span>'}</td>
+      <td class="muted">${f.time}</td></tr>`;}).join('');
+}
+function refreshFives(A){
+  $('#fivesBody').innerHTML=fivesRowsHTML(A,fivesShown);
+  const rest=A.all5.length-fivesShown,btn=$('#moreFives');
+  btn.style.display=rest>0?'inline-block':'none';
+  if(rest>0)btn.textContent=`더보기 (${rest}개 남음)`;
+}
+function monthRowsHTML(A,limit){
+  if(!A.monthly.length)return `<tr><td colspan="5" class="muted">월별 기록 없음</td></tr>`;
+  return [...A.monthly].reverse().slice(0,limit).map(m=>{const lbl=m.month.slice(0,4)+'.'+m.month.slice(4);
+    return `<tr><td><b>${lbl}</b></td><td>${m.total}</td><td class="muted">${num(m.jade)}</td>
+      <td>${m.c5?`<span class="pill" style="background:var(--gold)">${m.c5}</span>`:'<span class="muted">0</span>'}</td>
+      <td class="muted">${m.fives.map(f=>f.name).join(', ')||'-'}</td></tr>`;}).join('');
+}
+function refreshMonth(A){
+  $('#monthBody').innerHTML=monthRowsHTML(A,monthShown);
+  const rest=A.monthly.length-monthShown,btn=$('#moreMonth');
+  btn.style.display=rest>0?'inline-block':'none';
+  if(rest>0)btn.textContent=`더보기 (${rest}개월 남음)`;
+}
 
 function renderFull(A){           // analyze() 전체 결과 진입점
   lastFull=A;
@@ -282,7 +314,7 @@ function render(A,isFull){
 
   // banner cards
   h+=`<section><h2>배너별 현황</h2><div class="grid banners">`;
-  for(const b of A.banners){const s=b.stats,cap=b.meta.cap,pct=Math.min(100,(s.currentPity5||0)/cap*100);
+  for(const b of A.banners){if(b.type==='2')continue;const s=b.stats,cap=b.meta.cap,pct=Math.min(100,(s.currentPity5||0)/cap*100);
     h+=`<div class="card banner">
       <h3><span class="dot" style="background:${b.meta.color}"></span>${b.meta.short} 워프</h3>
       ${isFull?`<div style="margin-top:12px"><span class="pity-num" style="color:${pityColor(s.currentPity5)}">${s.currentPity5}</span> <small>/ ${cap} 천장</small></div>
@@ -303,31 +335,27 @@ function render(A,isFull){
     <div class="card chart-card"><h3>월별 뽑기</h3><div class="chart-wrap"><canvas id="cMonth"></canvas></div></div>
   </div></section>`;
 
-  // monthly table
-  h+=`<section><h2>월별 집계</h2><table><thead><tr><th>월</th><th>뽑기</th><th>성옥</th><th>5★</th><th>획득 5★</th></tr></thead><tbody>`;
-  for(const m of [...A.monthly].reverse()){const lbl=m.month.slice(0,4)+'.'+m.month.slice(4);
-    h+=`<tr><td><b>${lbl}</b></td><td>${m.total}</td><td class="muted">${num(m.jade)}</td>
-      <td>${m.c5?`<span class="pill" style="background:var(--gold)">${m.c5}</span>`:'<span class="muted">0</span>'}</td>
-      <td class="muted">${m.fives.map(f=>f.name).join(', ')||'-'}</td></tr>`;}
-  h+=`</tbody></table></section>`;
+  // monthly table (페이징: monthShown 개월씩 더보기)
+  h+=`<section><h2>월별 집계</h2>
+    <table><thead><tr><th>월</th><th>뽑기</th><th>성옥</th><th>5★</th><th>획득 5★</th></tr></thead>
+    <tbody id="monthBody"></tbody></table>
+    <button id="moreMonth" class="more" style="display:none">더보기</button></section>`;
 
-  // 5-star history
+  // 5-star history (페이징: fivesShown 개씩 더보기)
   h+=`<section><h2>5★ 획득 기록 <span class="note">(최신순)</span></h2>
-    <table><thead><tr><th>이름</th><th>배너</th><th>천장</th><th>결과</th><th>획득 시각</th></tr></thead><tbody>`;
-  for(const f of A.all5){const showRes=f.result!=null;
-    h+=`<tr><td class="name5" style="color:${f.isPickup===false?'var(--muted)':'var(--gold)'}">${f.name}</td>
-      <td><span class="tag">${f.banner}</span></td>
-      <td><span class="pill" style="background:${pityColor(f.pity)}">${f.pity}</span></td>
-      <td>${showRes?`<span class="res ${resClass[f.result]}">${resText[f.result]}</span>`:'<span class="muted">-</span>'}</td>
-      <td class="muted">${f.time}</td></tr>`;}
-  if(!A.all5.length)h+=`<tr><td colspan="5" class="muted">5★ 기록 없음</td></tr>`;
-  h+=`</tbody></table></section>`;
+    <table><thead><tr><th>이름</th><th>배너</th><th>천장</th><th>결과</th><th>획득 시각</th></tr></thead>
+    <tbody id="fivesBody"></tbody></table>
+    <button id="moreFives" class="more" style="display:none">더보기</button></section>`;
 
   app.innerHTML=h;
   app.querySelectorAll('.vrow').forEach(tr=>tr.addEventListener('click',()=>{
     const sel=$('#versionSel'); if(!sel)return;
     sel.value=tr.dataset.v; applyVersionFilter(tr.dataset.v);
   }));
+  fivesShown=PAGE_FIVES;monthShown=PAGE_MONTH;
+  refreshFives(A);refreshMonth(A);
+  $('#moreFives').addEventListener('click',()=>{fivesShown+=PAGE_FIVES;refreshFives(A);});
+  $('#moreMonth').addEventListener('click',()=>{monthShown+=PAGE_MONTH;refreshMonth(A);});
   drawCharts(A);
 }
 
