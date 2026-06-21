@@ -29,13 +29,34 @@
     return false;
   }
 
+  // 이미 분류된 5★ 배열에서 요약치를 재계산한다(천장·result·isPickup은 입력값 그대로 사용 — 재분류 금지).
+  function aggregateFives(fives, meta) {
+    const pities = fives.map(f => f.pity);
+    const cWins = fives.filter(f => f.result === 'win').length;
+    const cLoss = fives.filter(f => f.result === 'loss').length;
+    const gWins = fives.filter(f => f.result === 'guaranteed').length;
+    const contested = cWins + cLoss;
+    const unknown5 = fives.filter(f => f.unidentified).length;
+    const avg = mean(pities);
+    return {
+      count5: fives.length,
+      avgPity5: avg,
+      bestPity: pities.length ? Math.min(...pities) : null,
+      worstPity: pities.length ? Math.max(...pities) : null,
+      luckPct: (meta.expAvg && pities.length) ? (meta.expAvg - avg) / meta.expAvg * 100 : null,
+      contested, cWins, cLoss, gWins, unknown5,
+      win5050Rate: contested ? cWins / contested : null,
+      pickupTotal: cWins + gWins,
+    };
+  }
+
   function analyzeBanner(records, meta, schedule) {
     schedule = schedule || [];
     const schedEnd = schedule.length ? Date.parse(schedule[schedule.length - 1].e) : 0;
     const list = records.slice().sort(byId);
     const poolKey = meta.pool === 'char' ? 'c' : meta.pool === 'lc' ? 'l' : null; // schedule 픽업 키
-    let p5 = 0, p4 = 0, c5 = 0, c4 = 0, c3 = 0;
-    let guaranteed = false, contested = 0, cWins = 0, cLoss = 0, gWins = 0, unknown5 = 0;
+    let p5 = 0, p4 = 0, c4 = 0, c3 = 0;
+    let guaranteed = false;
     const fives = [];
     for (const r of list) {
       p5++; p4++;
@@ -45,28 +66,22 @@
         const f = { name: r.name, item_id: id, item_type: r.item_type, time: r.time, pity: p5, result: null, isPickup: null, fromGuarantee: false, unidentified: false };
         if (meta.kind === 'limited') {
           const t = Date.parse(String(r.time).slice(0, 10));
-          if (!(t < schedEnd)) { f.unidentified = true; unknown5++; }  // 일정 범위 밖(신규 패치 미반영) — 판정 보류
+          if (!(t < schedEnd)) { f.unidentified = true; }              // 일정 범위 밖(신규 패치 미반영) — 판정 보류
           else {
             f.isPickup = wasPickup(id, t, poolKey, schedule);          // 그 시점 픽업이면 픽승, 아니면 픽뚫
-            if (guaranteed) { f.result = 'guaranteed'; f.fromGuarantee = true; gWins++; guaranteed = false; }
-            else { contested++; if (f.isPickup) { f.result = 'win'; cWins++; } else { f.result = 'loss'; cLoss++; guaranteed = true; } }
+            if (guaranteed) { f.result = 'guaranteed'; f.fromGuarantee = true; guaranteed = false; }
+            else { if (f.isPickup) { f.result = 'win'; } else { f.result = 'loss'; guaranteed = true; } }
           }
         }
-        fives.push(f); c5++; p5 = 0; p4 = 0;
+        fives.push(f); p5 = 0; p4 = 0;
       } else if (rank === '4') { c4++; p4 = 0; }
       else { c3++; }
     }
-    const pities = fives.map(f => f.pity);
     return {
-      total: list.length, jade: list.length * 160, count5: c5, count4: c4, count3: c3,
+      total: list.length, jade: list.length * 160, count4: c4, count3: c3,
       currentPity5: p5, currentPity4: p4,
-      avgPity5: mean(pities), bestPity: pities.length ? Math.min(...pities) : null, worstPity: pities.length ? Math.max(...pities) : null,
-      // luck vs theoretical average (lower pity = luckier); positive % = lucky
-      luckPct: (meta.expAvg && pities.length) ? (meta.expAvg - mean(pities)) / meta.expAvg * 100 : null,
-      // 50/50
-      contested, cWins, cLoss, gWins, unknown5,
-      win5050Rate: contested ? cWins / contested : null,
-      pickupTotal: cWins + gWins, currentGuaranteed: guaranteed,
+      ...aggregateFives(fives, meta),
+      currentGuaranteed: guaranteed,
       fives,
     };
   }
@@ -83,6 +98,85 @@
       else if (rank === '4') b.c4++; else b.c3++;
     }
     return Object.values(m).sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  const dms = t => Date.parse(String(t).slice(0, 10)); // 'YYYY-MM-DD ...' → ms (date 단위 버킷)
+
+  // versions [{v,s}] → s 오름차순 정렬된 윈도우 [{v, s(ms), e(ms)}]. 마지막 e=Infinity.
+  function versionWindows(versions) {
+    const vs = (versions || []).filter(x => x && x.v && x.s)
+      .map(x => ({ v: x.v, s: Date.parse(x.s) }))
+      .filter(x => !isNaN(x.s))
+      .sort((a, b) => a.s - b.s);
+    return vs.map((x, i) => ({ v: x.v, s: x.s, e: i + 1 < vs.length ? vs[i + 1].s : Infinity }));
+  }
+
+  // 전체 분석 결과(full)를 한 윈도우 {s,e}(ms)로 필터해 analyze()와 같은 모양으로 반환.
+  // 분류된 fives는 시각 필터만(천장·result 재계산 금지), 뽑기 횟수는 원본 레코드를 시각 버킷.
+  function filterAnalysis(full, data, win) {
+    const inWin = t => { const ms = dms(t); return ms >= win.s && ms < win.e; };
+    const list = (Array.isArray(data.list) ? data.list : []).filter(r => inWin(r.time));
+
+    // gacha_type별 원본 카운트(천장 무관, 시각 버킷)
+    const cnt = {}; for (const k of ORDER) cnt[k] = { total: 0, c4: 0, c3: 0 };
+    for (const r of list) {
+      const t = String(r.gacha_type); if (!cnt[t]) continue;
+      cnt[t].total++;
+      const rk = String(r.rank_type);
+      if (rk === '4') cnt[t].c4++; else if (rk !== '5') cnt[t].c3++;
+    }
+
+    const banners = full.banners.map(b => {
+      const fives = b.stats.fives.filter(f => inWin(f.time));
+      const c = cnt[b.type] || { total: 0, c4: 0, c3: 0 };
+      return {
+        type: b.type, meta: b.meta,
+        stats: {
+          total: c.total, jade: c.total * 160, count4: c.c4, count3: c.c3,
+          currentPity5: null, currentPity4: null, currentGuaranteed: false,
+          ...aggregateFives(fives, b.meta),
+          fives,
+        },
+      };
+    }).filter(b => b.stats.total > 0);
+
+    const all5 = banners.flatMap(b => b.stats.fives.map(f => ({ ...f, banner: b.meta.short, gacha_type: b.type })));
+    all5.sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
+    const charFives = banners.filter(b => b.type === '11' || b.type === '1').flatMap(b => b.stats.fives.map(f => f.pity));
+    const lim = banners.find(b => b.type === '11'), lc = banners.find(b => b.type === '12');
+    return {
+      info: full.info || {},
+      total: list.length,
+      jade: list.length * 160,
+      count5: banners.reduce((s, b) => s + b.stats.count5, 0),
+      count4: banners.reduce((s, b) => s + b.stats.count4, 0),
+      count3: banners.reduce((s, b) => s + b.stats.count3, 0),
+      unknown5: banners.reduce((s, b) => s + (b.stats.unknown5 || 0), 0),
+      banners, all5, monthly: monthly(list),
+      luck: {
+        charAvgPity: mean(charFives),
+        charLuckPct: charFives.length ? (62.5 - mean(charFives)) / 62.5 * 100 : null,
+        charBanner: lim ? lim.stats : null,
+        lcBanner: lc ? lc.stats : null,
+      },
+    };
+  }
+
+  // 각 버전 윈도우의 요약을 비교표 행으로. 뽑기 0 버전 제외. 캐릭(11) 기준 천장·50/50.
+  function analyzeVersions(full, data, versions) {
+    const fmt = ms => ms === Infinity ? '' : new Date(ms).toISOString().slice(0, 10);
+    return versionWindows(versions).map(w => {
+      const a = filterAnalysis(full, data, w);
+      if (!a.total) return null;
+      const cb = a.banners.find(b => b.type === '11');
+      return {
+        v: w.v, s: fmt(w.s), e: fmt(w.e),
+        total: a.total, jade: a.jade, count5: a.count5,
+        charAvgPity: cb ? cb.stats.avgPity5 : null,
+        charCWins: cb ? cb.stats.cWins : 0,
+        charCLoss: cb ? cb.stats.cLoss : 0,
+      };
+    }).filter(Boolean);
   }
 
   function analyze(data, schedule) {
@@ -116,7 +210,7 @@
     };
   }
 
-  const api = { analyze, analyzeBanner, monthly, BANNERS, ORDER };
+  const api = { analyze, analyzeBanner, aggregateFives, filterAnalysis, versionWindows, analyzeVersions, monthly, BANNERS, ORDER };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WarpAnalyze = api;
 })(typeof window !== 'undefined' ? window : globalThis);

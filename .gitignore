@@ -1,3 +1,6 @@
+# Mac OS
+.DS_Store
+
 # Node deps (package.json has no dependencies; nothing to install)
 node_modules/
 
@@ -29,5 +32,5 @@ warp_data.sample.json
 installer/Output/
 
 # 로컬 기획 산출물(superpowers) · 개발 도구 — 추적 안 함
-docs/superpowers/
+.superpowers/
 tools/

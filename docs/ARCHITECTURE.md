@@ -20,7 +20,7 @@ Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천�
 
 `web/analyze.js`의 `analyzeBanner`: 5★ **획득 시각**의 픽업(rate-up) item_id이면 픽승(win), 아니면 픽뚫(loss). 판정은 `wasPickup`(획득 시각이 그 item을 픽업한 `SCHEDULE` 기간의 ±60일 안인지 — `SCHEDULE` 날짜가 cadence 근사라 오차 흡수; 상시풀 편입분은 픽업 기간이 수개월 전이라 자연히 제외). 픽뚫은 `guaranteed=true`로 다음 5★를 확정으로 만든다. **'그 시점 픽업이었나'로 판정**하므로 상시풀 편입·Celestial Invitation·콜라보·리런을 모두 올바르게 처리한다(풀 소속 방식은 구조적으로 불가 — 패배 풀이 시변적·플레이어별이라). 일정에 없는 시각의 5★는 `unidentified`(대시보드 '미확인 5★' 경고).
 
-신규 패치 출시 시 **`web/schedule.json`의 `schedule` 배열에 `{s,e,c,l}` 항목 추가 + 최상위 `version` +1**(c=캐릭터 픽업, l=광추 픽업 item_id; 픽업=Mantan21/HSR-Warp-Simulator, item_id=StarRailRes). `main` 에 push 하면 사용자 앱이 시작 시 자동으로 받아 반영한다(릴리스 불필요). `gacha_type`: `11`=캐릭터, `12`=광추, `1`=일반(스텔라), `2`=출발.
+신규 패치 출시 시 **`web/schedule.json`의 `schedule` 배열에 `{s,e,c,l}` 항목 추가 + 최상위 `version` +1**(c=캐릭터 픽업, l=광추 픽업 item_id; 픽업=Mantan21/HSR-Warp-Simulator, item_id=StarRailRes). `main` 에 push 하면 사용자 앱이 시작 시 자동으로 받아 반영한다(릴리스 불필요). `gacha_type`: `11`=캐릭터, `12`=광추, `1`=일반(스텔라), `2`=출발. **게임 버전 경계(예: 3.x→4.x)에는 최상위 `versions` 배열에도 `{"v":"X.Y","s":"YYYY-MM-DD"}` 항목 추가** — 버전 시작일(대시보드 버전별 통계의 단일 소스).
 
 ## 불변식
 
