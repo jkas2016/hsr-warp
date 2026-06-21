@@ -1,7 +1,7 @@
 // Per-banner status cards: colored dot + big pity number + ProgressBar,
 // then total / 5★ / avg-pity / 50/50 rows. Hover-lifting glass cards with a
 // banner-colored top accent.
-function BannerCards({ D }) {
+function BannerCards({ D, scoped }) {
   const { Card, ProgressBar, Badge } = window.HSRWarpDesignSystem_4a0d44;
   const { num, pityColor } = window.WarpUtil;
   const glowFor = (c) => `0 0 26px ${c}55`;
@@ -16,16 +16,22 @@ function BannerCards({ D }) {
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: b.color, boxShadow: `0 0 10px ${b.color}` }} />
               {b.short} 워프
             </h3>
-            <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontFamily: 'var(--font-display)', fontSize: 38, fontWeight: 700, lineHeight: 1, color: pityColor(b.currentPity), fontVariantNumeric: 'tabular-nums' }}>{b.currentPity}</span>
-              <small style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>/ {b.cap} 천장</small>
+            {!scoped && (
+              <>
+                <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 38, fontWeight: 700, lineHeight: 1, color: pityColor(b.currentPity), fontVariantNumeric: 'tabular-nums' }}>{b.currentPity}</span>
+                  <small style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>/ {b.cap} 천장</small>
+                </div>
+                <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '11px 0 14px' }} />
+              </>
+            )}
+            <div style={{ marginTop: scoped ? 14 : 0 }}>
+              <Row k="총 뽑기" v={num(b.total)} />
+              <Row k="5★ 획득" v={b.count5} />
+              <Row k="평균 천장" v={b.avgPity5 ? b.avgPity5.toFixed(1) : '-'} />
+              {b.kind === 'limited' && <Row k="픽승 / 픽뚫 / 확정" v={`${b.cWins} / ${b.cLoss} / ${b.gWins}`} />}
             </div>
-            <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '11px 0 14px' }} />
-            <Row k="총 뽑기" v={num(b.total)} />
-            <Row k="5★ 획득" v={b.count5} />
-            <Row k="평균 천장" v={b.avgPity5 ? b.avgPity5.toFixed(1) : '-'} />
-            {b.kind === 'limited' && <Row k="픽승 / 픽뚫 / 확정" v={`${b.cWins} / ${b.cLoss} / ${b.gWins}`} />}
-            {b.kind === 'limited' && b.guaranteed &&
+            {!scoped && b.kind === 'limited' && b.guaranteed &&
               <div style={{ marginTop: 10 }}><Badge variant="red">다음 5★ 확정</Badge></div>}
           </Card>
         ))}

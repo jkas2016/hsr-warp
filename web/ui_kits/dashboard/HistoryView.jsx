@@ -20,7 +20,7 @@ function HistoryView({ D, onFiveClick }) {
       <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
         총 <b style={{ color: 'var(--txt)' }}>{rows.length}</b>개 · 행을 클릭하면 상세가 열립니다.
       </div>
-      <FivesTable rows={rows} onRowClick={onFiveClick} />
+      <FivesTable key={banner + '|' + result} rows={rows} onRowClick={onFiveClick} pageSize={20} />
     </div>
   );
 }

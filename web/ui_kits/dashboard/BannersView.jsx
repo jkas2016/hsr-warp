@@ -1,7 +1,7 @@
 // Banners tab — pick a banner (segmented control) and see a deep dive:
 // big pity status, a pity-distribution histogram, 50/50 split, and that
 // banner's full 5★ list (click → detail).
-function BannersView({ D, theme, onFiveClick }) {
+function BannersView({ D, theme, scoped, onFiveClick }) {
   const { Card, ProgressBar, Badge, StatCard } = window.HSRWarpDesignSystem_4a0d44;
   const { num, pityColor, pityBins } = window.WarpUtil;
   const [sel, setSel] = React.useState('캐릭터');
@@ -32,15 +32,19 @@ function BannersView({ D, theme, onFiveClick }) {
       <div className="banner-detail" style={{ marginTop: 16 }}>
         {/* status */}
         <Card accent={b.color} padding={22}>
-          <div className="lbl">현재 천장 · {b.short} 워프</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 700, lineHeight: 1, color: pityColor(b.currentPity), fontVariantNumeric: 'tabular-nums' }}>{b.currentPity}</span>
-            <small style={{ fontSize: 15, color: 'var(--muted)' }}>/ {b.cap} 천장</small>
-          </div>
-          <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '14px 0 6px' }} />
-          {b.kind === 'limited' && b.guaranteed
-            ? <div style={{ marginTop: 10 }}><Badge variant="red">다음 5★ 확정 (픽뚫 상태)</Badge></div>
-            : b.kind === 'limited' ? <div style={{ marginTop: 10 }}><Badge variant="green">다음 5★ 50/50</Badge></div> : null}
+          <div className="lbl">{scoped ? `구간 통계 · ${b.short} 워프` : `현재 천장 · ${b.short} 워프`}</div>
+          {!scoped && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 700, lineHeight: 1, color: pityColor(b.currentPity), fontVariantNumeric: 'tabular-nums' }}>{b.currentPity}</span>
+                <small style={{ fontSize: 15, color: 'var(--muted)' }}>/ {b.cap} 천장</small>
+              </div>
+              <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '14px 0 6px' }} />
+              {b.kind === 'limited' && b.guaranteed
+                ? <div style={{ marginTop: 10 }}><Badge variant="red">다음 5★ 확정 (픽뚫 상태)</Badge></div>
+                : b.kind === 'limited' ? <div style={{ marginTop: 10 }}><Badge variant="green">다음 5★ 50/50</Badge></div> : null}
+            </>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 18 }}>
             <Mini k="총 뽑기" v={num(b.total)} />
             <Mini k="5★ 획득" v={`${b.count5}개`} />
@@ -65,7 +69,7 @@ function BannersView({ D, theme, onFiveClick }) {
 
       <section style={{ marginTop: 22 }}>
         <h2 className="h2">{b.short} 워프 5★ 기록 <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 400 }}>({fives.length}개)</span></h2>
-        <FivesTable rows={fives} onRowClick={onFiveClick} />
+        <FivesTable key={sel} rows={fives} onRowClick={onFiveClick} pageSize={20} />
       </section>
     </div>
   );

@@ -1,7 +1,7 @@
 // Hero bento + summary stat row. The luck card is "featured" (gradient
 // accent + glow + big animated number); 50/50 and avg-pity sit beside it.
 // Luck sign (행운/불운) and the next-5★ guarantee state come from live data.
-function HeroSummary({ D }) {
+function HeroSummary({ D, scoped }) {
   const { Card, LuckBar, StatCard, Badge } = window.HSRWarpDesignSystem_4a0d44;
   const { num, useCountUp } = window.WarpUtil;
   const cb = D.charBanner;
@@ -52,9 +52,11 @@ function HeroSummary({ D }) {
             승부 {cb.contested}회 중 <b style={{ color: 'var(--gold-ink)' }}>{cb.cWins}승</b> · {cb.cLoss}패 · 확정 {cb.gWins}회
           </div>
           <div style={{ marginTop: 'auto', paddingTop: 16 }}>
-            {cb.currentGuaranteed
-              ? <Badge variant="red">다음 5★ 확정 (픽뚫 상태)</Badge>
-              : <Badge variant="green">다음 5★ 50/50</Badge>}
+            {scoped
+              ? <Badge variant="neutral">구간 통계</Badge>
+              : cb.currentGuaranteed
+                ? <Badge variant="red">다음 5★ 확정 (픽뚫 상태)</Badge>
+                : <Badge variant="green">다음 5★ 50/50</Badge>}
           </div>
         </Card>
 

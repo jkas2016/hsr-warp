@@ -4,8 +4,9 @@
 // start-up update check. window.WARP_DATA mirrors the current dataset so
 // FiveDetail can look up per-banner meta.
 function Dashboard() {
-  const { ThemeToggle, Tabs } = window.HSRWarpDesignSystem_4a0d44;
-  const [data, setData] = React.useState(null);
+  const { ThemeToggle, Tabs, Select } = window.HSRWarpDesignSystem_4a0d44;
+  const [data, setData] = React.useState(null);       // 전체(account-wide) 어댑트 데이터
+  const [scopeVer, setScopeVer] = React.useState('전체'); // 버전 구간 필터(전 화면 적용)
   const [view, setView] = React.useState('overview');
   const [five, setFive] = React.useState(null);
   const [updates, setUpdates] = React.useState(null);
@@ -18,8 +19,11 @@ function Dashboard() {
     try { localStorage.setItem('hsrwarp-theme', theme); } catch (e) {}
   }, [theme]);
 
-  // FiveDetail reads window.WARP_DATA.banners for banner meta (cap/expAvg).
+  // FiveDetail reads window.WARP_DATA.banners for banner meta (cap/expAvg) —
+  // 전체 데이터로 둔다(스코프와 무관하게 모든 배너 meta 조회 가능).
   React.useEffect(() => { window.WARP_DATA = data; }, [data]);
+  // 데이터가 새로 로드/조회되면 버전 구간을 전체로 초기화.
+  React.useEffect(() => { setScopeVer('전체'); }, [data]);
 
   // 시작 시: 저장된 기록 표시 + 업데이트 확인(베스트에포트).
   React.useEffect(() => {
@@ -34,7 +38,12 @@ function Dashboard() {
   }, []);
 
   const loaded = !!data;
-  const D = data;
+  const scoped = loaded && scopeVer !== '전체';
+  // 선택한 버전 구간으로 좁힌 데이터(전체면 그대로). 재조회 없이 filterAnalysis 재계산.
+  const D = React.useMemo(
+    () => (!data ? null : scopeVer === '전체' ? data : window.WarpData.scopeTo(scopeVer)),
+    [data, scopeVer],
+  );
 
   // QueryPanel/RefreshBar 공용: 실 조회. 데이터 세팅은 호출부(onLoaded)가 한다.
   function runFetch(path, onProgress) { return window.WarpData.runFetch(path, onProgress); }
@@ -90,12 +99,23 @@ function Dashboard() {
               ⚠ 미확인 5★ {D.unknown5}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). 최신 배너는 시작 시 자동 반영됩니다(미반영 시 잠시 후 재실행).
             </div>
           )}
-          <div style={{ marginTop: 22 }}>
-            <Tabs tabs={tabs} value={view} onChange={setView} />
+          <div style={{ marginTop: 22, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <Tabs tabs={tabs} value={view} onChange={setView} />
+            </div>
+            {data.versions.length > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>버전 구간</span>
+                <Select value={scopeVer} onChange={(e) => setScopeVer(e.target.value)}>
+                  <option value="전체">전체 기간</option>
+                  {data.versions.map((v) => <option key={v.v} value={v.v}>{v.v}</option>)}
+                </Select>
+              </span>
+            )}
           </div>
           <div key={view} className="view" style={{ marginTop: 22 }}>
-            {view === 'overview' && <OverviewView D={D} theme={theme} onSeeAll={() => setView('history')} onFiveClick={setFive} />}
-            {view === 'banners' && <BannersView D={D} theme={theme} onFiveClick={setFive} />}
+            {view === 'overview' && <OverviewView D={D} theme={theme} scoped={scoped} onSeeAll={() => setView('history')} onFiveClick={setFive} />}
+            {view === 'banners' && <BannersView D={D} theme={theme} scoped={scoped} onFiveClick={setFive} />}
             {view === 'history' && <HistoryView D={D} onFiveClick={setFive} />}
             {view === 'versions' && <VersionsView D={D} theme={theme} />}
           </div>

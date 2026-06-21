@@ -7,6 +7,8 @@ window.WarpData = (function () {
   let schedule = [];     // /schedule.json -> schedule[] (픽업 일정, 50/50 판정용)
   let versions = [];     // /schedule.json -> versions[] (버전 시작일, 비교/버전라벨용)
   let inited = false;
+  // 마지막 전체 분석 결과(버전 구간 스코프용 — 재조회 없이 filterAnalysis 재계산).
+  let _full = null, _list = [], _fullData = null;
 
   async function init() {
     if (inited) return;
@@ -49,6 +51,7 @@ window.WarpData = (function () {
     const monthly = full.monthly.map((m) => ({
       month: m.month.slice(0, 4) + '.' + m.month.slice(4), // '202601' -> '2026.01'
       c3: m.c3, c4: m.c4, c5: m.c5, total: m.total, jade: m.jade,
+      fives: m.fives || [], // 월별 표의 '획득 5★' 이름 목록
     }));
 
     const versionRows = (window.WarpAnalyze.analyzeVersions(full, { list }, versions) || []).map((r) => ({
@@ -89,7 +92,23 @@ window.WarpData = (function () {
 
   function analyzeAndAdapt(raw) {
     const full = window.WarpAnalyze.analyze(raw, schedule);
-    return adapt(full, (raw && raw.list) || []);
+    _full = full;
+    _list = (raw && raw.list) || [];
+    _fullData = adapt(full, _list);
+    return _fullData;
+  }
+
+  // 전체 데이터를 한 버전 패치 구간으로 좁혀 어댑트한다(전 화면 적용용).
+  // version 이 '전체'/없거나 일정에 없으면 전체 데이터를 그대로 돌려준다.
+  // 버전 비교 표(versions)는 항상 전체 기준을 유지한다(비교는 본질적으로 교차 버전).
+  function scopeTo(version) {
+    if (!version || version === '전체' || !_full) return _fullData;
+    const w = window.WarpAnalyze.versionWindows(versions).find((x) => x.v === version);
+    if (!w) return _fullData;
+    const scoped = adapt(window.WarpAnalyze.filterAnalysis(_full, { list: _list }, w), _list);
+    scoped.versions = _fullData.versions;
+    scoped.scopedVersion = version;
+    return scoped;
   }
 
   // 저장된 기록을 분석해 반환(게임 조회 없음). 기록이 없으면 null.
@@ -146,5 +165,5 @@ window.WarpData = (function () {
     try { return await fetch('/api/updates').then((r) => r.json()); } catch (e) { return null; }
   }
 
-  return { loadStored, runFetch, configPath, checkUpdates };
+  return { loadStored, runFetch, configPath, checkUpdates, scopeTo };
 })();
