@@ -108,3 +108,7 @@ node web/analyze.test.js
 **출처** — SRGF 형식: <https://uigf.org/en/standards/srgf.html> · 확률·50/50: <https://www.prydwen.gg/star-rail/guides/gacha-system/> · item_id: <https://github.com/Mar-7th/StarRailRes> · 추출 원리: <https://github.com/biuuu/star-rail-warp-export>
 
 </details>
+
+## License
+
+MIT
