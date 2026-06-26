@@ -24,7 +24,10 @@ import (
 //go:generate go run ./tools/genicon
 //go:generate goversioninfo -64 -o resource_windows_amd64.syso
 
-//go:embed web/dashboard.html web/analyze.js web/schedule.json web/favicon.ico web/favicon.svg
+// all: 프리픽스로 web/ 전체를 임베드한다 — 대시보드 UI 킷이 언더스코어로 시작하는
+// 파일(_ds_bundle.js)을 포함하기 때문(기본 embed 는 `_`/`.` 시작 파일을 제외한다).
+//
+//go:embed all:web
 var webFiles embed.FS
 
 // version 은 릴리스 빌드 시 goreleaser 가 ldflags(-X main.version)로 주입한다.
@@ -147,7 +150,7 @@ func main() {
 	if err != nil {
 		fatal("포트 열기 실패", "err", err)
 	}
-	url := fmt.Sprintf("http://127.0.0.1:%d/dashboard.html", port)
+	url := fmt.Sprintf("http://127.0.0.1:%d/ui_kits/dashboard/", port)
 	slog.Info("대시보드 시작", "version", version, "url", url)
 	fmt.Printf("HSR 워프 대시보드 %s: %s\n(종료하려면 이 창에서 Ctrl+C)\n", version, url)
 	openBrowser(url)

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HSR 워프 대시보드</title>
+<link rel="icon" type="image/svg+xml" href="../../assets/logo-train.svg">
+<link rel="stylesheet" href="../../styles.css">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg-app);background-attachment:fixed;min-height:100vh;
+    color:var(--txt);font-family:var(--font-sans);line-height:1.5;
+  }
+  .page{max-width:1180px;margin:0 auto;padding:28px 26px 60px}
+  .lbl{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:6px}
+  .h2{font-family:var(--font-display);font-size:18px;font-weight:600;margin:0 0 14px;letter-spacing:-.2px}
+  small{font-weight:inherit}
+  b{font-weight:700}
+
+  /* Bento hero */
+  .hero-bento{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .hero-bento > *:nth-child(1){grid-column:span 2}
+  .stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .banner-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .charts-row{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .banner-detail{display:grid;grid-template-columns:1fr 1.1fr;gap:14px}
+
+  @media(max-width:920px){
+    .hero-bento{grid-template-columns:repeat(2,1fr)}
+    .hero-bento > *:nth-child(1){grid-column:span 2}
+    .stat-row{grid-template-columns:repeat(2,1fr)}
+    .banner-row,.charts-row,.banner-detail{grid-template-columns:1fr}
+  }
+
+  /* View transition: transform only (no opacity) so content is always at full
+     opacity even when the animation is frozen while the page is hidden. */
+  .view{animation:viewIn .34s cubic-bezier(.2,.7,.3,1)}
+  @keyframes viewIn{from{transform:translateY(12px)}to{transform:none}}
+  @media(prefers-reduced-motion:reduce){.view{animation:none}}
+
+  .linkbtn{appearance:none;background:none;border:none;cursor:pointer;color:var(--gold-ink);
+    font-family:var(--font-sans);font-size:13px;font-weight:600;padding:4px 2px;transition:opacity .15s ease}
+  .linkbtn:hover{opacity:.7}
+
+  /* Table */
+  .tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  .tbl th,.tbl td{text-align:left;padding:10px 12px}
+  .tbl tbody tr{border-top:1px solid var(--line)}
+  .tbl th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.6px;border:none}
+  .tbl tbody tr{transition:background .15s ease}
+  .tbl tbody tr:hover td{background:var(--panel-2)}
+
+  .foot{color:var(--muted);font-size:12px;margin-top:36px;text-align:center;line-height:1.8}
+
+  /* Empty state */
+  .empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:64px 20px 40px}
+  .empty-glyph{width:108px;height:108px;border-radius:26px;display:grid;place-items:center;
+    background:radial-gradient(circle at 50% 35%, var(--gold-fill), transparent 70%);
+    border:1px solid var(--card-border);box-shadow:var(--glow-gold)}
+
+  .spin{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){.spin{animation:none}}
+
+  /* Indeterminate fetch progress bar (real fetch has no known total). */
+  .indet{animation:indet 1.1s ease-in-out infinite}
+  @keyframes indet{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
+  @media(prefers-reduced-motion:reduce){.indet{animation:none}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<script src="/analyze.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+  // apply persisted theme before paint to avoid a flash
+  try { document.documentElement.setAttribute('data-theme', localStorage.getItem('hsrwarp-theme') || 'dark'); } catch (e) {}
+</script>
+<script src="data.js"></script>
+<script src="util.js"></script>
+<script type="text/babel" src="QueryPanel.jsx"></script>
+<script type="text/babel" src="RefreshBar.jsx"></script>
+<script type="text/babel" src="HeroSummary.jsx"></script>
+<script type="text/babel" src="BannerCards.jsx"></script>
+<script type="text/babel" src="ChartsGrid.jsx"></script>
+<script type="text/babel" src="FivesTable.jsx"></script>
+<script type="text/babel" src="MonthlyTable.jsx"></script>
+<script type="text/babel" src="FiveDetail.jsx"></script>
+<script type="text/babel" src="OverviewView.jsx"></script>
+<script type="text/babel" src="BannersView.jsx"></script>
+<script type="text/babel" src="HistoryView.jsx"></script>
+<script type="text/babel" src="VersionsView.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel">
+  ReactDOM.createRoot(document.getElementById('root')).render(<Dashboard />);
+</script>
+</body>
+</html>

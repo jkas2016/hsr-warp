@@ -1,0 +1,126 @@
+/* ============================================================
+   HSR Warp — Color & effect tokens   ·   "Astral Express" theme
+   Two themes share one token contract. :root is the default DARK
+   ("deep space") theme; [data-theme="light"] is the PORCELAIN theme.
+   Brand & rarity hues are constant across themes; surfaces, text,
+   glows, glass and shadows swap. Toggle by setting data-theme on
+   <html> (or any ancestor).
+   ============================================================ */
+
+:root {
+  /* ===== Brand & rarity (constant across themes) ===== */
+  --gold:      #f5c542; /* hero accent · 5★ · primary action */
+  --gold-deep: #e0a92e; /* darker gold for sheen / light-mode ink */
+  --purple:    #a474ff; /* 4★ · character banner */
+  --blue:      #5aa9ff; /* 3★ · light-cone banner */
+  --green:     #52d39a; /* lucky · win · standard banner */
+  --red:       #ff6b6b; /* unlucky · loss · error */
+  --orange:    #ff9e45; /* caution · near-pity · beginner banner */
+
+  /* ===================== DARK (default) ===================== */
+  /* ---- Surfaces ---- */
+  --bg:        #0a0d16; /* deepest space black-navy */
+  --panel:     #161b29; /* card / panel base */
+  --panel-2:   #1e2436; /* raised: inputs, hover rows, inner bars */
+  --line:      #2a3148; /* hairline borders */
+  --line-2:    #39415c; /* stronger divider / control border */
+
+  /* ---- Text ---- */
+  --txt:       #e7ecf6;
+  --muted:     #8c97b3;
+  --gold-ink:  #f5c542; /* gold-colored text (adapts per theme) */
+  --on-accent: #0d1018; /* near-black text on gold/green/red fills */
+
+  /* ---- Tinted semantic fills ---- */
+  --gold-fill:   rgba(245, 197, 66, 0.15);
+  --gold-line:   rgba(245, 197, 66, 0.40);
+  --green-fill:  rgba(82, 211, 154, 0.15);
+  --green-line:  rgba(82, 211, 154, 0.40);
+  --red-fill:    rgba(255, 107, 107, 0.15);
+  --red-line:    rgba(255, 107, 107, 0.40);
+  --orange-fill: rgba(255, 158, 69, 0.14);
+  --purple-fill: rgba(164, 116, 255, 0.16);
+
+  /* ---- Glass card surface (gradient sheen + translucent fill) ---- */
+  --card-bg:     linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,0) 40%), rgba(22, 27, 41, 0.72); /* @kind color */
+  --card-border: rgba(255, 255, 255, 0.09); /* @kind color */
+  --glass-blur:  14px; /* @kind other */
+
+  /* ---- App background: aurora glow over deep space ---- */
+  --bg-app:
+    radial-gradient(1200px 620px at 12% -8%, rgba(164,116,255,.16), transparent 60%),
+    radial-gradient(1100px 560px at 98% 2%, rgba(245,197,66,.12), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(90,169,255,.10), transparent 60%),
+    var(--bg); /* @kind color */
+
+  /* ---- Gradients ---- */
+  --grad-gold:   linear-gradient(135deg, #ffe27a 0%, var(--gold) 45%, var(--gold-deep) 100%); /* @kind color */
+  --grad-luck:   linear-gradient(90deg, var(--green), #cfcf52 50%, var(--red)); /* @kind color */
+  --grad-sheen:  linear-gradient(110deg, transparent 25%, rgba(255,255,255,.35) 50%, transparent 75%); /* @kind color */
+
+  /* ---- Glows (dark theme expresses elevation with light) ---- */
+  --glow-gold:   0 0 28px rgba(245,197,66,.34); /* @kind shadow */
+  --glow-green:  0 0 22px rgba(82,211,154,.30); /* @kind shadow */
+  --glow-red:    0 0 22px rgba(255,107,107,.30); /* @kind shadow */
+
+  /* ---- Shadows ---- */
+  --shadow-card:  0 1px 0 rgba(255,255,255,.04) inset, 0 18px 40px -22px rgba(0,0,0,.75); /* @kind shadow */
+  --shadow-hover: 0 1px 0 rgba(255,255,255,.06) inset, 0 26px 60px -24px rgba(0,0,0,.85); /* @kind shadow */
+  --shadow-pop:   0 30px 80px -24px rgba(0,0,0,.8); /* @kind shadow */
+  --shadow-pill:  0 0 6px rgba(0,0,0,.6); /* @kind shadow */
+
+  /* ---- Semantic aliases ---- */
+  --text-primary:    var(--txt);
+  --text-secondary:  var(--muted);
+  --surface-app:     var(--bg);
+  --surface-card:    var(--panel);
+  --surface-raised:  var(--panel-2);
+  --border-hairline: var(--line);
+  --accent:          var(--gold);
+  --accent-text:     var(--on-accent);
+}
+
+/* ====================== LIGHT (porcelain) ====================== */
+[data-theme="light"] {
+  --bg:        #eceef5; /* cool porcelain */
+  --panel:     #ffffff;
+  --panel-2:   #f3f5fa;
+  --line:      #e3e7f0;
+  --line-2:    #d3d9e6;
+
+  --txt:       #1a2030;
+  --muted:     #69728a;
+  --gold-ink:  #a9790c; /* darker gold so gold text stays legible on white */
+  --on-accent: #1a2030; /* dark text on gold fills */
+
+  --gold-fill:   rgba(224, 169, 46, 0.16);
+  --gold-line:   rgba(224, 169, 46, 0.45);
+  --green-fill:  rgba(28, 165, 110, 0.14);
+  --green-line:  rgba(28, 165, 110, 0.40);
+  --red-fill:    rgba(224, 70, 70, 0.13);
+  --red-line:    rgba(224, 70, 70, 0.38);
+  --orange-fill: rgba(214, 120, 30, 0.14);
+  --purple-fill: rgba(132, 92, 224, 0.14);
+
+  --card-bg:     linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.7)), #ffffff; /* @kind color */
+  --card-border: #e8ebf3; /* @kind color */
+  --glass-blur:  10px; /* @kind other */
+
+  --bg-app:
+    radial-gradient(1200px 620px at 12% -8%, rgba(164,116,255,.12), transparent 60%),
+    radial-gradient(1100px 560px at 98% 2%, rgba(245,197,66,.18), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(90,169,255,.10), transparent 60%),
+    var(--bg); /* @kind color */
+
+  --grad-gold:   linear-gradient(135deg, #ffd964 0%, var(--gold) 50%, var(--gold-deep) 100%); /* @kind color */
+  --grad-sheen:  linear-gradient(110deg, transparent 25%, rgba(255,255,255,.6) 50%, transparent 75%); /* @kind color */
+
+  --glow-gold:   0 0 0 rgba(0,0,0,0); /* @kind shadow */ /* light theme uses shadows, not glows */
+  --glow-green:  0 0 0 rgba(0,0,0,0); /* @kind shadow */
+  --glow-red:    0 0 0 rgba(0,0,0,0); /* @kind shadow */
+
+  --shadow-card:  0 1px 2px rgba(26,32,48,.05), 0 16px 36px -20px rgba(26,32,48,.22); /* @kind shadow */
+  --shadow-hover: 0 2px 4px rgba(26,32,48,.07), 0 24px 50px -22px rgba(26,32,48,.30); /* @kind shadow */
+  --shadow-pop:   0 28px 70px -24px rgba(26,32,48,.32); /* @kind shadow */
+  --shadow-pill:  0 1px 3px rgba(26,32,48,.25); /* @kind shadow */
+}

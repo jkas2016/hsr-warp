@@ -1,0 +1,14 @@
+/* ============================================================
+   HSR Warp — Webfonts
+   The original app is a Windows-native dashboard rendered in the
+   system UI stack (Segoe UI / Malgun Gothic) with Consolas for
+   numeric/monospace readouts. Those are OS fonts and are not
+   redistributable, so for consistent cross-platform rendering we
+   substitute the nearest Google Fonts:
+     • Noto Sans KR  → Segoe UI / Malgun Gothic  (humanist sans, full Hangul)
+     • JetBrains Mono → Consolas                 (tabular code/number mono)
+   System fonts remain first in the stack so a real Windows host
+   still gets the authentic look. See README "Visual Foundations".
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
