@@ -101,17 +101,17 @@
   <table>
     <tbody>
       <tr><th>언어</th><td>Go (백엔드 수집·저장·서빙) + 브라우저 JS (분석)</td></tr>
-      <tr><th>프로덕션 Go</th><td>약 941 LOC, 4개 패키지 (main + internal 3)</td></tr>
-      <tr><th>분석 엔진</th><td><code>web/analyze.js</code> 190 LOC, 외부 의존성 0</td></tr>
-      <tr><th>런타임 의존</th><td>Go 표준 라이브러리만. 브라우저는 차트용 Chart.js만 CDN 사용</td></tr>
-      <tr><th>픽업 일정</th><td><code>web/schedule.json</code> 57개 항목 (1.0 ~ 4.3, 2023-04 ~ 2026-07) · 시작 시 <code>main</code>에서 자동 갱신</td></tr>
+      <tr><th>프로덕션 Go</th><td>약 1215 LOC, 5개 패키지 (main + internal 4)</td></tr>
+      <tr><th>분석 엔진</th><td><code>web/analyze.js</code> 223 LOC, 외부 의존성 0</td></tr>
+      <tr><th>런타임 의존</th><td>Go 표준 라이브러리만. 브라우저는 Chart.js·React·ReactDOM·Babel(인브라우저 JSX 변환)을 CDN 으로, 디자인 시스템은 내장 <code>web/_ds_bundle.js</code> 로 로드</td></tr>
+      <tr><th>픽업 일정</th><td><code>web/schedule.json</code> 픽업 항목 57개(~4.3) + 버전 타임라인 4.4까지 · 대시보드 로드 시 <code>/api/updates</code> 호출로 인앱 자동 갱신</td></tr>
     </tbody>
   </table>
 
   <h3>파일별 코드 줄 수</h3>
   <figure>
     <div class="chart-box"><canvas id="locChart"></canvas></div>
-    <figcaption>프로덕션 소스만 (테스트 제외). 색 = 계층: 보라 collector · 초록 store · 파랑 server · 주황 web · 회색 main</figcaption>
+    <figcaption>프로덕션 소스만 (테스트 제외). 색 = 계층: 보라 collector · 초록 store · 파랑 server · 청록 updater · 주황 web · 회색 main</figcaption>
   </figure>
 
   <h2 id="reading">권장 탐색 순서</h2>
@@ -122,11 +122,11 @@
     <li><code>internal/collector/cache.go</code> → <code>fetch.go</code> — authkey 추출 후 증분 수집.</li>
     <li><code>internal/store/store.go</code> + <code>srgf.go</code> — 비파괴 월별 저장과 ID 정밀 비교.</li>
     <li><code>web/analyze.js</code> — 모든 분석. 50/50 판정의 단일 소스.</li>
-    <li><code>web/dashboard.html</code> — 분석 결과를 차트·표로 렌더.</li>
+    <li><code>web/ui_kits/dashboard/</code> — React 디자인 시스템 킷(진입 <code>index.html</code>). JSX를 Babel이 인브라우저 변환, <code>data.js</code>가 <code>analyze.js</code> 출력을 컴포넌트용 <code>WARP_DATA</code>로 어댑트.</li>
   </ol>
 
   <h2 id="packages">패키지 구조</h2>
-  <p>Go 모듈 <code>hsr-warp</code>. 의존 방향은 한쪽이다: <code>main → server → {collector, store}</code> (collector도 store 타입에 의존).</p>
+  <p>Go 모듈 <code>hsr-warp</code>. 의존 방향은 한쪽이다: <code>main → server → {collector, store, updater}</code> (collector·updater도 store 타입에 의존).</p>
   <table>
     <thead><tr><th>패키지 / 파일</th><th>책임</th><th>핵심 심볼</th></tr></thead>
     <tbody>
@@ -138,7 +138,7 @@
       <tr>
         <td><code>internal/server</code></td>
         <td>HTTP 라우팅과 핸들러. 임베드된 <code>web/</code>를 정적 서빙. 패닉 복구 미들웨어로 라우터 전체를 감쌈.</td>
-        <td><code>Handler</code>, <code>handleFetch</code>, <code>handleData</code>, <code>handleConfig</code>, <code>handleDetect</code>, <code>recoverMiddleware</code></td>
+        <td><code>Handler</code>, <code>handleFetch</code>, <code>handleData</code>, <code>handleConfig</code>, <code>handleDetect</code>, <code>handleSchedule</code>, <code>handleUpdates</code>, <code>recoverMiddleware</code></td>
       </tr>
       <tr>
         <td><code>internal/collector</code></td>
@@ -151,9 +151,14 @@
         <td><code>LoadAll</code>, <code>MaxIDByBanner</code>, <code>WriteAffectedMonths</code>, <code>idLess</code>, <code>TZForRegion</code></td>
       </tr>
       <tr>
+        <td><code>internal/updater</code></td>
+        <td>시작 시 베스트에포트 2채널 확인: 배너 일정(<code>schedule.json</code>)은 인앱 갱신, 코드 버전은 GitHub releases/latest와 semver 비교 후 재설치 안내.</td>
+        <td><code>CheckSchedule</code>, <code>CheckRelease</code>, <code>EffectiveSchedule</code>, <code>CompareVersions</code></td>
+      </tr>
+      <tr>
         <td><code>web/analyze.js</code></td>
         <td>의존성 0의 순수 분석. 천장·운·50/50·월별. UMD 패턴이라 브라우저와 Node(테스트) 양쪽에서 동작.</td>
-        <td><code>analyze</code>, <code>analyzeBanner</code>, <code>wasPickup</code>, <code>monthly</code></td>
+        <td><code>analyze</code>, <code>analyzeBanner</code>, <code>aggregateFives</code>, <code>filterAnalysis</code>, <code>versionWindows</code>, <code>analyzeVersions</code>, <code>monthly</code></td>
       </tr>
     </tbody>
     <caption>참고: <code>tools/genicon</code>은 <code>go:generate</code> 빌드 도구로 런타임 바이너리에 포함되지 않는다.</caption>
@@ -163,7 +168,7 @@
   <p>"조회" 한 번의 전체 경로. <code>handleFetch</code>가 오케스트레이션하며 각 단계를 SSE 이벤트로 흘린다.</p>
   <pre class="mermaid">
 flowchart TD
-  Browser["브라우저: dashboard.html + analyze.js"]
+  Browser["브라우저: ui_kits/dashboard/ (React DS) + analyze.js"]
   Cache["게임 웹 캐시 data_2"]
   API["HoYo getGachaLog API"]
   Disk["data 폴더 warp_YYYYMM.json SRGF"]
@@ -215,6 +220,8 @@ flowchart TD
       <tr><td><code>/api/config</code></td><td>GET / POST</td><td>로컬 <code>config.json</code>(게임 경로) 읽기/쓰기.</td></tr>
       <tr><td><code>/api/detect</code></td><td>GET</td><td>흔한 HoYoPlay 경로 후보를 훑어 <code>webCaches</code>가 있는 첫 경로 반환.</td></tr>
       <tr><td><code>/api/fetch</code></td><td>GET (SSE)</td><td>증분 조회 스트리밍. 이벤트 <code>progress</code> / <code>error</code> / <code>done</code>.</td></tr>
+      <tr><td><code>/schedule.json</code></td><td>GET</td><td><code>EffectiveSchedule</code>이 고른 픽업 일정(인앱 갱신본이 내장본보다 최신이면 그걸, 아니면 내장본) 서빙.</td></tr>
+      <tr><td><code>/api/updates</code></td><td>GET</td><td>프로세스당 한 번 업데이트 2채널(배너 일정 + 코드 버전) 확인 결과 반환.</td></tr>
       <tr><td><code>/</code> 외</td><td>GET</td><td>임베드된 <code>web/</code> 정적 서빙. 자산이 nil이면 비활성(API 테스트용).</td></tr>
     </tbody>
   </table>
@@ -357,13 +364,13 @@ else { f.result = 'loss'; guaranteed = true; }                     <span class="
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script>
-  const C = { collector:'#7c3aed', store:'#16a34a', server:'#2563eb', web:'#d97706', main:'#64748b' };
+  const C = { collector:'#7c3aed', store:'#16a34a', server:'#2563eb', web:'#d97706', updater:'#0d9488', main:'#64748b' };
   const rows = [
-    ['web/dashboard.html', 289, C.web],
-    ['internal/server/server.go', 204, C.server],
-    ['web/analyze.js', 190, C.web],
-    ['internal/collector/cache.go', 187, C.collector],
-    ['main.go', 157, C.main],
+    ['internal/server/server.go', 261, C.server],
+    ['web/analyze.js', 223, C.web],
+    ['internal/collector/cache.go', 208, C.collector],
+    ['internal/updater/updater.go', 193, C.updater],
+    ['main.go', 160, C.main],
     ['internal/store/store.go', 151, C.store],
     ['internal/collector/fetch.go', 140, C.collector],
     ['internal/server/config.go', 57, C.server],

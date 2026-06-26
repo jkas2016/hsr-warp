@@ -18,7 +18,7 @@
 
 ### 2. 설치하고 실행합니다
 
-[Releases](https://github.com/jkas2016/hsr-warp/releases/latest)에서 `hsr-warp-setup-X.X.X.exe` 를 받아 실행하면 설치 마법사가 뜹니다(관리자 권한 불필요, 내 계정 폴더에 설치). 설치가 끝나면 시작 메뉴나 바탕화면 바로가기로 실행하세요. 검은 콘솔 창이 뜨고, 기본 브라우저에 대시보드가 자동으로 열립니다(예: `http://127.0.0.1:8787/dashboard.html`).
+[Releases](https://github.com/jkas2016/hsr-warp/releases/latest)에서 `hsr-warp-setup-X.X.X.exe` 를 받아 실행하면 설치 마법사가 뜹니다(관리자 권한 불필요, 내 계정 폴더에 설치). 설치가 끝나면 시작 메뉴나 바탕화면 바로가기로 실행하세요. 검은 콘솔 창이 뜨고, 기본 브라우저에 대시보드가 자동으로 열립니다(예: `http://127.0.0.1:8787/ui_kits/dashboard/`. 8787 포트가 쓰이고 있으면 다음 빈 포트로 바뀝니다).
 
 > 서명되지 않은 프로그램이라 **설치·실행 시 Windows가 경고**할 수 있습니다. 직접 받은 파일이 맞다면 **추가 정보 → 실행**을 누르면 됩니다.
 
@@ -84,7 +84,7 @@
 <details>
 <summary>개발자용 (소스 빌드)</summary>
 
-`node` 만 있으면 됩니다 — `go` 는 빌드 스크립트(`scripts/run-go.mjs`)가 자동으로 찾습니다.
+`go` 와 `node` 가 모두 설치돼 있어야 합니다 — `node` 만 PATH 에 있으면 되고, `go` 의 위치는 빌드 스크립트(`scripts/run-go.mjs`)가 PATH·알려진 경로·레지스트리에서 자동으로 찾습니다.
 
 ```powershell
 npm run build    # 정적 단일 exe 빌드(-s -w)

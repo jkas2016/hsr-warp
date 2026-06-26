@@ -11,8 +11,8 @@ CLAUDE.md 의 상세 보충. 코드를 읽으면 알 수 있는 구조는 줄이
 Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천장·운·50/50·월별)은 브라우저 `analyze.js`가 한다.
 
 - **`internal/store`** — SRGF 타입(`Info`/`Record`/`SRGF`)과 저장 로직. `LoadAll`(월별 파일 병합·중복제거·정렬), `MaxIDByBanner`(증분 기준), `WriteAffectedMonths`(아래 핵심), `TZForRegion`. ID 비교는 `idLess`(math/big) — `Number`/float 금지.
-- **`internal/collector`** — `FindAuthContext`(캐시 `StarRail_Data\webCaches\<버전>\Cache\Cache_Data\data_2` 읽어 정규식으로 authkey URL 추출(readShared 로 FILE_SHARE_DELETE 포함 공유 열기 — 게임 실행 중에도 읽음); 버전 디렉터리는 숫자 기반 `latestVersion`으로 최신 선택), `FetchIncremental`(배너 `1`/`2`/`11`/`12` 페이지네이션, 저장분보다 최신 id만 수집, retcode -101 → authkey 만료 에러).
-- **`internal/server`** — 라우팅과 핸들러. `/api/data`, `/api/config`, `/api/detect`, `/api/fetch`(SSE: progress/error/done). 자산은 main에서 `go:embed`한 `web/`를 `fs.Sub`로 주입. `Handler()`는 mux를 `recoverMiddleware`로 감싼다.
+- **`internal/collector`** — `FindAuthContext`(캐시 `StarRail_Data\webCaches\<버전>\Cache\Cache_Data\data_2` 읽어 정규식으로 authkey URL 추출(readShared 로 FILE_SHARE_DELETE 포함 공유 열기 — 게임 실행 중에도 읽음); 버전 디렉터리는 숫자 기반 `latestVersion`으로 최신 선택), `FetchIncremental`(배너 `1`/`2`/`11`/`12` 페이지네이션, 저장분보다 최신 id만 수집, retcode -101 → authkey 만료 에러, retcode -110 → 레이트 리밋 에러).
+- **`internal/server`** — 라우팅과 핸들러. `/api/data`, `/api/config`, `/api/detect`, `/api/fetch`(SSE: progress/error/done), `/schedule.json`(`handleSchedule` — `updater.EffectiveSchedule`로 내장본/갱신본 중 선택), `/api/updates`(`handleUpdates` — 업데이트 2채널 확인). 자산은 main에서 `go:embed`한 `web/`를 `fs.Sub`로 주입. `Handler()`는 mux를 `recoverMiddleware`로 감싼다.
 - **`main.go`** — `os.Executable()` 기준 baseDir, `data/`·`config.json` 경로, 빈 포트 선택, `go:embed all:web`(킷 전체를 임베드; `_ds_bundle.js`처럼 `_`로 시작하는 파일을 포함하려면 `all:` 프리픽스가 필요), `/ui_kits/dashboard/`로 브라우저 자동 오픈, 로깅 셋업.
 - **`internal/updater`** — 시작 시 업데이트 2채널 확인(외부 통신 단일 지점). `CheckSchedule`(raw `schedule.json` → 신규면 `data/`에 기록), `CheckRelease`(`releases/latest` semver 비교), `EffectiveSchedule`(data/ override > 내장본), `CompareVersions`.
 
@@ -22,7 +22,7 @@ Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천�
 
 - **로드 방식** — React/ReactDOM/Babel(브라우저 내 JSX 컴파일)·Chart.js는 CDN, 디자인 시스템 컴포넌트는 `web/_ds_bundle.js`(전역 `window.HSRWarpDesignSystem_4a0d44`), 토큰은 `web/styles.css`(`tokens/*.css` 4개 `@import`). 테마는 `<html data-theme>`(dark 기본/light) + `localStorage('hsrwarp-theme')`.
 - **뷰 구성** — `Dashboard.jsx`(헤더·테마·탭·업데이트 배너·미확인 5★ 경고) → 4탭: `OverviewView`(히어로·배너카드·차트·최근 5★) / `BannersView`(배너 선택 심화) / `HistoryView`(필터칩 + 전체 5★) / `VersionsView`(버전 비교표·차트). 공용: `FivesTable`, `FiveDetail`(모달), `HeroSummary`, `BannerCards`, `ChartsGrid`, `QueryPanel`/`RefreshBar`(SSE 조회).
-- **데이터 어댑터 — `data.js`의 `window.WarpData`** — 분석을 재구현하지 않는다. `/api/data`+`/schedule.json`을 받아 `WarpAnalyze.analyze()`(+`analyzeVersions`/`versionWindows`)를 돌리고, 그 출력을 킷 컴포넌트가 읽는 `WARP_DATA` 형태(배너 평탄화·`monthly` `YYYY.MM`·5★별 `version` 라벨·`charBanner` 요약 등)로 **변환만** 한다. `loadStored()`(저장분 표시), `runFetch()`(SSE 증분 조회 → 어댑트), `configPath()`(경로 자동채움), `checkUpdates()`. 도메인 로직의 단일 소스는 여전히 `analyze.js`다.
+- **데이터 어댑터 — `data.js`의 `window.WarpData`** — 분석을 재구현하지 않는다. `/api/data`+`/schedule.json`을 받아 `WarpAnalyze.analyze()`(+`analyzeVersions`/`versionWindows`)를 돌리고, 그 출력을 킷 컴포넌트가 읽는 `WARP_DATA` 형태(배너 평탄화·`monthly` `YYYY.MM`·5★별 `version` 라벨·`charBanner` 요약 등)로 **변환만** 한다. `loadStored()`(저장분 표시), `runFetch()`(SSE 증분 조회 → 어댑트), `configPath()`(경로 자동채움), `checkUpdates()`, `scopeTo(version)`(버전 구간으로 재계산, 재조회 없음). 도메인 로직의 단일 소스는 여전히 `analyze.js`다.
 - **불변식 유지** — 50/50·천장·BigInt 비교는 `analyze.js` 그대로. 출발 워프(`gacha_type` 2) 카드는 표시에서 제외(어댑터에서 필터).
 
 ## 중심 도메인 규칙 — 50/50 픽승/픽뚫 판정
