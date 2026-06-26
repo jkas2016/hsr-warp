@@ -332,7 +332,7 @@ else { f.result = 'loss'; guaranteed = true; }                     <span class="
       <tr><td>authkey 추출·timestamp 선택</td><td><code>internal/collector/cache.go</code></td></tr>
       <tr><td>증분 조회·retcode 처리</td><td><code>internal/collector/fetch.go</code></td></tr>
       <tr><td>SSE 오케스트레이션</td><td><code>internal/server/server.go</code></td></tr>
-      <tr><td>게임 실행 중 캐시 파일 읽기 (공유 모드)</td><td>코드 주석 근거: <code>internal/collector/cache.go</code> (Windows 공유 모드로 열어 게임 실행 중에도 읽기 가능)</td></tr>
+      <tr><td>게임 실행 중 캐시 파일 읽기 (FILE_SHARE_DELETE)</td><td><code>internal/collector/cache.go</code> 의 <code>readShared</code> — <code>os.ReadFile</code> 은 <code>FILE_SHARE_DELETE</code> 누락으로 게임 점유 시 실패하므로 <code>syscall.CreateFile</code> 로 READ|WRITE|DELETE 공유 열기. 근거: <a href="https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew">Win32 CreateFileW</a></td></tr>
       <tr><td>JS 안전 정수 한계 (BigInt 필요성)</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER">MDN: Number.MAX_SAFE_INTEGER</a></td></tr>
       <tr><td>SRGF v1.0 형식 · <code>gacha_type</code> 코드</td><td><a href="https://uigf.org/en/standards/srgf.html">uigf.org</a></td></tr>
       <tr><td>픽업 일정 (SCHEDULE)</td><td><a href="https://github.com/Mantan21/HSR-Warp-Simulator">Mantan21/HSR-Warp-Simulator</a></td></tr>

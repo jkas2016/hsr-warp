@@ -22,7 +22,7 @@ function HeroSummary({ D, scoped }) {
         {/* Featured luck card */}
         <Card interactive glow="var(--glow-gold)" accent="var(--gold)" padding={22}
           style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column' }}>
-          <div className="lbl">운 지표 · 캐릭터 평균 천장</div>
+          <div className="lbl">운 지표 · 캐릭터 평균 뽑기 수</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', marginTop: 2 }}>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 64, fontWeight: 700, lineHeight: 1, letterSpacing: '-1.5px', color: luckColor, fontVariantNumeric: 'tabular-nums' }}>
               {luck}<small style={{ fontFamily: 'var(--font-sans)', fontSize: 19, color: 'var(--muted)', fontWeight: 500, marginLeft: 4 }}>회</small>
@@ -62,7 +62,7 @@ function HeroSummary({ D, scoped }) {
 
         {/* avg pity */}
         <Card interactive accent="var(--purple)" padding={22} style={{ display: 'flex', flexDirection: 'column' }}>
-          <div className="lbl">평균 천장 · 캐릭터</div>
+          <div className="lbl">평균 뽑기 수 · 캐릭터</div>
           <div style={{ fontFamily: 'var(--font-display)', fontSize: 46, fontWeight: 700, lineHeight: 1, letterSpacing: '-1px', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
             {avg}<small style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--muted)', fontWeight: 500, marginLeft: 3 }}>회</small>
           </div>

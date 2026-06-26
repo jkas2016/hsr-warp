@@ -108,7 +108,7 @@ function Dashboard() {
                 <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>버전 구간</span>
                 <Select value={scopeVer} onChange={(e) => setScopeVer(e.target.value)}>
                   <option value="전체">전체 기간</option>
-                  {data.versions.map((v) => <option key={v.v} value={v.v}>{v.v}</option>)}
+                  {[...data.versions].reverse().map((v) => <option key={v.v} value={v.v}>{v.v}</option>)}
                 </Select>
               </span>
             )}

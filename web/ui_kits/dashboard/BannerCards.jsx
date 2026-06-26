@@ -28,7 +28,7 @@ function BannerCards({ D, scoped }) {
             <div style={{ marginTop: scoped ? 14 : 0 }}>
               <Row k="총 뽑기" v={num(b.total)} />
               <Row k="5★ 획득" v={b.count5} />
-              <Row k="평균 천장" v={b.avgPity5 ? b.avgPity5.toFixed(1) : '-'} />
+              <Row k="평균 뽑기 수" v={b.avgPity5 ? b.avgPity5.toFixed(1) : '-'} />
               {b.kind === 'limited' && <Row k="픽승 / 픽뚫 / 확정" v={`${b.cWins} / ${b.cLoss} / ${b.gWins}`} />}
             </div>
             {!scoped && b.kind === 'limited' && b.guaranteed &&
