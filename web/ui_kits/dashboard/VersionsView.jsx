@@ -24,13 +24,13 @@ function VersionsView({ D, theme }) {
       </div>
 
       <Card padding={18} style={{ marginBottom: 16 }}>
-        <div className="lbl" style={{ marginBottom: 12 }}>캐릭터 평균 천장 비교 <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>· 짧을수록 행운 (기준 62.5)</span></div>
+        <div className="lbl" style={{ marginBottom: 12 }}>캐릭터 평균 뽑기 수 비교 <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>· 짧을수록 행운 (기준 62.5)</span></div>
         <VersionPityChart rows={rows} sel={sel} theme={theme} />
       </Card>
 
       <Card padding={6}>
         <table className="tbl">
-          <thead><tr><th>버전</th><th>기간</th><th>뽑기</th><th>5★</th><th>캐릭 평균천장</th><th>픽승 / 픽뚫</th></tr></thead>
+          <thead><tr><th>버전</th><th>기간</th><th>뽑기</th><th>5★</th><th>캐릭 평균뽑기</th><th>픽승 / 픽뚫</th></tr></thead>
           <tbody>
             {rows.map((v) => {
               const on = sel === v.v;

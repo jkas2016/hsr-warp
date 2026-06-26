@@ -48,7 +48,7 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 18 }}>
             <Mini k="총 뽑기" v={num(b.total)} />
             <Mini k="5★ 획득" v={`${b.count5}개`} />
-            <Mini k="평균 천장" v={`${b.avgPity5.toFixed(1)}회`} />
+            <Mini k="평균 뽑기 수" v={`${b.avgPity5.toFixed(1)}회`} />
             <Mini k="소비 성옥" v={num(b.total * 160)} />
           </div>
         </Card>
