@@ -1,6 +1,6 @@
 # 대시보드 소소한 수정 묶음 — 설계 (이슈 #11)
 
-대시보드 사용성 수정 3건을 한 PR로 묶는다. 코드 위치는 이슈에서 조사 완료, 본 설계에서 실제 코드 확인·일부 정정.
+대시보드 사용성 수정 3건 + 관련 문서 최신화를 한 PR로 묶는다. 코드 위치는 이슈에서 조사 완료, 본 설계에서 실제 코드 확인·일부 정정.
 
 ## 배경 정정 (조사 결과)
 
@@ -67,6 +67,21 @@ func readShared(path string) ([]byte, error) {
 - `cache.go:181` 의 "공유 모드로 게임 실행 중에도 읽기 가능" 주석을 실제 동작에 맞게 갱신.
 - import 에 `io`, `syscall` 추가.
 
+## Item 4 · 문서 최신화
+
+코드 변경(용어·파일 점유 동작)이 닿는 문서만 정정한다. 일반 '천장' 카테고리 표기와 하드천장(cap) 표기는 정당하므로 유지한다.
+
+| 파일·위치 | 현재 | 변경 | 사유 |
+|---|---|---|---|
+| `README.md:64` | `5★ 평균 천장을 이론 평균 62.5회...` | `5★ 평균 뽑기 수를 이론 평균 62.5회...` | 평균 지표(`avgPity5`) 지칭 |
+| `README.md:65` | `**평균 천장** — 캐릭터 5★ 평균 천장(+ 최고/최악 운).` | `**평균 뽑기 수** — 캐릭터 5★ 평균 뽑기 수(+ 최고/최악 운).` | 평균 지표 지칭 |
+| `docs/architecture.html:335` | 주제 `게임 실행 중 캐시 파일 읽기 (공유 모드)` / 근거 `... (Windows 공유 모드로 열어 게임 실행 중에도 읽기 가능)` | 주제 `게임 실행 중 캐시 파일 읽기 (FILE_SHARE_DELETE)` / 근거 `internal/collector/cache.go의 readShared — os.ReadFile은 FILE_SHARE_DELETE 누락으로 게임 점유 시 실패. syscall.CreateFile로 READ\|WRITE\|DELETE 공유 열기` + [Win32 CreateFileW 공식 문서](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew) 링크 | 기존 서술이 실제 동작과 반대(점유 시 실패가 진짜) |
+| `docs/ARCHITECTURE.md:14` | `FindAuthContext`(... `data_2` 읽어 ... ) | 같은 문장에 "`readShared`로 `FILE_SHARE_DELETE` 포함 공유 열기 — 게임 실행 중에도 읽음" 한 절 추가 | 수집 동작 정확화 |
+
+**유지(변경 금지)**: `README.md:3,72`(일반 '천장' 카테고리·하드천장), `architecture.html:79,155,230,238`(일반 분석 카테고리·BANNERS cap 컬럼), `ARCHITECTURE.md:11,26`(일반 불변식 표기).
+
+**Item 1(드롭다운 순서)**: README·ARCHITECTURE 어디에도 정렬 방향이 문서화돼 있지 않으므로 문서 변경 없음.
+
 ## 테스트 계획 (테스트 먼저, 구현 나중)
 
 ### Item 3 — 자동 (Windows 결정적)
@@ -86,6 +101,9 @@ JSX 렌더용 자동 테스트 하네스가 없으므로 자동 테스트를 추
 - 6곳 라벨이 모두 '평균 뽑기 수' 계열로 바뀌었는지 육안 확인.
 - `analyze.js` 무변경이므로 `node web/analyze.test.js` 가 **여전히 통과**해야 함(회귀 가드).
 - `go test ./...` 전체 통과(Item 3 신규 테스트 포함).
+
+### Item 4(문서) — 수동
+- 변경 후 `README.md`·`docs/ARCHITECTURE.md`·`docs/architecture.html` 에 '평균 천장'(평균 지표 지칭) 잔여 0건, 추가한 Win32 링크 정상 동작 육안 확인.
 
 ## 비범위 (YAGNI)
 
