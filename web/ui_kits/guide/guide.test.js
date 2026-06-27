@@ -16,7 +16,7 @@ for (const r of local) {
 }
 
 // ---- 카피 정합성: 구버전(stale) 문자열은 없어야 한다 ----
-for (const bad of ['dashboard.html', '같은 폴더', '설치 불필요', '실행파일 하나가 전부']) {
+for (const bad of ['dashboard.html', '같은 폴더', '설치 불필요', '실행파일 하나가 전부', '실행파일 하나만 받으면']) {
   assert.ok(!html.includes(bad), `stale copy present: "${bad}"`);
 }
 
