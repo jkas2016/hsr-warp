@@ -2,6 +2,8 @@
 
 > 이슈: [#9](https://github.com/jkas2016/hsr-warp/issues/9) · 작성일 2026-06-28
 
+> **변경 노트(구현 후, 2026-06-28)**: 가이드 소스 위치를 `web/ui_kits/guide/` → **`docs/site/`** 로 이동(GitHub Pages 관례). 이에 따라 (1) 가이드를 **Pages 루트로 승격** — `_site/index.html` 이 곧 가이드 본문이며 redirect는 제거, (2) 디자인 시스템 자산(`styles.css`·`tokens/`·`assets/`)은 여전히 **`web/` 단일 소스**에서 빌드 시 `_site` 루트로 복사, (3) `index.html` 경로는 `../../` → 루트 상대, (4) 자산 무결성 검사는 조립 후 `_site` 기준(`build-pages.test.mjs`)으로 이전. 아래 본문의 `web/ui_kits/guide/`·redirect 서술은 이 노트로 갱신된 것으로 본다.
+
 ## 배경
 
 붕괴: 스타레일 워프 기록 추적기(`hsr-warp`)의 공식 사용자 가이드를 GitHub Pages에 게시한다.

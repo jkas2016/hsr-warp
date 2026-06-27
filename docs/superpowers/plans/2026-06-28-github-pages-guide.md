@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **변경 노트(구현 후, 2026-06-28)**: 가이드 소스 위치를 `web/ui_kits/guide/` → **`docs/site/`** 로 이동(GitHub Pages 관례). 가이드를 **Pages 루트로 승격**(redirect 제거, `_site/index.html`=가이드), DS 자산은 여전히 `web/` 단일 소스에서 빌드 시 `_site` 루트로 복사, `index.html` 경로는 루트 상대, 자산 무결성은 조립 후 `_site` 기준 검사로 이전. 아래 본문의 `web/ui_kits/guide/`·redirect 서술은 이 노트로 갱신된 것으로 본다(테스트 명령: `node docs/site/guide.test.js`).
+
 **Goal:** Claude Design 킷 `ui_kits/guide/`를 현재 제품 사실에 맞춘 카피로 `web/`에 구현하고, GitHub Actions로 GitHub Pages에 자동 배포한다.
 
 **Architecture:** 가이드 페이지를 `web/ui_kits/guide/`에 두어 기존 디자인 시스템 토큰(`web/styles.css`+`web/tokens/`)을 상대경로로 재사용한다. `scripts/build-pages.mjs`가 `web/`에서 필요한 파일만 `_site/`로 조립하고 GitHub Actions 워크플로가 이를 배포한다 — repo에 중복 산출물을 커밋하지 않는다(`web/`가 유일 소스). README는 사이트로 이관 후 슬림화한다.

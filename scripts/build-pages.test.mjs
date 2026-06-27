@@ -10,27 +10,32 @@ execFileSync('node', [join(root, 'scripts/build-pages.mjs')], { stdio: 'inherit'
 
 const out = join(root, '_site');
 for (const f of [
-  'index.html',
+  'index.html',      // 가이드 본문 = Pages 루트 진입점
+  'guide.css',
+  'guide.js',
   'styles.css',
   'tokens/colors.css',
   'assets/logo-train.svg',
-  'ui_kits/guide/index.html',
-  'ui_kits/guide/guide.css',
-  'ui_kits/guide/guide.js',
   'architecture.html',
 ]) {
   assert.ok(existsSync(join(out, f)), `missing in _site: ${f}`);
 }
 
-// 루트 진입점은 가이드로 보낸다
+// 루트 index.html 은 가이드 본문 자체여야 한다(redirect 아님)
 const idx = readFileSync(join(out, 'index.html'), 'utf8');
-assert.ok(idx.includes('url=ui_kits/guide/'), 'root index must redirect to guide');
+assert.ok(!idx.includes('http-equiv="refresh"'), 'root index must be the guide itself, not a redirect');
 
 // 테스트 파일은 게시되지 않는다
-assert.ok(!existsSync(join(out, 'ui_kits/guide/guide.test.js')), 'test file must not be published');
+assert.ok(!existsSync(join(out, 'guide.test.js')), 'test file must not be published');
 
 // 문서 허브: 가이드 푸터가 architecture.html 을 링크해야 한다(스펙 요구, 회귀 방지)
-const guideHtml = readFileSync(join(out, 'ui_kits/guide/index.html'), 'utf8');
-assert.ok(guideHtml.includes('architecture.html'), 'guide footer must link architecture.html');
+assert.ok(idx.includes('architecture.html'), 'guide footer must link architecture.html');
+
+// 조립 후 링크 무결성: 가이드의 모든 로컬 href/src 가 _site 안에 실재해야 한다(404 방지)
+const refs = [...idx.matchAll(/(?:href|src)="([^"]+)"/g)].map((m) => m[1]);
+const localRefs = refs.filter((r) => !/^(https?:|#|mailto:|data:)/.test(r));
+for (const r of localRefs) {
+  assert.ok(existsSync(join(out, r)), `broken local link in built guide: ${r}`);
+}
 
 console.log('build-pages.test.mjs OK');

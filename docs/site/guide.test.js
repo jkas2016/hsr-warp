@@ -7,13 +7,11 @@ const path = require('path');
 const dir = __dirname;
 const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
 
-// ---- 자산 무결성: 로컬 href/src 가 모두 실재하는지 ----
-const refs = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
-// architecture.html 는 빌드 시 build-pages.mjs 가 _site 루트로 복사하는 산출물이라 web/ 소스 트리엔 없다 — 존재 검사에서 제외.
-const local = refs.filter(r => !/^(https?:|#|mailto:|data:)/.test(r) && !r.endsWith('architecture.html'));
-for (const r of local) {
-  const p = path.resolve(dir, r);
-  assert.ok(fs.existsSync(p), `missing local asset: ${r} -> ${p}`);
+// ---- 자산 무결성(동봉 파일): 가이드와 함께 사는 guide.css·guide.js 존재 ----
+// styles.css·tokens·assets·architecture.html 은 web/·docs/ 에서 빌드 시 _site 루트로
+// 모이는 산출물이라 이 소스 디렉터리엔 없다 — 조립 후 링크 무결성은 build-pages.test.mjs 가 검증.
+for (const sib of ['guide.css', 'guide.js']) {
+  assert.ok(fs.existsSync(path.join(dir, sib)), `missing sibling asset: ${sib}`);
 }
 
 // ---- 카피 정합성: 구버전(stale) 문자열은 없어야 한다 ----
