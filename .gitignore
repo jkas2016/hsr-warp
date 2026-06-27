@@ -34,3 +34,6 @@ installer/Output/
 # 로컬 기획 산출물(superpowers) · 개발 도구 — 추적 안 함
 .superpowers/
 tools/
+
+# GitHub Pages 빌드 산출물 (scripts/build-pages.mjs 생성)
+_site/
