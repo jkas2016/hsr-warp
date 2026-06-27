@@ -9,7 +9,8 @@ const html = fs.readFileSync(path.join(dir, 'index.html'), 'utf8');
 
 // ---- 자산 무결성: 로컬 href/src 가 모두 실재하는지 ----
 const refs = [...html.matchAll(/(?:href|src)="([^"]+)"/g)].map(m => m[1]);
-const local = refs.filter(r => !/^(https?:|#|mailto:|data:)/.test(r));
+// architecture.html 는 빌드 시 build-pages.mjs 가 _site 루트로 복사하는 산출물이라 web/ 소스 트리엔 없다 — 존재 검사에서 제외.
+const local = refs.filter(r => !/^(https?:|#|mailto:|data:)/.test(r) && !r.endsWith('architecture.html'));
 for (const r of local) {
   const p = path.resolve(dir, r);
   assert.ok(fs.existsSync(p), `missing local asset: ${r} -> ${p}`);

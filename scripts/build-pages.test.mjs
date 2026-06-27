@@ -29,4 +29,8 @@ assert.ok(idx.includes('url=ui_kits/guide/'), 'root index must redirect to guide
 // 테스트 파일은 게시되지 않는다
 assert.ok(!existsSync(join(out, 'ui_kits/guide/guide.test.js')), 'test file must not be published');
 
+// 문서 허브: 가이드 푸터가 architecture.html 을 링크해야 한다(스펙 요구, 회귀 방지)
+const guideHtml = readFileSync(join(out, 'ui_kits/guide/index.html'), 'utf8');
+assert.ok(guideHtml.includes('architecture.html'), 'guide footer must link architecture.html');
+
 console.log('build-pages.test.mjs OK');
