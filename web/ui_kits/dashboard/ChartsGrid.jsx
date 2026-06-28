@@ -49,7 +49,7 @@ function ChartsGrid({ D, theme }) {
         scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: grid } } } } }));
 
     return () => made.forEach((c) => c.destroy());
-  }, [theme]);
+  }, [theme, window.I18N.lang]);
 
   const wrap = { position: 'relative', height: 230 };
   const h3 = { fontSize: 13, marginBottom: 12, color: 'var(--muted)', fontWeight: 600, marginTop: 0, fontFamily: 'var(--font-display)' };

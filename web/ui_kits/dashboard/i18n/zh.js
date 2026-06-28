@@ -40,7 +40,7 @@ window.I18N_DICTS.zh = {
   'charts.monthly': '月度抽数',
   'bannercards.title': '卡池状态',
   'bannercards.warpSuffix': ' 跃迁',
-  'bannercards.cap': '/ {cap} 保底',
+  'bannercards.cap': '/ {cap} 硬保底',
   'bannercards.total': '总抽数',
   'bannercards.got5': '5★获得',
   'bannercards.avgPulls': '平均抽数',
