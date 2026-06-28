@@ -1,0 +1,48 @@
+/* ============================================================
+   HSR Warp — Typography tokens
+   System-UI humanist sans for everything, monospace for numeric /
+   console readouts (pity counts, progress logs). Tight, dense,
+   dashboard-grade scale.
+   ============================================================ */
+
+:root {
+  /* ---- Families ---- */
+  /* Latin glyphs render in the display/sans face; Hangul falls through to Noto Sans KR. */
+  --font-display: "Space Grotesk", "Noto Sans KR", "Segoe UI", system-ui, sans-serif; /* headings, big numbers */
+  --font-sans: "Noto Sans KR", "Segoe UI", "Malgun Gothic", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, "SFMono-Regular", ui-monospace, monospace;
+
+  /* ---- Weights ---- */
+  --fw-regular:  400; /* @kind font */
+  --fw-medium:   500; /* @kind font */
+  --fw-semibold: 600; /* @kind font */
+  --fw-bold:     700; /* @kind font */
+  --fw-black:    800; /* @kind font */ /* hero stat numbers, pity counts */
+
+  /* ---- Type scale (px — dashboard density) ---- */
+  --fs-hero:    44px; /* hero luck/stat number */
+  --fs-pity:    32px; /* banner pity number */
+  --fs-stat:    27px; /* stat-card value */
+  --fs-h1:      23px; /* page title */
+  --fs-h2:      17px; /* section heading */
+  --fs-h3:      15px; /* card heading */
+  --fs-body:    14px; /* default body / controls */
+  --fs-sm:      13px; /* secondary text, table cells */
+  --fs-cap:     12px; /* captions, hints */
+  --fs-micro:   11px; /* badges, table head, tags */
+
+  /* ---- Line heights ---- */
+  --lh-tight:   1.05; /* @kind font */ /* big numbers */
+  --lh-snug:    1.3;  /* @kind font */
+  --lh-base:    1.5;  /* @kind font */ /* body copy */
+
+  /* ---- Tracking ---- */
+  --ls-label:   0.6px;  /* uppercase labels */
+  --ls-head:    0.5px;  /* table heads */
+
+  /* ---- Semantic aliases ---- */
+  --text-display:  var(--fw-bold) var(--fs-hero)/var(--lh-tight) var(--font-display);
+  --text-heading:  var(--fw-bold) var(--fs-h2)/var(--lh-snug) var(--font-sans);
+  --text-base:     var(--fw-regular) var(--fs-body)/var(--lh-base) var(--font-sans);
+  --text-mono:     var(--fw-medium) var(--fs-cap)/var(--lh-base) var(--font-mono);
+}
