@@ -4,6 +4,7 @@
 function VersionsView({ D, theme }) {
   const { Card, Select } = window.HSRWarpDesignSystem_4a0d44;
   const { num } = window.WarpUtil;
+  const t = window.I18N.t;
   const [range, setRange] = React.useState('전체');
   const [sel, setSel] = React.useState(null);
 
@@ -14,23 +15,23 @@ function VersionsView({ D, theme }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-        <span style={{ fontSize: 13, color: 'var(--muted)' }}>비교 범위</span>
+        <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('versions.compareRange')}</span>
         <Select value={range} onChange={(e) => setRange(e.target.value)}>
-          <option value="전체">전체</option>
+          <option value="전체">{t('scope.all')}</option>
           <option value="4.x">4.x</option>
           <option value="3.x">3.x</option>
         </Select>
-        <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 'auto' }}>행을 클릭해 해당 패치를 강조하세요.</span>
+        <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 'auto' }}>{t('versions.clickRow')}</span>
       </div>
 
       <Card padding={18} style={{ marginBottom: 16 }}>
-        <div className="lbl" style={{ marginBottom: 12 }}>캐릭터 평균 뽑기 수 비교 <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>· 짧을수록 행운 (기준 62.5)</span></div>
+        <div className="lbl" style={{ marginBottom: 12 }}>{t('versions.avgCompare')} <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>{t('versions.avgCompareNote')}</span></div>
         <VersionPityChart rows={rows} sel={sel} theme={theme} />
       </Card>
 
       <Card padding={6}>
         <table className="tbl">
-          <thead><tr><th>버전</th><th>기간</th><th>뽑기</th><th>5★</th><th>캐릭 평균뽑기</th><th>픽승 / 픽뚫</th></tr></thead>
+          <thead><tr><th>{t('versions.colVersion')}</th><th>{t('versions.colPeriod')}</th><th>{t('versions.colPulls')}</th><th>{t('versions.col5')}</th><th>{t('versions.colAvg')}</th><th>{t('versions.colWl')}</th></tr></thead>
           <tbody>
             {rows.map((v) => {
               const on = sel === v.v;
@@ -58,6 +59,7 @@ function VersionPityChart({ rows, sel, theme }) {
   const ref = React.useRef();
   React.useEffect(() => {
     if (!window.Chart) return;
+    const t = window.I18N.t;
     const cs = getComputedStyle(document.documentElement);
     const muted = cs.getPropertyValue('--muted').trim(), grid = cs.getPropertyValue('--line').trim();
     const colors = rows.map((v) => {
@@ -71,7 +73,7 @@ function VersionPityChart({ rows, sel, theme }) {
       options: {
         responsive: true, maintainAspectRatio: false, animation: { duration: 600 },
         plugins: { legend: { display: false },
-          tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.y.toFixed(1)}회` } } },
+          tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.y.toFixed(1)}${t('common.times')}` } } },
         scales: {
           y: { grid: { color: grid }, ticks: { color: muted }, suggestedMax: 90,
             afterBuildTicks: (a) => { if (!a.ticks.some((t) => t.value === 62.5)) a.ticks.push({ value: 62.5 }); } },
@@ -80,7 +82,7 @@ function VersionPityChart({ rows, sel, theme }) {
       },
     });
     return () => c.destroy();
-  }, [rows, sel, theme]);
+  }, [rows, sel, theme, window.I18N.lang]);
   return <div style={{ position: 'relative', height: 210 }}><canvas ref={ref} /></div>;
 }
 window.VersionsView = VersionsView;

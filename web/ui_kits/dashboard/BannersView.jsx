@@ -4,6 +4,7 @@
 function BannersView({ D, theme, scoped, onFiveClick }) {
   const { Card, ProgressBar, Badge, StatCard } = window.HSRWarpDesignSystem_4a0d44;
   const { num, pityColor, pityBins } = window.WarpUtil;
+  const t = window.I18N.t, bl = window.I18N.bannerLabel;
   const [sel, setSel] = React.useState('캐릭터');
   const b = D.banners.find((x) => x.short === sel);
   const fives = D.fives.filter((f) => f.banner === sel);
@@ -23,7 +24,7 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
               color: on ? 'var(--txt)' : 'var(--muted)', transition: 'all .18s ease',
             }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: x.color, boxShadow: on ? `0 0 8px ${x.color}` : 'none' }} />
-              {x.short}
+              {bl(x.short)}
             </button>
           );
         })}
@@ -32,43 +33,43 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
       <div className="banner-detail" style={{ marginTop: 16 }}>
         {/* status */}
         <Card accent={b.color} padding={22}>
-          <div className="lbl">{scoped ? `구간 통계 · ${b.short} 워프` : `현재 천장 · ${b.short} 워프`}</div>
+          <div className="lbl">{scoped ? t('banners.rangeStats', { name: bl(b.short) }) : t('banners.currentPity', { name: bl(b.short) })}</div>
           {!scoped && (
             <>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
                 <span style={{ fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 700, lineHeight: 1, color: pityColor(b.currentPity), fontVariantNumeric: 'tabular-nums' }}>{b.currentPity}</span>
-                <small style={{ fontSize: 15, color: 'var(--muted)' }}>/ {b.cap} 천장</small>
+                <small style={{ fontSize: 15, color: 'var(--muted)' }}>{t('banners.cap', { cap: b.cap })}</small>
               </div>
               <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '14px 0 6px' }} />
               {b.kind === 'limited' && b.guaranteed
-                ? <div style={{ marginTop: 10 }}><Badge variant="red">다음 5★ 확정 (픽뚫 상태)</Badge></div>
-                : b.kind === 'limited' ? <div style={{ marginTop: 10 }}><Badge variant="green">다음 5★ 50/50</Badge></div> : null}
+                ? <div style={{ marginTop: 10 }}><Badge variant="red">{t('banners.nextGuaranteedLoss')}</Badge></div>
+                : b.kind === 'limited' ? <div style={{ marginTop: 10 }}><Badge variant="green">{t('banners.next5050')}</Badge></div> : null}
             </>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 18 }}>
-            <Mini k="총 뽑기" v={num(b.total)} />
-            <Mini k="5★ 획득" v={`${b.count5}개`} />
-            <Mini k="평균 뽑기 수" v={`${b.avgPity5.toFixed(1)}회`} />
-            <Mini k="소비 성옥" v={num(b.total * 160)} />
+            <Mini k={t('banners.total')} v={num(b.total)} />
+            <Mini k={t('banners.got5')} v={b.count5 + t('common.count')} />
+            <Mini k={t('banners.avgPulls')} v={b.avgPity5.toFixed(1) + t('common.times')} />
+            <Mini k={t('banners.jade')} v={num(b.total * 160)} />
           </div>
         </Card>
 
         {/* pity histogram */}
         <Card padding={18}>
-          <div className="lbl" style={{ marginBottom: 12 }}>5★ 천장 분포</div>
+          <div className="lbl" style={{ marginBottom: 12 }}>{t('banners.pityDist')}</div>
           <BannerPityChart bins={pityBins(D.fives, sel)} cap={b.cap} theme={theme} sel={sel} />
           {b.kind === 'limited' && (
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <Split label="픽승" v={b.cWins} color="var(--gold)" total={b.cWins + b.cLoss + b.gWins} />
-              <Split label="픽뚫" v={b.cLoss} color="var(--red)" total={b.cWins + b.cLoss + b.gWins} />
-              <Split label="확정" v={b.gWins} color="var(--green)" total={b.cWins + b.cLoss + b.gWins} />
+              <Split label={t('result.win')} v={b.cWins} color="var(--gold)" total={b.cWins + b.cLoss + b.gWins} />
+              <Split label={t('result.loss')} v={b.cLoss} color="var(--red)" total={b.cWins + b.cLoss + b.gWins} />
+              <Split label={t('result.guaranteed')} v={b.gWins} color="var(--green)" total={b.cWins + b.cLoss + b.gWins} />
             </div>
           )}
         </Card>
       </div>
 
       <section style={{ marginTop: 22 }}>
-        <h2 className="h2">{b.short} 워프 5★ 기록 <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 400 }}>({fives.length}개)</span></h2>
+        <h2 className="h2">{t('banners.fiveList', { name: bl(b.short) })} <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 400 }}>{t('banners.count', { n: fives.length })}</span></h2>
         <FivesTable key={sel} rows={fives} onRowClick={onFiveClick} pageSize={20} />
       </section>
     </div>
