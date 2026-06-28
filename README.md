@@ -24,7 +24,7 @@
 ```powershell
 npm run build    # 정적 단일 exe 빌드(-s -w)
 npm start        # 빌드 후 실행
-npm test         # go test ./...  +  node web/analyze.test.js
+npm test         # go test ./...  +  node web/analyze.test.js  +  node docs/site/copy.test.mjs
 npm run vet      # go vet ./...
 ```
 
