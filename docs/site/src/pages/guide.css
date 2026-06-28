@@ -208,8 +208,8 @@ img{display:block}
 .foot .brand{margin-bottom:14px}
 .foot .disc{color:var(--muted);font-size:13px;line-height:1.7;word-break:keep-all}
 .foot .links{display:flex;flex-wrap:wrap;gap:18px;font-size:13.5px}
-.foot .links a{color:var(--muted);transition:color .15s}
-.foot .links a:hover{color:var(--gold-ink)}
+.foot .links a{color:var(--gold-ink);font-weight:500}
+.foot .links a:hover{text-decoration:underline}
 .foot-bottom{margin-top:34px;padding-top:22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12.5px}
 
 /* ============================ REVEAL ============================ */
