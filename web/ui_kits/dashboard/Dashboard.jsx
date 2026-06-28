@@ -5,6 +5,7 @@
 // FiveDetail can look up per-banner meta.
 function Dashboard() {
   const { ThemeToggle, Tabs, Select } = window.HSRWarpDesignSystem_4a0d44;
+  const t = window.I18N.t;
   const [data, setData] = React.useState(null);       // 전체(account-wide) 어댑트 데이터
   const [scopeVer, setScopeVer] = React.useState('전체'); // 버전 구간 필터(전 화면 적용)
   const [view, setView] = React.useState('overview');
@@ -18,6 +19,18 @@ function Dashboard() {
     document.documentElement.setAttribute('data-theme', theme);
     try { localStorage.setItem('hsrwarp-theme', theme); } catch (e) {}
   }, [theme]);
+
+  const [lang, setLangState] = React.useState(() => window.I18N.lang);
+  React.useEffect(() => {
+    window.I18N.setLang(lang);
+    document.documentElement.setAttribute('lang', lang);
+    try { localStorage.setItem('hsrwarp-lang', lang); } catch (e) {}
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('lang', lang);
+      window.history.replaceState(null, '', u);
+    } catch (e) {}
+  }, [lang]);
 
   // FiveDetail reads window.WARP_DATA.banners for banner meta (cap/expAvg) —
   // 전체 데이터로 둔다(스코프와 무관하게 모든 배너 meta 조회 가능).
@@ -56,7 +69,8 @@ function Dashboard() {
   ] : [];
 
   const ts = loaded && D.info && D.info.export_timestamp ? new Date(D.info.export_timestamp * 1000) : null;
-  const lastUpdated = ts ? ts.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+  const LOCALE = { ko: 'ko-KR', en: 'en-US', zh: 'zh-CN', ja: 'ja-JP' };
+  const lastUpdated = ts ? ts.toLocaleTimeString(LOCALE[lang] || 'ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
   const uid = loaded && D.info && D.info.uid ? D.info.uid : null;
 
   return (
@@ -74,6 +88,12 @@ function Dashboard() {
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           {loaded && <RefreshBar runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
+          <Select value={lang} onChange={(e) => setLangState(e.target.value)} aria-label="Language">
+            <option value="ko">한국어</option>
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+          </Select>
           <ThemeToggle value={theme} onChange={setTheme} />
         </div>
       </header>
