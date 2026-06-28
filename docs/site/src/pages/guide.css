@@ -24,9 +24,9 @@ img{display:block}
 }
 .lead{color:var(--muted);font-size:17px;line-height:1.65}
 .section{padding:84px 0}
-.section-head{max-width:660px;margin-bottom:40px}
+.section-head{margin-bottom:40px}
 .section-head h2{font-family:var(--font-display);font-size:34px;font-weight:700;letter-spacing:-.6px;margin:10px 0 0}
-.section-head p{color:var(--muted);font-size:15.5px;margin:12px 0 0;line-height:1.6;word-break:keep-all;text-wrap:pretty}
+.section-head p{color:var(--muted);font-size:15.5px;margin:12px 0 0;line-height:1.6;word-break:keep-all}
 
 /* ---- glass card primitive (mirrors DS Card) ---- */
 .glass{
@@ -204,13 +204,12 @@ img{display:block}
 
 /* ============================ FOOTER ============================ */
 .foot{border-top:1px solid var(--card-border);padding:42px 0 56px}
-.foot-grid{display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap}
+.foot-grid{display:flex;flex-direction:column;gap:18px}
 .foot .brand{margin-bottom:14px}
-.foot .disc{color:var(--muted);font-size:13px;line-height:1.7;max-width:440px;word-break:keep-all;text-wrap:pretty}
-.foot .links{display:grid;gap:9px;font-size:13.5px}
+.foot .disc{color:var(--muted);font-size:13px;line-height:1.7;word-break:keep-all}
+.foot .links{display:flex;flex-wrap:wrap;gap:18px;font-size:13.5px}
 .foot .links a{color:var(--muted);transition:color .15s}
 .foot .links a:hover{color:var(--gold-ink)}
-.foot .col-h{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--muted);font-weight:700;margin-bottom:13px;opacity:.7}
 .foot-bottom{margin-top:34px;padding-top:22px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12.5px}
 
 /* ============================ REVEAL ============================ */

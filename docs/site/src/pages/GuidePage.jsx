@@ -301,7 +301,6 @@ export function GuidePage() {
               <p className="disc">붕괴: 스타레일 전언 기록을 로컬에서 분석하는 비공식 오픈소스 도구입니다. <b style={{ color: 'var(--txt)' }}>HoYoverse와 무관</b>하며, 게임 내 어떤 데이터도 변경하지 않습니다. 데이터 형식은 SRGF v1.0.</p>
             </div>
             <div className="links">
-              <div className="col-h">링크</div>
               <a href="https://github.com/jkas2016/hsr-warp" target="_blank" rel="noopener">GitHub 저장소</a>
               <a href="https://github.com/jkas2016/hsr-warp/releases" target="_blank" rel="noopener">다운로드 (Releases)</a>
               <a href="https://uigf.org/en/standards/srgf.html" target="_blank" rel="noopener">SRGF 형식 표준</a>
