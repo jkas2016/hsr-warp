@@ -1,0 +1,48 @@
+/* ============================================================
+   HSR Warp — Spacing, radius, shadow & layout tokens
+   Border-first surfaces (hairline borders, almost no drop shadow),
+   generously rounded cards, full-pill badges.
+   ============================================================ */
+
+:root {
+  /* ---- Spacing scale ---- */
+  --sp-1:  3px;
+  --sp-2:  6px;
+  --sp-3:  8px;
+  --sp-4:  10px;
+  --sp-5:  12px;
+  --sp-6:  14px;  /* default grid gap & card-to-card gap */
+  --sp-7:  16px;  /* card padding */
+  --sp-8:  22px;  /* section spacing */
+  --sp-9:  26px;  /* page padding */
+
+  /* ---- Radii ---- */
+  --r-sm:   6px;  /* bars, small chips */
+  --r-md:   8px;  /* buttons, inputs, selects */
+  --r-lg:   14px; /* cards & panels */
+  --r-pill: 20px; /* badges, tags, pills */
+  --r-full: 999px;
+
+  /* ---- Border ---- */
+  --bd:       1px solid var(--line);
+  --bd-width: 1px;
+
+  /* ---- Elevation note ---- */
+  /* Shadow & glow tokens (--shadow-*, --glow-*) live in colors.css because
+     they are theme-dependent. Cards use var(--shadow-card); hover lifts to
+     var(--shadow-hover); dialogs use var(--shadow-pop). */
+
+  /* ---- Bar heights ---- */
+  --bar-h:      8px;  /* progress / pity bar */
+  --luckbar-h:  10px; /* luck gradient bar */
+
+  /* ---- Layout ---- */
+  --maxw: 1180px; /* dashboard content max-width */
+
+  /* ---- Semantic aliases ---- */
+  --radius-card:   var(--r-lg);
+  --radius-control:var(--r-md);
+  --radius-pill:   var(--r-pill);
+  --pad-card:      var(--sp-7);
+  --gap-grid:      var(--sp-6);
+}

@@ -1,0 +1,19 @@
+{
+  "name": "hsr-warp-site",
+  "private": true,
+  "type": "module",
+  "description": "HSR 워프 가이드 사이트 — 디자인 시스템 기반. npm 미배포.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build --outDir dist/static && vite build --ssr src/entry-server.jsx --outDir dist/server && node prerender.mjs",
+    "preview": "vite preview --outDir dist/static"
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.3",
+    "vite": "^8.1.0"
+  }
+}
