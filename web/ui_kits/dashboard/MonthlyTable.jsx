@@ -1,6 +1,7 @@
 // 월별 집계 표 — 월 / 뽑기 / 성옥 / 5★ / 획득 5★ 이름. 최신월 우선,
 // '더보기'로 PAGE 개월씩 펼친다(구 대시보드의 월별 표 + 페이징 복원).
 function MonthlyTable({ D }) {
+  const t = window.I18N.t;
   const { Card, Button } = window.HSRWarpDesignSystem_4a0d44;
   const { num } = window.WarpUtil;
   const PAGE = 12;
@@ -17,13 +18,13 @@ function MonthlyTable({ D }) {
 
   return (
     <section style={{ marginTop: 26 }}>
-      <h2 className="h2">월별 집계</h2>
+      <h2 className="h2">{t('monthly.title')}</h2>
       <Card padding={6}>
         <table className="tbl">
-          <thead><tr><th>월</th><th>뽑기</th><th>성옥</th><th>5★</th><th>획득 5★</th></tr></thead>
+          <thead><tr><th>{t('monthly.month')}</th><th>{t('monthly.pulls')}</th><th>{t('monthly.jade')}</th><th>{t('monthly.five')}</th><th>{t('monthly.got5')}</th></tr></thead>
           <tbody>
             {view.length === 0 && (
-              <tr><td colSpan={5} style={{ color: 'var(--muted)', textAlign: 'center', padding: '22px 0' }}>월별 기록이 없습니다.</td></tr>
+              <tr><td colSpan={5} style={{ color: 'var(--muted)', textAlign: 'center', padding: '22px 0' }}>{t('monthly.empty')}</td></tr>
             )}
             {view.map((m) => (
               <tr key={m.month}>
@@ -38,7 +39,7 @@ function MonthlyTable({ D }) {
         </table>
         {rest > 0 && (
           <div style={{ padding: '12px 12px 4px' }}>
-            <Button variant="ghost" size="sm" onClick={() => setShown((s) => s + PAGE)}>더보기 ({rest}개월 남음)</Button>
+            <Button variant="ghost" size="sm" onClick={() => setShown((s) => s + PAGE)}>{t('monthly.more', { n: rest })}</Button>
           </div>
         )}
       </Card>

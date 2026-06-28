@@ -3,11 +3,11 @@ window.WarpUtil = (function () {
   const num = (n) => Math.round(n).toLocaleString('ko-KR');
   const pityColor = (p) => (p < 60 ? 'var(--green)' : p <= 80 ? 'var(--orange)' : 'var(--red)');
 
-  const RESULT = {
-    win:        { label: '픽승', color: 'var(--gold-ink)' },
-    loss:       { label: '픽뚫', color: 'var(--red)' },
-    guaranteed: { label: '확정', color: 'var(--green)' },
-  };
+  // 결과 라벨은 호출 시점의 언어로 평가되어야 하므로 함수로 노출.
+  function resultMeta(code) {
+    var C = { win: 'var(--gold-ink)', loss: 'var(--red)', guaranteed: 'var(--green)' };
+    return { label: window.I18N.t('result.' + code), color: C[code] };
+  }
 
   // 9 pity buckets (1-10 … 81-90) for a banner's 5★ list.
   function pityBins(fives, banner) {
@@ -52,5 +52,5 @@ window.WarpUtil = (function () {
     };
   }
 
-  return { num, pityColor, RESULT, pityBins, useCountUp, reveal };
+  return { num, pityColor, resultMeta, pityBins, useCountUp, reveal };
 })();
