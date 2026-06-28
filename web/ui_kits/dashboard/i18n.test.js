@@ -1,0 +1,53 @@
+const assert = require('assert');
+
+// 브라우저 전역을 흉내내는 최소 환경.
+global.window = global;
+global.navigator = { language: 'en-US' };
+global.localStorage = { _v: {}, getItem(k){ return this._v[k] ?? null; }, setItem(k,v){ this._v[k]=String(v); } };
+global.location = { search: '' };
+
+require('./i18n/ko.js');
+require('./i18n/en.js');
+require('./i18n/zh.js');
+require('./i18n/ja.js');
+require('./i18n.js');
+
+const I = window.I18N;
+const DICTS = window.I18N_DICTS;
+
+// 1) 4개 사전 키 정합성 (누락/잉여 0)
+const langs = ['ko', 'en', 'zh', 'ja'];
+const koKeys = Object.keys(DICTS.ko).sort();
+for (const l of langs) {
+  const k = Object.keys(DICTS[l]).sort();
+  assert.deepStrictEqual(k, koKeys, `${l} 사전 키가 ko와 불일치`);
+}
+
+// 2) 보간
+I.setLang('ko');
+DICTS.ko['_test.greet'] = '안녕 {name}'; DICTS.en['_test.greet'] = 'hi {name}';
+DICTS.zh['_test.greet'] = 'hi {name}'; DICTS.ja['_test.greet'] = 'hi {name}';
+assert.strictEqual(I.t('_test.greet', { name: '준규' }), '안녕 준규');
+
+// 3) 누락 키 → ko 폴백 → key 반환
+I.setLang('en');
+DICTS.ko['_test.onlyko'] = '한국어만'; // en/zh/ja 없음
+assert.strictEqual(I.t('_test.onlyko'), '한국어만', 'ko 폴백');
+assert.strictEqual(I.t('_test.missing.everywhere'), '_test.missing.everywhere', '완전 누락은 key 반환');
+
+// 4) lang 결정/정규화
+assert.strictEqual(I.langOf('zh-CN'), 'zh');
+assert.strictEqual(I.langOf('ja'), 'ja');
+assert.strictEqual(I.langOf('en-GB'), 'en');
+assert.strictEqual(I.langOf('ko-KR'), 'ko');
+assert.strictEqual(I.langOf('fr'), 'ko', '미지원 → ko');
+
+// 5) 배너 코드 커버리지 + bannerLabel
+for (const short of ['캐릭터', '광추', '일반', '출발']) {
+  assert.ok(I.BANNER_CODE[short], `BANNER_CODE에 ${short} 누락`);
+  assert.ok(DICTS.ko['banner.' + I.BANNER_CODE[short]], `ko에 banner.${I.BANNER_CODE[short]} 누락`);
+}
+I.setLang('ko');
+assert.strictEqual(I.bannerLabel('캐릭터'), '캐릭터');
+
+console.log('i18n.test.js OK');
