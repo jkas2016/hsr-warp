@@ -79,8 +79,17 @@
 <body>
 <div id="root"></div>
 <script>
-  // apply persisted theme before paint to avoid a flash
+  // apply persisted theme + lang before paint to avoid a flash
   try { document.documentElement.setAttribute('data-theme', localStorage.getItem('hsrwarp-theme') || 'dark'); } catch (e) {}
+</script>
+<script src="i18n/ko.js"></script>
+<script src="i18n/en.js"></script>
+<script src="i18n/zh.js"></script>
+<script src="i18n/ja.js"></script>
+<script src="i18n/items.js"></script>
+<script src="i18n.js"></script>
+<script>
+  try { document.documentElement.setAttribute('lang', window.I18N.lang); } catch (e) {}
 </script>
 <script src="data.js"></script>
 <script src="util.js"></script>

@@ -55,12 +55,12 @@ window.WarpData = (function () {
     }));
 
     const versionRows = (window.WarpAnalyze.analyzeVersions(full, { list }, versions) || []).map((r) => ({
-      v: r.v, period: `${r.s} ~ ${r.e || '현재'}`, total: r.total, count5: r.count5,
-      charAvgPity: r.charAvgPity || 0, cWins: r.charCWins, cLoss: r.charCLoss,
+      v: r.v, period: `${r.s} ~ ${r.e || window.I18N.t('common.now')}`, total: r.total, count5: r.count5,
+      char: r.char, lc: r.lc, all: r.all, // 배너별 지표(평균뽑기·픽승/픽뚫·기준선) — 뷰가 셀렉터로 선택
     }));
 
     const fives = full.all5.map((f) => ({
-      name: f.name, banner: f.banner, pity: f.pity, result: f.result,
+      name: f.name, item_id: f.item_id, banner: f.banner, pity: f.pity, result: f.result,
       isPickup: f.isPickup, time: f.time, version: verOf(f.time),
     }));
 
@@ -117,7 +117,7 @@ window.WarpData = (function () {
     try {
       const d = await fetch('/api/data').then((r) => r.json());
       if (d && Array.isArray(d.list) && d.list.length) return analyzeAndAdapt(d);
-    } catch (e) { /* 최초 실행 등: 데이터 없음 */ }
+    } catch (e) {} // first run or no data yet
     return null;
   }
 
@@ -131,8 +131,8 @@ window.WarpData = (function () {
       });
       es.addEventListener('error', (e) => {
         es.close();
-        let msg = '서버 연결 실패';
-        if (e && e.data) { try { msg = '조회 실패: ' + JSON.parse(e.data).message; } catch (x) { msg = '조회 실패'; } }
+        let msg = window.I18N.t('err.connect');
+        if (e && e.data) { try { msg = window.I18N.t('err.fetchPrefix') + JSON.parse(e.data).message; } catch (x) { msg = window.I18N.t('err.fetch'); } }
         reject(new Error(msg));
       });
       es.addEventListener('done', (e) => {
@@ -142,7 +142,7 @@ window.WarpData = (function () {
           const adapted = analyzeAndAdapt(d.data);
           adapted.summary = d.summary;
           resolve(adapted);
-        } catch (x) { reject(new Error('응답 처리에 실패했습니다.')); }
+        } catch (x) { reject(new Error(window.I18N.t('err.parse'))); }
       });
     });
   }

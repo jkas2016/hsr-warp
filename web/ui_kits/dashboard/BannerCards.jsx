@@ -2,37 +2,39 @@
 // then total / 5★ / avg-pity / 50/50 rows. Hover-lifting glass cards with a
 // banner-colored top accent.
 function BannerCards({ D, scoped }) {
+  const t = window.I18N.t;
+  const bl = window.I18N.bannerLabel;
   const { Card, ProgressBar, Badge } = window.HSRWarpDesignSystem_4a0d44;
   const { num, pityColor } = window.WarpUtil;
   const glowFor = (c) => `0 0 26px ${c}55`;
 
   return (
     <section style={{ marginTop: 26 }}>
-      <h2 className="h2">배너별 현황</h2>
+      <h2 className="h2">{t('bannercards.title')}</h2>
       <div className="banner-row">
         {D.banners.map((b) => (
           <Card key={b.type} interactive accent={b.color} glow={glowFor(b.color)} padding={20}>
             <h3 style={{ fontSize: 15, display: 'flex', alignItems: 'center', gap: 8, margin: 0, fontFamily: 'var(--font-display)', fontWeight: 600 }}>
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: b.color, boxShadow: `0 0 10px ${b.color}` }} />
-              {b.short} 워프
+              {bl(b.short)}{t('bannercards.warpSuffix')}
             </h3>
             {!scoped && (
               <>
                 <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 6 }}>
                   <span style={{ fontFamily: 'var(--font-display)', fontSize: 38, fontWeight: 700, lineHeight: 1, color: pityColor(b.currentPity), fontVariantNumeric: 'tabular-nums' }}>{b.currentPity}</span>
-                  <small style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>/ {b.cap} 천장</small>
+                  <small style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{t('bannercards.cap', { cap: b.cap })}</small>
                 </div>
                 <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '11px 0 14px' }} />
               </>
             )}
             <div style={{ marginTop: scoped ? 14 : 0 }}>
-              <Row k="총 뽑기" v={num(b.total)} />
-              <Row k="5★ 획득" v={b.count5} />
-              <Row k="평균 뽑기 수" v={b.avgPity5 ? b.avgPity5.toFixed(1) : '-'} />
-              {b.kind === 'limited' && <Row k="픽승 / 픽뚫 / 확정" v={`${b.cWins} / ${b.cLoss} / ${b.gWins}`} />}
+              <Row k={t('bannercards.total')} v={num(b.total)} />
+              <Row k={t('bannercards.got5')} v={b.count5} />
+              <Row k={t('bannercards.avgPulls')} v={b.avgPity5 ? b.avgPity5.toFixed(1) : '-'} />
+              {b.kind === 'limited' && <Row k={t('bannercards.wlg')} v={`${b.cWins} / ${b.cLoss} / ${b.gWins}`} />}
             </div>
             {!scoped && b.kind === 'limited' && b.guaranteed &&
-              <div style={{ marginTop: 10 }}><Badge variant="red">다음 5★ 확정</Badge></div>}
+              <div style={{ marginTop: 10 }}><Badge variant="red">{t('bannercards.nextGuaranteed')}</Badge></div>}
           </Card>
         ))}
       </div>

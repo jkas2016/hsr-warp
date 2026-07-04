@@ -3,9 +3,10 @@
 // showing per-banner live counts as progress events arrive, then onLoaded(data).
 function QueryPanel({ runFetch, onLoaded }) {
   const { Input, Button, Card } = window.HSRWarpDesignSystem_4a0d44;
+  const t = window.I18N.t, bl = window.I18N.bannerLabel;
   const [path, setPath] = React.useState('');
   const [busy, setBusy] = React.useState(false);
-  const [prog, setProg] = React.useState(null); // { 배너이름: 누적신규건수 } | null
+  const [prog, setProg] = React.useState(null); // { banner_code: accumulated_new_count } | null
   const [err, setErr] = React.useState('');
 
   // 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지.
@@ -14,7 +15,7 @@ function QueryPanel({ runFetch, onLoaded }) {
   async function run() {
     if (busy) return;
     const p = (path || '').trim();
-    if (!p) { setErr('게임 경로를 입력하세요.'); return; }
+    if (!p) { setErr(t('query.needPath')); return; }
     setBusy(true); setErr(''); setProg({});
     try {
       const data = await runFetch(p, (banner, added) => setProg((cur) => ({ ...(cur || {}), [banner]: added })));
@@ -22,7 +23,7 @@ function QueryPanel({ runFetch, onLoaded }) {
       onLoaded(data);
     } catch (e) {
       setBusy(false);
-      setErr(e.message || '조회에 실패했습니다.');
+      setErr(e.message || t('query.failed'));
     }
   }
 
@@ -34,13 +35,13 @@ function QueryPanel({ runFetch, onLoaded }) {
     <Card padding={18} style={{ marginTop: 20 }}>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
         <Input value={path} onChange={(e) => setPath(e.target.value)}
-          placeholder="게임 경로 (…\Star Rail Games)" style={{ flex: 1, minWidth: 280 }} />
-        <Button onClick={run} disabled={busy}>{busy ? '조회 중…' : '조회'}</Button>
+          placeholder={t('query.placeholder')} style={{ flex: 1, minWidth: 280 }} />
+        <Button onClick={run} disabled={busy}>{busy ? t('query.running') : t('query.run')}</Button>
       </div>
       {!busy && !prog && !err && (
         <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 9 }}>
-          게임에서 <b style={{ color: 'var(--txt)' }}>전언 기록</b> 화면을 최근 24시간 내 한 번 연 뒤 조회하세요.
-          기존 데이터는 안전하게 보존되며 신규만 추가됩니다.
+          {t('query.hint1a')}<b style={{ color: 'var(--txt)' }}>{t('query.recordScreen')}</b>{t('query.hint1b')}
+          {' '}{t('query.hint2')}
         </div>
       )}
       {err && <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>{err}</div>}
@@ -50,7 +51,7 @@ function QueryPanel({ runFetch, onLoaded }) {
             const added = prog[k] || 0;
             return (
               <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ width: 52, fontSize: 12.5, color: 'var(--muted)' }}>{k}</span>
+                <span style={{ width: 52, fontSize: 12.5, color: 'var(--muted)' }}>{bl(k)}</span>
                 <div style={{ flex: 1, height: 7, borderRadius: 'var(--r-pill)', background: 'var(--panel-2)', overflow: 'hidden' }}>
                   <div className={busy ? 'indet' : ''} style={{ height: '100%', borderRadius: 'var(--r-pill)', background: 'var(--grad-gold)', width: busy ? '42%' : '100%' }} />
                 </div>

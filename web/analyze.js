@@ -94,7 +94,7 @@
       const b = m[key] || (m[key] = { month: key, total: 0, jade: 0, c5: 0, c4: 0, c3: 0, fives: [] });
       b.total++; b.jade += 160;
       const rank = String(r.rank_type);
-      if (rank === '5') { b.c5++; b.fives.push({ name: r.name, gacha_type: String(r.gacha_type), time: r.time }); }
+      if (rank === '5') { b.c5++; b.fives.push({ name: r.name, item_id: String(r.item_id), gacha_type: String(r.gacha_type), time: r.time }); }
       else if (rank === '4') b.c4++; else b.c3++;
     }
     return Object.values(m).sort((a, b) => a.month.localeCompare(b.month));
@@ -162,20 +162,27 @@
     };
   }
 
-  // 각 버전 윈도우의 요약을 비교표 행으로. 뽑기 0 버전 제외. 캐릭(11) 기준 천장·50/50.
+  // 각 버전 윈도우의 요약을 비교표 행으로. 뽑기 0 버전 제외.
+  // 캐릭(11)·광추(12)를 각각, 그리고 all=둘 합산(픽승/픽뚫 합, 평균뽑기·기준선은 5★ 개수 가중)으로.
   function analyzeVersions(full, data, versions) {
     const fmt = ms => ms === Infinity ? '' : new Date(ms).toISOString().slice(0, 10);
+    const metric = (b, base) => ({
+      avgPity: b ? b.stats.avgPity5 : null, cWins: b ? b.stats.cWins : 0,
+      cLoss: b ? b.stats.cLoss : 0, count5: b ? b.stats.count5 : 0, base,
+    });
     return versionWindows(versions).map(w => {
       const a = filterAnalysis(full, data, w);
       if (!a.total) return null;
-      const cb = a.banners.find(b => b.type === '11');
-      return {
-        v: w.v, s: fmt(w.s), e: fmt(w.e),
-        total: a.total, jade: a.jade, count5: a.count5,
-        charAvgPity: cb ? cb.stats.avgPity5 : null,
-        charCWins: cb ? cb.stats.cWins : 0,
-        charCLoss: cb ? cb.stats.cLoss : 0,
+      const char = metric(a.banners.find(b => b.type === '11'), BANNERS['11'].expAvg);
+      const lc = metric(a.banners.find(b => b.type === '12'), BANNERS['12'].expAvg);
+      const tot = char.count5 + lc.count5;                        // 한정 5★ 합
+      const wSum = (char.count5 ? char.avgPity * char.count5 : 0) + (lc.count5 ? lc.avgPity * lc.count5 : 0);
+      const all = {
+        avgPity: tot ? wSum / tot : null,
+        cWins: char.cWins + lc.cWins, cLoss: char.cLoss + lc.cLoss, count5: tot,
+        base: tot ? (char.base * char.count5 + lc.base * lc.count5) / tot : char.base,
       };
+      return { v: w.v, s: fmt(w.s), e: fmt(w.e), total: a.total, jade: a.jade, count5: a.count5, char, lc, all };
     }).filter(Boolean);
   }
 

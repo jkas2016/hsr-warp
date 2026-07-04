@@ -11,7 +11,7 @@
 go build -ldflags="-s -w" -o hsr-warp.exe .   # 정적 단일 exe (release, 로그 info)
 npm run build:debug                             # 개발용: 로그 debug 박은 hsr-warp-debug.exe
 .\hsr-warp.exe                                  # 실행 (런타임 HSRWARP_LOG=debug 로도 override)
-go test ./... && node web/analyze.test.js && node docs/site/copy.test.mjs  # 전체 테스트
+npm test   # 전체 테스트(go + analyze + 대시보드 i18n/items/nohardcode + 사이트 copy)
 ```
 
 포맷·정적검사는 `gofmt -w .` 와 `go vet ./...` 가 권위 — 컨벤션을 글로 적지 않는다.

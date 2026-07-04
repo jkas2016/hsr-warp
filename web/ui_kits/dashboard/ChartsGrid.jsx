@@ -2,6 +2,7 @@
 // 50/50 stacked bars, monthly pulls. Reads themed colors from CSS vars and
 // rebuilds when the theme flips.
 function ChartsGrid({ D, theme }) {
+  const t = window.I18N.t;
   const { Card } = window.HSRWarpDesignSystem_4a0d44;
   const refs = { rarity: React.useRef(), pity: React.useRef(), ff: React.useRef(), month: React.useRef() };
 
@@ -32,9 +33,9 @@ function ChartsGrid({ D, theme }) {
     const lim = Object.keys(D.fiveFiveBins);
     made.push(new Chart(refs.ff.current, { type: 'bar',
       data: { labels: lim, datasets: [
-        { label: '픽승', data: lim.map((k) => D.fiveFiveBins[k].win), backgroundColor: GOLD, borderRadius: 4 },
-        { label: '픽뚫', data: lim.map((k) => D.fiveFiveBins[k].loss), backgroundColor: RED, borderRadius: 4 },
-        { label: '확정', data: lim.map((k) => D.fiveFiveBins[k].guar), backgroundColor: GREEN, borderRadius: 4 }] },
+        { label: t('result.win'), data: lim.map((k) => D.fiveFiveBins[k].win), backgroundColor: GOLD, borderRadius: 4 },
+        { label: t('result.loss'), data: lim.map((k) => D.fiveFiveBins[k].loss), backgroundColor: RED, borderRadius: 4 },
+        { label: t('result.guaranteed'), data: lim.map((k) => D.fiveFiveBins[k].guar), backgroundColor: GREEN, borderRadius: 4 }] },
       options: { ...base, indexAxis: 'y', plugins: { legend: { position: 'bottom' } },
         scales: { x: { stacked: true, grid: { color: grid }, ticks: { precision: 0 } }, y: { stacked: true, grid: { display: false } } } } }));
 
@@ -48,18 +49,18 @@ function ChartsGrid({ D, theme }) {
         scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: grid } } } } }));
 
     return () => made.forEach((c) => c.destroy());
-  }, [theme]);
+  }, [theme, window.I18N.lang]);
 
   const wrap = { position: 'relative', height: 230 };
   const h3 = { fontSize: 13, marginBottom: 12, color: 'var(--muted)', fontWeight: 600, marginTop: 0, fontFamily: 'var(--font-display)' };
   return (
     <section style={{ marginTop: 26 }}>
-      <h2 className="h2">분석 차트</h2>
+      <h2 className="h2">{t('charts.title')}</h2>
       <div className="charts-row">
-        <Card padding={18}><h3 style={h3}>희귀도 분포</h3><div style={wrap}><canvas ref={refs.rarity} /></div></Card>
-        <Card padding={18}><h3 style={h3}>캐릭터 배너 5★ 천장 분포</h3><div style={wrap}><canvas ref={refs.pity} /></div></Card>
-        <Card padding={18}><h3 style={h3}>50/50 결과 (한정 배너)</h3><div style={wrap}><canvas ref={refs.ff} /></div></Card>
-        <Card padding={18}><h3 style={h3}>월별 뽑기</h3><div style={wrap}><canvas ref={refs.month} /></div></Card>
+        <Card padding={18}><h3 style={h3}>{t('charts.rarity')}</h3><div style={wrap}><canvas ref={refs.rarity} /></div></Card>
+        <Card padding={18}><h3 style={h3}>{t('charts.pityDist')}</h3><div style={wrap}><canvas ref={refs.pity} /></div></Card>
+        <Card padding={18}><h3 style={h3}>{t('charts.ff')}</h3><div style={wrap}><canvas ref={refs.ff} /></div></Card>
+        <Card padding={18}><h3 style={h3}>{t('charts.monthly')}</h3><div style={wrap}><canvas ref={refs.month} /></div></Card>
       </div>
     </section>
   );
