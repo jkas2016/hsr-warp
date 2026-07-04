@@ -5,6 +5,16 @@
 
 릴리스별 상세 산출물(zip·설치 파일·체크섬)은 [GitHub Releases](https://github.com/jkas2016/hsr-warp/releases)에 있습니다.
 
+## [0.4.0] - 2026-07-05
+
+### 추가됨
+- 대시보드 다국어(i18n) — 한국어(기본)·영어·중국어·일본어 4개 언어. 언어 셀렉터 + 선택 영속화(URL·localStorage). 가챠 용어는 각 언어권 통용 표현으로 매핑, 캐릭터·광추 이름도 로컬라이즈(Mar-7th/StarRailRes 기반) (#12)
+- 공식 가이드 사이트(GitHub Pages) + 문서 확장 (#9, #14)
+- 버전 비교 화면에 광추 배너 비교 추가 (#12)
+
+### 변경됨
+- '천장' 용어 정정 — 5★ 획득까지의 뽑기 수 분포 차트 라벨을 '천장 분포' → '획득 뽑기 수 분포'로 정정 (#12)
+
 ## [0.3.0] - 2026-06-27
 
 ### 추가됨
@@ -37,6 +47,7 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[0.4.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.4.0
 [0.3.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.3.0
 [0.2.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.2.0
 [0.1.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.1.0
