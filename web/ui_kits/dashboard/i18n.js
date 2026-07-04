@@ -55,6 +55,13 @@
       var code = BANNER_CODE[short];
       return code ? I18N.t('banner.' + code) : short;
     },
+    // 캐릭터/광추 item_id → 현재 언어 이름. 사전(window.ITEM_NAMES)에 없거나
+    // 해당 언어값이 비면 raw(SRGF 원본 name)로 폴백 — 신규 패치 미반영 안전망.
+    itemName: function (id, raw) {
+      var m = (window.ITEM_NAMES || {})[String(id)];
+      var v = m && m[I18N.lang];
+      return v ? v : raw; // 빈/누락값은 raw 폴백
+    },
   };
   window.I18N = I18N;
 })();

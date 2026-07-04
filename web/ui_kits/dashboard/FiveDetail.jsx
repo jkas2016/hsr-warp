@@ -21,7 +21,7 @@ function FiveDetail({ five, onClose }) {
 
   return (
     <Dialog open={!!f} onClose={onClose} width={480}
-      title={t('detail.title', { name: f.name })}>
+      title={t('detail.title', { name: window.I18N.itemName(f.item_id, f.name) })}>
       <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
         <Tag>{bl(f.banner)}{t('detail.warpSuffix')}</Tag>
         {r && <Badge variant={f.result === 'loss' ? 'red' : f.result === 'win' ? 'gold' : 'green'} solid={f.result === 'win'}>{r.label}</Badge>}

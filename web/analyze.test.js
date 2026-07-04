@@ -69,9 +69,9 @@ assert.ok(!('earlyRate' in lk), 'soft-pity earlyRate removed');
 
 // ---- monthly bucketing ----
 const mlist = [
-  { rank_type: '5', gacha_type: '11', name: 'a', time: '2025-01-15 10:00:00' },
-  { rank_type: '3', gacha_type: '11', name: 'b', time: '2025-01-20 10:00:00' },
-  { rank_type: '4', gacha_type: '12', name: 'c', time: '2025-02-02 10:00:00' },
+  { rank_type: '5', gacha_type: '11', name: 'a', item_id: '1009', time: '2025-01-15 10:00:00' },
+  { rank_type: '3', gacha_type: '11', name: 'b', item_id: '0', time: '2025-01-20 10:00:00' },
+  { rank_type: '4', gacha_type: '12', name: 'c', item_id: '0', time: '2025-02-02 10:00:00' },
 ];
 const mo = monthly(mlist);
 assert.strictEqual(mo.length, 2, 'two months');
@@ -80,6 +80,8 @@ assert.strictEqual(mo[0].total, 2);
 assert.strictEqual(mo[0].c5, 1);
 assert.strictEqual(mo[0].jade, 320);
 assert.strictEqual(mo[1].month, '202502');
+// 5★ 월별 목록은 이름 로컬라이즈용 item_id 를 실어 나른다(표시는 대시보드 렌더 지점).
+assert.strictEqual(mo[0].fives[0].item_id, '1009', 'monthly 5★ carries item_id');
 
 // ---- analyze() integration ----
 id = 7000n;

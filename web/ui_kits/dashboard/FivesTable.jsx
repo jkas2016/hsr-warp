@@ -23,7 +23,7 @@ function FivesTable({ rows, onRowClick, pageSize }) {
             return (
               <tr key={i} onClick={() => onRowClick && onRowClick(f)}
                 style={{ cursor: onRowClick ? 'pointer' : 'default' }}>
-                <td style={{ fontWeight: 600, color: f.isPickup === false ? 'var(--muted)' : 'var(--gold-ink)' }}>{f.name}</td>
+                <td style={{ fontWeight: 600, color: f.isPickup === false ? 'var(--muted)' : 'var(--gold-ink)' }}>{window.I18N.itemName(f.item_id, f.name)}</td>
                 <td><Tag>{bl(f.banner)}</Tag></td>
                 <td><PityPill value={f.pity} /></td>
                 <td>{r

@@ -50,4 +50,20 @@ for (const short of ['캐릭터', '광추', '일반', '출발']) {
 I.setLang('ko');
 assert.strictEqual(I.bannerLabel('캐릭터'), '캐릭터');
 
+// 6) itemName: item_id → 현재 언어 이름, 없으면 raw 폴백
+window.ITEM_NAMES = {
+  '1009': { ko: '은랑', en: 'Silver Wolf', zh: '银狼', ja: '銀狼' },
+  '21000': { ko: '태양이 없는 나날들', en: 'On the Fall of an Aeon' }, // zh/ja 누락
+};
+I.setLang('ko');
+assert.strictEqual(I.itemName('1009', '은랑'), '은랑', 'ko 이름');
+I.setLang('en');
+assert.strictEqual(I.itemName('1009', '은랑'), 'Silver Wolf', 'en 이름으로 전환');
+assert.strictEqual(I.itemName(1009, '은랑'), 'Silver Wolf', '숫자 id도 문자열로 조회');
+I.setLang('zh');
+assert.strictEqual(I.itemName('1009', '은랑'), '银狼', 'zh 이름');
+assert.strictEqual(I.itemName('21000', '태양이 없는 나날들'), '태양이 없는 나날들', '언어값 누락 → raw 폴백');
+assert.strictEqual(I.itemName('9999', '신규광추'), '신규광추', '사전에 없는 id → raw 폴백');
+assert.strictEqual(I.itemName('9999', undefined), undefined, 'raw 없으면 raw 그대로 반환');
+
 console.log('i18n.test.js OK');

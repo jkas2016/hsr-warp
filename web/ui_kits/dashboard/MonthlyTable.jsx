@@ -32,7 +32,7 @@ function MonthlyTable({ D }) {
                 <td style={{ fontVariantNumeric: 'tabular-nums' }}>{m.total}</td>
                 <td style={{ color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>{num(m.jade)}</td>
                 <td>{m.c5 ? <span style={pill}>{m.c5}</span> : <span style={{ color: 'var(--muted)' }}>0</span>}</td>
-                <td style={{ color: 'var(--muted)', fontSize: 12.5 }}>{(m.fives || []).map((f) => f.name).join(', ') || '-'}</td>
+                <td style={{ color: 'var(--muted)', fontSize: 12.5 }}>{(m.fives || []).map((f) => window.I18N.itemName(f.item_id, f.name)).join(', ') || '-'}</td>
               </tr>
             ))}
           </tbody>
