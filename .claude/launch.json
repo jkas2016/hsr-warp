@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "hsr-warp",
+      "runtimeExecutable": "./hsr-warp.exe",
+      "runtimeArgs": [],
+      "port": 8787
+    }
+  ]
+}
