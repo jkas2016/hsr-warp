@@ -21,8 +21,10 @@ function Dashboard() {
   }, [theme]);
 
   const [lang, setLangState] = React.useState(() => window.I18N.lang);
+  // 렌더 중 즉시 런타임 언어 반영 — 이 렌더의 모든 t()가 새 언어로 평가되도록.
+  // (setLang을 useEffect에 두면 커밋 후 실행이라 첫 렌더가 옛 언어로 남아 한 박자 밀린다.)
+  window.I18N.setLang(lang);
   React.useEffect(() => {
-    window.I18N.setLang(lang);
     document.documentElement.setAttribute('lang', lang);
     try { localStorage.setItem('hsrwarp-lang', lang); } catch (e) {}
     try {
