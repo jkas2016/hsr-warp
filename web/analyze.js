@@ -94,7 +94,7 @@
       const b = m[key] || (m[key] = { month: key, total: 0, jade: 0, c5: 0, c4: 0, c3: 0, fives: [] });
       b.total++; b.jade += 160;
       const rank = String(r.rank_type);
-      if (rank === '5') { b.c5++; b.fives.push({ name: r.name, item_id: String(r.item_id || ''), gacha_type: String(r.gacha_type), time: r.time }); }
+      if (rank === '5') { b.c5++; b.fives.push({ name: r.name, item_id: String(r.item_id), gacha_type: String(r.gacha_type), time: r.time }); }
       else if (rank === '4') b.c4++; else b.c3++;
     }
     return Object.values(m).sort((a, b) => a.month.localeCompare(b.month));
