@@ -10,7 +10,7 @@
     "start": "npm run build && hsr-warp.exe",
     "start:debug": "npm run build:debug && hsr-warp-debug.exe",
     "vet": "node scripts/run-go.mjs vet ./...",
-    "test": "node scripts/run-go.mjs test ./... && node web/analyze.test.js && node docs/site/copy.test.mjs",
+    "test": "node scripts/run-go.mjs test ./... && node web/analyze.test.js && node web/ui_kits/dashboard/i18n.test.js && node web/ui_kits/dashboard/items.test.js && node web/ui_kits/dashboard/nohardcode.test.js && node docs/site/copy.test.mjs",
     "test:go": "node scripts/run-go.mjs test ./...",
     "test:analyze": "node web/analyze.test.js"
   }
