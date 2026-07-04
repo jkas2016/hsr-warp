@@ -83,7 +83,7 @@ window.I18N_DICTS.ja = {
   'hero.jadeUnit': '≈ {n}連',
   'hero.rate5': '5★確率',
   'banners.rangeStats': '区間統計 · {name}跳躍',
-  'banners.currentPity': '現在の天井 · {name}跳躍',
+  'banners.currentPity': '現在の回数 · {name}跳躍',
   'banners.cap': '/ {cap} 天井',
   'banners.nextGuaranteedLoss': '次の5★PU確定（すり抜け済み）',
   'banners.next5050': '次の5★ 50/50',

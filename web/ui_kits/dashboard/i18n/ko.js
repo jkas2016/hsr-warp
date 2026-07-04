@@ -83,7 +83,7 @@ window.I18N_DICTS.ko = {
   'hero.jadeUnit': '≈ {n}연차',
   'hero.rate5': '5★ 확률',
   'banners.rangeStats': '구간 통계 · {name} 워프',
-  'banners.currentPity': '현재 천장 · {name} 워프',
+  'banners.currentPity': '현재 뽑기 수 · {name} 워프',
   'banners.cap': '/ {cap} 천장',
   'banners.nextGuaranteedLoss': '다음 5★ 확정 (픽뚫 상태)',
   'banners.next5050': '다음 5★ 50/50',

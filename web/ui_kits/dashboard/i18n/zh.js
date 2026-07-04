@@ -83,7 +83,7 @@ window.I18N_DICTS.zh = {
   'hero.jadeUnit': '≈ {n}连',
   'hero.rate5': '5★概率',
   'banners.rangeStats': '区间统计 · {name}跃迁',
-  'banners.currentPity': '当前硬保底 · {name}跃迁',
+  'banners.currentPity': '当前抽数 · {name}跃迁',
   'banners.cap': '/ {cap} 硬保底',
   'banners.nextGuaranteedLoss': '下次5★大保底（上次歪了）',
   'banners.next5050': '下次5★ 50/50',

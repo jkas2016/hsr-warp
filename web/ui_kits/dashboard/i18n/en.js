@@ -83,7 +83,7 @@ window.I18N_DICTS.en = {
   'hero.jadeUnit': '≈ {n}×10 pulls',
   'hero.rate5': '5★ rate',
   'banners.rangeStats': 'Range stats · {name} Warp',
-  'banners.currentPity': 'Current pity · {name} Warp',
+  'banners.currentPity': 'Current pulls · {name} Warp',
   'banners.cap': '/ {cap} hard pity',
   'banners.nextGuaranteedLoss': 'Next 5★ guaranteed (Lost 50/50)',
   'banners.next5050': 'Next 5★ 50/50',
