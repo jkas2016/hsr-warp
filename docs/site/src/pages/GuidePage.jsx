@@ -1,5 +1,6 @@
 export function GuidePage() {
   const logo = import.meta.env.BASE_URL + 'logo-train.svg';
+  const asset = (f) => import.meta.env.BASE_URL + f;
   return (
     <>
       {/* ============================ NAV ============================ */}
@@ -129,7 +130,17 @@ export function GuidePage() {
                 <p><a href="https://github.com/jkas2016/hsr-warp/releases/latest" target="_blank" rel="noopener">Releases</a>에서 <code>hsr-warp-setup-X.X.X.exe</code> 를 받아 실행하면 설치 마법사가 뜹니다(관리자 권한 불필요, 내 계정 폴더에 설치). 설치가 끝나면 시작 메뉴나 바탕화면 바로가기로 실행하세요. 검은 콘솔 창이 뜨고 기본 브라우저에 대시보드가 자동으로 열립니다 (예: <code>http://127.0.0.1:8787/ui_kits/dashboard/</code>).</p>
                 <div className="callout">
                   <span className="warn">⚠</span>
-                  <span>서명되지 않은 프로그램이라 <b>설치·실행 시 Windows가 경고</b>할 수 있습니다. 직접 받은 파일이 맞다면 <b>추가 정보 → 실행</b>을 누르면 됩니다.</span>
+                  <span>서명되지 않은 프로그램이라 <b>설치·실행 시 Windows가 경고</b>할 수 있습니다(아래 화면). 직접 받은 파일이 맞다면 <b>추가 정보 → 실행</b> 순서로 누르면 됩니다.</span>
+                </div>
+                <div className="shots">
+                  <figure className="shot">
+                    <img src={asset('smartscreen1.png')} alt="Windows SmartScreen 경고 첫 화면 — '추가 정보' 링크" loading="lazy" />
+                    <figcaption><span className="sn">1</span> <b>추가 정보</b> 클릭</figcaption>
+                  </figure>
+                  <figure className="shot">
+                    <img src={asset('smartscreen2.png')} alt="'추가 정보' 클릭 후 나타난 '실행' 버튼" loading="lazy" />
+                    <figcaption><span className="sn">2</span> <b>실행</b> 클릭</figcaption>
+                  </figure>
                 </div>
               </div>
             </div>
@@ -146,7 +157,11 @@ export function GuidePage() {
               <div className="step-n">4</div>
               <div>
                 <h3>종료</h3>
-                <p>콘솔 창을 닫거나 콘솔에서 <span className="kbd">Ctrl + C</span> 를 누릅니다.</p>
+                <p>실행하면 아래처럼 <b>검은 콘솔 창</b>이 함께 떠 있습니다(대시보드는 브라우저에서 열립니다). 다 봤으면 <b>이 창을 닫거나</b> 창에서 <span className="kbd">Ctrl + C</span> 를 누르면 프로그램이 종료됩니다.</p>
+                <figure className="shot shot-wide">
+                  <img src={asset('windowterminal.png')} alt="실행 시 함께 뜨는 HSR Warp 콘솔 창" loading="lazy" />
+                  <figcaption>이 창을 닫으면 프로그램이 종료됩니다.</figcaption>
+                </figure>
               </div>
             </div>
           </div>
