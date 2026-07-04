@@ -175,12 +175,42 @@ const rows = analyzeVersions(full, vdata, VERS);
 assert.strictEqual(rows.length, 2, '뽑기 있는 3.6·3.7만(3.8 제외)');
 const row37 = rows.find(r => r.v === '3.7');
 assert.strictEqual(row37.count5, 1);
-assert.strictEqual(row37.charCWins + row37.charCLoss, 0, '3.7은 확정뿐(contested 0)');
+assert.strictEqual(row37.char.cWins + row37.char.cLoss, 0, '3.7은 확정뿐(contested 0)');
 assert.strictEqual(row37.total, 30);
+assert.strictEqual(row37.char.base, 62.5, '캐릭 기준선 62.5');
+assert.strictEqual(row37.lc.base, 53.5, '광추 기준선 53.5');
 const row36 = rows.find(r => r.v === '3.6');
-assert.strictEqual(row36.charCLoss, 1, '3.6 픽뚫 1');
+assert.strictEqual(row36.char.cLoss, 1, '3.6 픽뚫 1');
 assert.strictEqual(row36.s, '2025-09-23', '3.6 시작일');
 assert.strictEqual(row36.e, '2025-11-04', '3.6 끝=3.7 시작');
+// vdata엔 광추(12) 기록이 없음 → lc 비고, all == char
+assert.strictEqual(row36.lc.count5, 0, '광추 5★ 0');
+assert.strictEqual(row36.all.count5, row36.char.count5, 'all=char (광추 없음)');
+assert.strictEqual(row36.all.cLoss, row36.char.cLoss, 'all 픽뚫=char 픽뚫');
+
+// ---- analyzeVersions: 캐릭+광추 합산(all) ----
+id = 20000n;
+const cN = t => ({ id: String(id++), rank_type: '3', item_id: '0', name: 'y', item_type: 'C', time: t, gacha_type: '11' });
+const cV = (iid, t) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'n', item_type: 'C', time: t, gacha_type: '11' });
+const lN = t => ({ id: String(id++), rank_type: '3', item_id: '0', name: 'y', item_type: 'L', time: t, gacha_type: '12' });
+const lV = (iid, t) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'n', item_type: 'L', time: t, gacha_type: '12' });
+const T37 = '2025-11-10 12:00:00';
+const mix = [];
+for (let i = 0; i < 4; i++) mix.push(cN(T37)); mix.push(cV(1102, T37));   // 캐릭 5★ 1개, pity 5
+for (let i = 0; i < 9; i++) mix.push(lN(T37)); mix.push(lV(23000, T37));  // 광추 5★ 1개, pity 10
+const mixData = { info: {}, list: mix };
+const mixFull = analyze(mixData, schedule);
+const mrow = analyzeVersions(mixFull, mixData, VERS).find(r => r.v === '3.7');
+assert.strictEqual(mrow.char.count5, 1, '캐릭 5★ 1');
+assert.strictEqual(mrow.char.avgPity, 5, '캐릭 평균뽑기 5');
+assert.strictEqual(mrow.lc.count5, 1, '광추 5★ 1');
+assert.strictEqual(mrow.lc.avgPity, 10, '광추 평균뽑기 10');
+assert.strictEqual(mrow.all.count5, 2, 'all 5★ = 캐릭+광추');
+assert.strictEqual(mrow.all.avgPity, 7.5, 'all 평균뽑기 = (5·1+10·1)/2');
+assert.strictEqual(mrow.all.base, 58, 'all 기준선 = (62.5+53.5)/2');
+assert.strictEqual(mrow.all.cWins, mrow.char.cWins + mrow.lc.cWins, 'all 픽승 = 합');
+assert.strictEqual(mrow.all.cLoss, mrow.char.cLoss + mrow.lc.cLoss, 'all 픽뚫 = 합');
+
 // 방어: versions 없으면 빈 배열
 assert.deepStrictEqual(analyzeVersions(full, vdata, []), [], '빈 versions → []');
 assert.deepStrictEqual(analyzeVersions(full, vdata, undefined), [], 'undefined → []');

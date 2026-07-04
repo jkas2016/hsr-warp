@@ -56,7 +56,7 @@ window.WarpData = (function () {
 
     const versionRows = (window.WarpAnalyze.analyzeVersions(full, { list }, versions) || []).map((r) => ({
       v: r.v, period: `${r.s} ~ ${r.e || window.I18N.t('common.now')}`, total: r.total, count5: r.count5,
-      charAvgPity: r.charAvgPity || 0, cWins: r.charCWins, cLoss: r.charCLoss,
+      char: r.char, lc: r.lc, all: r.all, // 배너별 지표(평균뽑기·픽승/픽뚫·기준선) — 뷰가 셀렉터로 선택
     }));
 
     const fives = full.all5.map((f) => ({
