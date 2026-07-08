@@ -427,4 +427,4 @@ Expected: 전부 PASS.
 **검증 리스크:**
 - **flusher 가드 위치**: `http.Error`는 `w.Header().Set` 이후여도 `WriteHeader` 전이면 500 을 쓸 수 있으나, 안전하게 헤더 설정 **전**에 flusher 확인을 배치해 SSE 헤더 오염 없이 500 반환. 실서버 `http.ResponseWriter`는 Flusher 를 구현하므로 이 경로는 방어적(테스트는 `noFlushWriter`로만 트리거).
 - **parseVer 동작 불변**: 로직은 그대로(비숫자→0), `slog.Debug` 추가만. 기존 `TestCompareVersions` 회귀 없어야 함.
-- **config/updater writeAtomic 유니크 temp 미도입**: 이슈 #25 스코프는 "정리"만 명시(동시성은 #18 store 한정). config/updater 는 단일 writer 경로라 고정 temp명 유지 + 정리로 충분.
+- **config/updater writeAtomic 유니크 temp 미도입**: 이슈 #25 스코프는 "정리"만 명시(동시성은 #18 store 한정). `SaveConfig`는 `handleConfig` POST 와 `handleFetch`(fetch 가드 밖)가 동시 호출할 수 있어 엄밀히 단일 writer 는 아니지만, 고정 temp명 경합의 피해가 benign 하다 — config 는 `Config{GamePath}` 하나뿐이라 사소하게 재생성되고, 찢어진 쓰기는 새 `LoadConfig` 가드(slog.Warn→zero)가 잡으며 다음 fetch 가 덮어쓴다(사용자 warp 데이터 무관). 따라서 #25 스코프에선 고정 temp명 + 정리로 충분(엄밀 정합이 필요하면 #18 처럼 유니크 temp 가 정답이나 별도 작업).
