@@ -28,6 +28,10 @@ func TestHandleFetch_RejectsWhenBusy(t *testing.T) {
 	if body := rec.Body.String(); !strings.Contains(body, "이미 수집") {
 		t.Fatalf("busy 상태에서 거절 이벤트가 없음: %q", body)
 	}
+	// 거절 경로는 진행 중 플래그를 건드리면 안 된다(승자의 가드를 해제하지 않음).
+	if !s.fetching.Load() {
+		t.Fatal("거절 후에도 fetching 플래그는 true 여야 함")
+	}
 }
 
 func TestHandleFetch_BadGamePathEmitsError(t *testing.T) {
