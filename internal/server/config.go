@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 )
@@ -11,18 +12,21 @@ type Config struct {
 	GamePath string `json:"game_path"`
 }
 
-// LoadConfig 는 config 파일을 읽는다. 없거나 깨졌으면 zero 값 Config 반환.
+// LoadConfig 는 config 파일을 읽는다. 없으면 zero 값, 깨졌으면 경고 후 zero 값 반환.
 func LoadConfig(path string) Config {
 	var c Config
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return c
 	}
-	_ = json.Unmarshal(b, &c)
+	if err := json.Unmarshal(b, &c); err != nil {
+		slog.Warn("config 파싱 실패, zero 값으로 대체", "path", path, "err", err)
+		return Config{}
+	}
 	return c
 }
 
-// SaveConfig 는 config 를 원자적으로 저장한다.
+// SaveConfig 는 config 를 원자적으로 저장한다. rename 실패 시 임시 파일을 정리한다.
 func SaveConfig(path string, c Config) error {
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
@@ -32,7 +36,11 @@ func SaveConfig(path string, c Config) error {
 	if err := os.WriteFile(tmp, b, 0644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 // defaultCandidates 는 흔한 HoYoPlay 설치 경로 후보다.
