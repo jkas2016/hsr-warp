@@ -19,6 +19,10 @@ import (
 var bannerOrder = []string{"1", "2", "11", "12"}
 var bannerName = map[string]string{"1": "일반", "2": "출발", "11": "캐릭터", "12": "광추"}
 
+// maxPagesPerBanner 는 배너당 페이지 백스톱이다. 정상 조회는 수십 페이지 이내라
+// 이 상한에 닿을 일이 없고, 서버가 end_id 를 무시해 진전이 없을 때의 안전장치다.
+const maxPagesPerBanner = 1000
+
 type apiRecord struct {
 	UID       string `json:"uid"`
 	GachaID   string `json:"gacha_id"`
@@ -51,17 +55,31 @@ func expiredMessage(issuedAt, now time.Time) string {
 		return "authkey 만료. " + guide
 	}
 	days := int(now.Sub(issuedAt).Hours() / 24)
+	if days < 0 {
+		days = 0
+	}
 	return fmt.Sprintf("authkey 만료 — 캐시의 authkey 는 %s 에 발급된 것으로 %d일 지났습니다. %s",
 		issuedAt.Format("2006-01-02 15:04"), days, guide)
 }
 
-func idLessEq(a, b string) bool {
+// idLessEq 는 a <= b 를 big.Int 로 비교한다(ID 는 거대 정수 불변식 — 사전식 금지).
+// 두 번째 반환값 ok 는 파싱 성공 여부 — 비숫자면 (false, false) 를 주고 호출자가 진단·판단한다.
+func idLessEq(a, b string) (le bool, ok bool) {
 	ai, okA := new(big.Int).SetString(a, 10)
 	bi, okB := new(big.Int).SetString(b, 10)
 	if !okA || !okB {
-		return a <= b
+		return false, false
 	}
-	return ai.Cmp(bi) <= 0
+	return ai.Cmp(bi) <= 0, true
+}
+
+// bodySnippet 은 응답 본문을 로그·에러용 최대 200자 스니펫으로 줄인다.
+func bodySnippet(b []byte) string {
+	s := strings.TrimSpace(string(b))
+	if len(s) > 200 {
+		return s[:200] + "…"
+	}
+	return s
 }
 
 // FetchIncremental 은 배너별로 lastID 보다 최신인 기록만 수집한다.
@@ -79,6 +97,10 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]st
 			if err := ctx.Err(); err != nil {
 				return out, uid, err
 			}
+			if page > maxPagesPerBanner {
+				slog.Warn("배너 최대 페이지 초과 — 루프 중단", "banner", bannerName[gt], "max", maxPagesPerBanner)
+				break
+			}
 			u := fmt.Sprintf("%s?%s&size=20&gacha_type=%s&page=%d&end_id=%s", ac.APIBase, ac.BaseQuery, gt, page, endID)
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 			if err != nil {
@@ -94,13 +116,12 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]st
 			if readErr != nil {
 				return out, uid, fmt.Errorf("응답 읽기 실패: %w", readErr)
 			}
+			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+				return out, uid, fmt.Errorf("API HTTP 오류 (HTTP %d, 응답: %q)", resp.StatusCode, bodySnippet(body))
+			}
 			var ar apiResp
 			if err := json.Unmarshal(body, &ar); err != nil {
-				snippet := strings.TrimSpace(string(body))
-				if len(snippet) > 200 {
-					snippet = snippet[:200] + "…"
-				}
-				return out, uid, fmt.Errorf("응답 파싱 실패: %w (HTTP %d, 응답: %q)", err, resp.StatusCode, snippet)
+				return out, uid, fmt.Errorf("응답 파싱 실패: %w (HTTP %d, 응답: %q)", err, resp.StatusCode, bodySnippet(body))
 			}
 			if ar.Retcode != 0 {
 				switch ar.Retcode {
@@ -115,7 +136,11 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]st
 				break
 			}
 			for _, it := range ar.Data.List {
-				if idLessEq(it.ID, lastID[gt]) {
+				le, ok := idLessEq(it.ID, lastID[gt])
+				if !ok {
+					slog.Warn("ID 비교 실패(비숫자) — 신규로 간주해 계속",
+						"id", it.ID, "last_id", lastID[gt], "banner", bannerName[gt])
+				} else if le {
 					stop = true
 					break
 				}
@@ -131,7 +156,12 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]st
 			}
 			slog.Debug("페이지 수집", "banner", bannerName[gt], "gacha_type", gt,
 				"page", page, "received", len(ar.Data.List), "added", added)
-			endID = ar.Data.List[len(ar.Data.List)-1].ID
+			newEndID := ar.Data.List[len(ar.Data.List)-1].ID
+			if newEndID == endID {
+				slog.Warn("페이지 진전 없음(end_id 불변) — 루프 중단", "banner", bannerName[gt], "end_id", endID)
+				break
+			}
+			endID = newEndID
 			page++
 			onProgress(bannerName[gt], added)
 			if delay > 0 {
