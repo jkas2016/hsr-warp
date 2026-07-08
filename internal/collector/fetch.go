@@ -51,17 +51,22 @@ func expiredMessage(issuedAt, now time.Time) string {
 		return "authkey 만료. " + guide
 	}
 	days := int(now.Sub(issuedAt).Hours() / 24)
+	if days < 0 {
+		days = 0
+	}
 	return fmt.Sprintf("authkey 만료 — 캐시의 authkey 는 %s 에 발급된 것으로 %d일 지났습니다. %s",
 		issuedAt.Format("2006-01-02 15:04"), days, guide)
 }
 
-func idLessEq(a, b string) bool {
+// idLessEq 는 a <= b 를 big.Int 로 비교한다(ID 는 거대 정수 불변식 — 사전식 금지).
+// 두 번째 반환값 ok 는 파싱 성공 여부 — 비숫자면 (false, false) 를 주고 호출자가 진단·판단한다.
+func idLessEq(a, b string) (le bool, ok bool) {
 	ai, okA := new(big.Int).SetString(a, 10)
 	bi, okB := new(big.Int).SetString(b, 10)
 	if !okA || !okB {
-		return a <= b
+		return false, false
 	}
-	return ai.Cmp(bi) <= 0
+	return ai.Cmp(bi) <= 0, true
 }
 
 // FetchIncremental 은 배너별로 lastID 보다 최신인 기록만 수집한다.
@@ -115,7 +120,11 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]st
 				break
 			}
 			for _, it := range ar.Data.List {
-				if idLessEq(it.ID, lastID[gt]) {
+				le, ok := idLessEq(it.ID, lastID[gt])
+				if !ok {
+					slog.Warn("ID 비교 실패(비숫자) — 신규로 간주해 계속",
+						"id", it.ID, "last_id", lastID[gt], "banner", bannerName[gt])
+				} else if le {
 					stop = true
 					break
 				}

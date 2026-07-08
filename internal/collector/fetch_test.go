@@ -148,3 +148,39 @@ func TestFetchIncremental_AuthkeyExpired(t *testing.T) {
 		t.Fatalf("expected authkey error, got %v", err)
 	}
 }
+
+// idLessEq 는 big.Int 로 비교해야 한다 — 사전식이면 "9" > "10" 로 오판한다.
+func TestIDLessEq_BigIntNotLexicographic(t *testing.T) {
+	cases := []struct {
+		a, b       string
+		wantLe, ok bool
+	}{
+		{"9", "10", true, true},  // 9 <= 10 (사전식이면 false 로 오판)
+		{"10", "9", false, true}, // 10 <= 9 아님
+		{"5", "5", true, true},   // 동일 ID
+		{"100", "99", false, true},
+		{"abc", "10", false, false}, // 비숫자 → ok=false
+		{"10", "xyz", false, false},
+	}
+	for _, c := range cases {
+		le, ok := idLessEq(c.a, c.b)
+		if le != c.wantLe || ok != c.ok {
+			t.Fatalf("idLessEq(%q,%q) = (%v,%v), want (%v,%v)", c.a, c.b, le, ok, c.wantLe, c.ok)
+		}
+	}
+}
+
+// 미래 issuedAt(시계 오차)에서 경과 일수가 음수가 되면 안 된다("-1일" 방지).
+func TestExpiredMessage_FutureIssuedAtClampsToZero(t *testing.T) {
+	now := time.Date(2026, 6, 3, 12, 0, 0, 0, time.Local)
+	future := now.Add(48 * time.Hour)
+	msg := expiredMessage(future, now)
+	// clamp 없이는 -2일(48h/24h)이 노출된다 — 날짜 표기(2026-06-05)의 하이픈과
+	// 헷갈리지 않도록 "-<숫자>일" 패턴으로만 검사한다.
+	if contains(msg, "-2일") {
+		t.Fatalf("음수 일수가 노출되면 안 됨: %s", msg)
+	}
+	if !contains(msg, "0일") {
+		t.Fatalf("미래 issuedAt 은 0일로 clamp 되어야 함: %s", msg)
+	}
+}
