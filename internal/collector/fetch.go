@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -65,7 +66,7 @@ func idLessEq(a, b string) bool {
 
 // FetchIncremental 은 배너별로 lastID 보다 최신인 기록만 수집한다.
 // onProgress(배너이름, 누적신규건수) 는 페이지마다 호출된다. uid 도 반환한다.
-func FetchIncremental(ac *AuthContext, lastID map[string]string, delay time.Duration, onProgress func(banner string, added int)) ([]store.Record, string, error) {
+func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]string, delay time.Duration, onProgress func(banner string, added int)) ([]store.Record, string, error) {
 	client := &http.Client{Timeout: 20 * time.Second}
 	var out []store.Record
 	uid := ""
@@ -75,8 +76,11 @@ func FetchIncremental(ac *AuthContext, lastID map[string]string, delay time.Dura
 		added := 0
 		stop := false
 		for !stop {
+			if err := ctx.Err(); err != nil {
+				return out, uid, err
+			}
 			u := fmt.Sprintf("%s?%s&size=20&gacha_type=%s&page=%d&end_id=%s", ac.APIBase, ac.BaseQuery, gt, page, endID)
-			req, err := http.NewRequest(http.MethodGet, u, nil)
+			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 			if err != nil {
 				return out, uid, fmt.Errorf("요청 생성 실패: %w", err)
 			}

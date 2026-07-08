@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -54,17 +55,58 @@ func readSRGF(path string) (SRGF, error) {
 	return s, err
 }
 
-// writeSRGFAtomic 는 같은 디렉터리 임시 파일에 쓴 뒤 rename 으로 원자적 교체한다.
+// writeSRGFAtomic 는 같은 디렉터리의 유니크 임시 파일에 쓰고 fsync 한 뒤 rename 으로
+// 원자적 교체한다. 유니크 임시명이라 같은 월을 동시에 기록해도 서로의 임시 파일을
+// 덮어쓰지 않고, rename 전 Sync 로 크래시/정전에도 온전한 내용이 남는다.
 func writeSRGFAtomic(path string, s SRGF) error {
 	b, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0644); err != nil {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, filepath.Base(path)+".*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	tmpName := tmp.Name()
+	// 실패 경로에서 임시 파일이 남지 않도록 정리(성공 시 이미 rename 되어 no-op).
+	defer os.Remove(tmpName)
+	if _, err := tmp.Write(b); err != nil {
+		tmp.Close()
+		return err
+	}
+	// os.CreateTemp 는 0600 으로 만든다 — 명시적으로 0644 로 설정(umask 무관).
+	if err := tmp.Chmod(0o644); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return err
+	}
+	syncDirBestEffort(dir)
+	return nil
+}
+
+// syncDirBestEffort 는 부모 디렉터리 엔트리(생성/rename)를 디스크에 내려 rename 의
+// 내구성을 완성한다. Windows 등 일부 플랫폼은 디렉터리 핸들 Sync 를 지원하지 않으므로
+// 베스트에포트다(실패해도 rename 은 유효 — Debug 로만 남긴다).
+func syncDirBestEffort(dir string) {
+	d, err := os.Open(dir)
+	if err != nil {
+		slog.Debug("부모 디렉터리 열기 실패(내구성 fsync 생략)", "dir", dir, "err", err)
+		return
+	}
+	defer d.Close()
+	if err := d.Sync(); err != nil {
+		slog.Debug("부모 디렉터리 fsync 미지원/실패(무시)", "dir", dir, "err", err)
+	}
 }
 
 // LoadAll 은 dir 의 모든 warp_*.json 을 읽어 id 중복제거·정렬한 전체 기록과 마지막 Info 를 반환한다.
