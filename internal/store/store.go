@@ -41,6 +41,9 @@ func dedupByID(recs []Record) []Record {
 }
 
 // readSRGF 는 SRGF 파일을 읽는다. 선행 UTF-8 BOM(구 PowerShell 출력)을 제거한다.
+// 계약: 파일이 없으면 os.ReadFile 의 원본 에러(fs.ErrNotExist 래핑)를 그대로 반환하므로
+// 호출자는 os.IsNotExist(err) 로 "없음"을 구분할 수 있다(WriteAffectedMonths 가 이에 의존).
+// 빈/공백 파일은 zero SRGF·nil 에러, JSON 파싱 실패는 해당 에러를 반환한다.
 func readSRGF(path string) (SRGF, error) {
 	var s SRGF
 	b, err := os.ReadFile(path)

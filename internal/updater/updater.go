@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -62,6 +63,10 @@ func CompareVersions(a, b string) int {
 	return 0
 }
 
+// parseVer 는 "v1.2.3-beta" 형태를 [3]int{1,2,3} 으로 파싱한다. 'v' 접두와
+// '-'/'+' 이후(프리릴리스·빌드 메타데이터)는 제거한다. 정책: 비숫자 세그먼트는
+// 0 으로 관대하게 처리한다(GitHub 릴리스 태그는 정상 semver 라 실무 영향 없음).
+// 파싱 실패는 진단을 위해 Debug 로 남긴다.
 func parseVer(s string) [3]int {
 	s = strings.TrimPrefix(strings.TrimSpace(s), "v")
 	if i := strings.IndexAny(s, "-+"); i >= 0 {
@@ -69,7 +74,10 @@ func parseVer(s string) [3]int {
 	}
 	var out [3]int
 	for i, part := range strings.SplitN(s, ".", 3) {
-		n, _ := strconv.Atoi(part)
+		n, err := strconv.Atoi(part)
+		if err != nil {
+			slog.Debug("버전 세그먼트 파싱 실패, 0으로 처리", "version", s, "segment", part)
+		}
 		out[i] = n
 	}
 	return out
@@ -155,7 +163,11 @@ func writeAtomic(path string, b []byte) error {
 	if err := os.WriteFile(tmp, b, 0644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	if err := os.Rename(tmp, path); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	return nil
 }
 
 func fetch(client *http.Client, url string) ([]byte, error) {
