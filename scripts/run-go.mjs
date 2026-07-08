@@ -5,6 +5,7 @@
 //   node scripts/run-go.mjs build -ldflags="-s -w" -o hsr-warp.exe .
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const isWin = process.platform === 'win32';
@@ -61,5 +62,11 @@ const res = spawnSync(go, process.argv.slice(2), { stdio: 'inherit' });
 if (res.error) {
   console.error(`go 실행 실패: ${res.error.message}\nGo가 설치돼 있는지 확인하세요(https://go.dev/dl).`);
   process.exit(1);
+}
+// 시그널 종료(예: Ctrl+C)면 status 는 null — 시그널 정보를 로그로 남기고 관례적 exit 코드(128+signum)로 종료.
+if (res.signal) {
+  const signum = os.constants.signals[res.signal] || 0;
+  console.error(`go가 시그널 ${res.signal} 로 종료됐습니다.`);
+  process.exit(signum ? 128 + signum : 1);
 }
 process.exit(res.status ?? 1);
