@@ -81,6 +81,38 @@ func TestWriteAffectedMonths_MergesAndDedupsWithinMonth(t *testing.T) {
 	}
 }
 
+// 같은 ID 를 정정된 값으로 재조회하면 신규 레코드가 기존을 덮어써야 한다(신규 우선).
+// 현재는 기존 우선이라 정정된 이름/등급이 조용히 버려진다.
+func TestWriteAffectedMonths_NewRecordWinsOnIDCollision(t *testing.T) {
+	dir := t.TempDir()
+	info := Info{UID: "1"}
+	old := Record{ID: "10", GachaType: "11", Time: "2026-06-01 09:00:00", RankType: "3", Name: "구명칭", ItemID: "1001"}
+	if _, err := WriteAffectedMonths(dir, info, []Record{old}); err != nil {
+		t.Fatal(err)
+	}
+	// 같은 ID 를 정정된 이름/등급으로 재조회.
+	corrected := Record{ID: "10", GachaType: "11", Time: "2026-06-01 09:00:00", RankType: "5", Name: "정정명칭", ItemID: "1001"}
+	if _, err := WriteAffectedMonths(dir, info, []Record{corrected}); err != nil {
+		t.Fatal(err)
+	}
+	s, err := readSRGF(filepath.Join(dir, "warp_202606.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []Record
+	for _, r := range s.List {
+		if r.ID == "10" {
+			got = append(got, r)
+		}
+	}
+	if len(got) != 1 {
+		t.Fatalf("ID 10 은 dedup 되어 1개여야 함, got %d", len(got))
+	}
+	if got[0].Name != "정정명칭" || got[0].RankType != "5" {
+		t.Fatalf("신규 우선이어야 함: got Name=%q Rank=%q", got[0].Name, got[0].RankType)
+	}
+}
+
 // rename 실패 시 임시 파일이 남지 않아야 한다(고정 temp명 시절 누수 방지).
 func TestWriteSRGFAtomic_CleansTempOnFailure(t *testing.T) {
 	dir := t.TempDir()
