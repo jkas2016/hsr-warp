@@ -108,6 +108,22 @@ func TestParseAuthURL_PicksFreshestGachaLogByTimestamp(t *testing.T) {
 	}
 }
 
+// region/lang 값에 잘못된 % 이스케이프가 있어도 조용히 빈 문자열이 되면 안 되고
+// raw 값으로 폴백해야 한다(QueryUnescape 에러 폐기 방지).
+func TestParseAuthURL_MalformedEscapeFallsBackToRaw(t *testing.T) {
+	blob := []byte("\x00https://host/common/gacha_record/api/getGachaLog?authkey=X&lang=ko-kr&region=prod%zz\x00")
+	ac, err := parseAuthURL(blob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ac.Region != "prod%zz" {
+		t.Fatalf("malformed escape 는 raw 로 폴백해야 함, got %q", ac.Region)
+	}
+	if ac.Lang != "ko-kr" {
+		t.Fatalf("정상 lang 은 그대로 디코딩돼야 함, got %q", ac.Lang)
+	}
+}
+
 func contains(s, sub string) bool {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {

@@ -82,9 +82,9 @@ func parseAuthURL(blob []byte) (*AuthContext, error) {
 		}
 		switch key {
 		case "region":
-			region, _ = url.QueryUnescape(val)
+			region = unescapeOr(val)
 		case "lang":
-			lang, _ = url.QueryUnescape(val)
+			lang = unescapeOr(val)
 		}
 		if !pageKeys[key] {
 			kept = append(kept, pair)
@@ -102,6 +102,15 @@ func parseAuthURL(blob []byte) (*AuthContext, error) {
 		Lang:      lang,
 		IssuedAt:  issued,
 	}, nil
+}
+
+// unescapeOr 는 QueryUnescape 실패 시 raw 값으로 폴백한다.
+// 실패를 조용히 빈 문자열로 흘리면 region/lang 이 소실돼 이후 조회가 깨진다.
+func unescapeOr(s string) string {
+	if v, err := url.QueryUnescape(s); err == nil {
+		return v
+	}
+	return s
 }
 
 // timestampOf 는 URL 쿼리의 timestamp 값을 정수로 반환한다(없으면 -1).
