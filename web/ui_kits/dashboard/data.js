@@ -67,6 +67,9 @@ window.WarpData = (function () {
     const luckPct = full.luck.charLuckPct;
     const markerPct = full.luck.charAvgPity
       ? Math.max(2, Math.min(98, (full.luck.charAvgPity / 125) * 100)) : 50;
+    // 캐릭터 배너 이론 평균 뽑기 수(단일 소스 analyze.js expAvg). 하드코딩 없이 HeroSummary 로 전달.
+    const charBnr = full.banners.find((b) => b.type === '11');
+    const charExpAvg = charBnr ? charBnr.meta.expAvg : window.WarpAnalyze.BANNERS['11'].expAvg;
 
     return {
       info: full.info || {},
@@ -75,11 +78,12 @@ window.WarpData = (function () {
       unknown5: full.unknown5 || 0,
       luck: {
         charAvgPity: full.luck.charAvgPity || 0,
-        charLuckPct: luckPct == null ? 0 : Math.round(luckPct),
+        charLuckPct: Math.round(luckPct ?? 0),
         markerPct,
       },
       charBanner: {
-        win5050: cb.win5050Rate != null ? Math.round(cb.win5050Rate * 100) : 0,
+        win5050: Math.round((cb.win5050Rate ?? 0) * 100),
+        expAvg: charExpAvg,
         contested: cb.contested || 0, cWins: cb.cWins || 0, cLoss: cb.cLoss || 0, gWins: cb.gWins || 0,
         count5: cb.count5 || 0, avgPity5: cb.avgPity5 || 0,
         bestPity: cb.bestPity || 0, worstPity: cb.worstPity || 0,

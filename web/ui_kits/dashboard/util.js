@@ -5,7 +5,7 @@ window.WarpUtil = (function () {
 
   // 결과 라벨은 호출 시점의 언어로 평가되어야 하므로 함수로 노출.
   function resultMeta(code) {
-    var C = { win: 'var(--gold-ink)', loss: 'var(--red)', guaranteed: 'var(--green)' };
+    const C = { win: 'var(--gold-ink)', loss: 'var(--red)', guaranteed: 'var(--green)' };
     return { label: window.I18N.t('result.' + code), color: C[code] };
   }
 

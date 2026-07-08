@@ -27,9 +27,12 @@ function QueryPanel({ runFetch, onLoaded }) {
     }
   }
 
+  // 배너 short 는 분석 계층(analyze.js BANNERS) 단일 소스에서 — 서버 progress 키와 동일.
   // 표준 3배너는 항상, 출발은 신규가 잡힐 때만 표시.
-  const order = ['캐릭터', '광추', '일반'];
-  const shown = prog ? order.concat(prog['출발'] != null ? ['출발'] : []) : [];
+  const B = window.WarpAnalyze.BANNERS;
+  const order = ['11', '12', '1'].map((k) => B[k].short);
+  const departure = B['2'].short;
+  const shown = prog ? order.concat(prog[departure] !== undefined ? [departure] : []) : [];
 
   return (
     <Card padding={18} style={{ marginTop: 20 }}>

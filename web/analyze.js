@@ -54,7 +54,7 @@
     schedule = schedule || [];
     const schedEnd = schedule.length ? Date.parse(schedule[schedule.length - 1].e) : 0;
     const list = records.slice().sort(byId);
-    const poolKey = meta.pool === 'char' ? 'c' : meta.pool === 'lc' ? 'l' : null; // schedule 픽업 키
+    const poolKey = { char: 'c', lc: 'l' }[meta.pool] || null; // schedule 픽업 키
     let p5 = 0, p4 = 0, c4 = 0, c3 = 0;
     let guaranteed = false;
     const fives = [];

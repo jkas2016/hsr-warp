@@ -12,13 +12,6 @@ function FiveDetail({ five, onClose }) {
   const diff = meta.expAvg ? Math.round(meta.expAvg - f.pity) : null;
   const lucky = diff != null && diff > 0;
 
-  const Stat = ({ k, children }) => (
-    <div style={{ flex: 1, minWidth: 120 }}>
-      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>{k}</div>
-      <div style={{ fontSize: 14, fontWeight: 600 }}>{children}</div>
-    </div>
-  );
-
   return (
     <Dialog open={!!f} onClose={onClose} width={480}
       title={t('detail.title', { name: window.I18N.itemName(f.item_id, f.name) })}>
@@ -53,6 +46,16 @@ function FiveDetail({ five, onClose }) {
         ) : t('detail.standardOnly')}
       </div>
     </Dialog>
+  );
+}
+
+// 상세 모달의 라벨+값 셀. 모듈 스코프(매 렌더 remount 방지).
+function Stat({ k, children }) {
+  return (
+    <div style={{ flex: 1, minWidth: 120 }}>
+      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.6px', color: 'var(--muted)', fontWeight: 600, marginBottom: 6 }}>{k}</div>
+      <div style={{ fontSize: 14, fontWeight: 600 }}>{children}</div>
+    </div>
   );
 }
 window.FiveDetail = FiveDetail;
