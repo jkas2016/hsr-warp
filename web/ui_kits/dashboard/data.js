@@ -60,7 +60,7 @@ window.WarpData = (function () {
     }));
 
     const fives = full.all5.map((f) => ({
-      name: f.name, item_id: f.item_id, banner: f.banner, pity: f.pity, result: f.result,
+      id: f.id, name: f.name, item_id: f.item_id, banner: f.banner, pity: f.pity, result: f.result,
       isPickup: f.isPickup, time: f.time, version: verOf(f.time),
     }));
 
