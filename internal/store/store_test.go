@@ -3,6 +3,8 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"strconv"
+	"sync"
 	"testing"
 )
 
@@ -76,6 +78,52 @@ func TestWriteAffectedMonths_MergesAndDedupsWithinMonth(t *testing.T) {
 	}
 	if all[0].ID != "10" || all[1].ID != "11" {
 		t.Fatalf("expected id-sorted [10,11], got [%s,%s]", all[0].ID, all[1].ID)
+	}
+}
+
+// rename 실패 시 임시 파일이 남지 않아야 한다(고정 temp명 시절 누수 방지).
+func TestWriteSRGFAtomic_CleansTempOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	// target 을 디렉터리로 만들어 os.Rename(tmp, target) 을 실패시킨다.
+	target := filepath.Join(dir, "warp_202606.json")
+	if err := os.Mkdir(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	err := writeSRGFAtomic(target, SRGF{List: []Record{{ID: "1", Time: "2026-06-01 00:00:00"}}})
+	if err == nil {
+		t.Fatal("target 이 디렉터리이므로 rename 실패를 기대")
+	}
+	leftovers, _ := filepath.Glob(filepath.Join(dir, "*.tmp"))
+	if len(leftovers) != 0 {
+		t.Fatalf("임시 파일이 정리되지 않음: %v", leftovers)
+	}
+}
+
+// 같은 월을 여러 goroutine 이 동시에 기록해도 파일이 손상(파싱 불가)되거나
+// .tmp 잔여물이 남지 않아야 한다. (store 계층은 무손상만 보장 — 병합/유실 방지는
+// server 의 거절 가드 담당이라 최종 레코드 수는 검증하지 않는다.)
+func TestWriteAffectedMonths_ConcurrentNoCorruption(t *testing.T) {
+	dir := t.TempDir()
+	info := Info{UID: "1"}
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			rec := Record{ID: strconv.Itoa(1000 + i), GachaType: "11", Time: "2026-06-01 00:00:00"}
+			_, _ = WriteAffectedMonths(dir, info, []Record{rec})
+		}(i)
+	}
+	wg.Wait()
+	s, err := readSRGF(filepath.Join(dir, "warp_202606.json"))
+	if err != nil {
+		t.Fatalf("동시 기록 후 파일 손상: %v", err)
+	}
+	if len(s.List) == 0 {
+		t.Fatal("최소 한 레코드는 남아야 함")
+	}
+	if leftovers, _ := filepath.Glob(filepath.Join(dir, "*.tmp")); len(leftovers) != 0 {
+		t.Fatalf("temp 잔여물: %v", leftovers)
 	}
 }
 
