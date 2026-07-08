@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -128,9 +129,15 @@ func freeListener(start int) (net.Listener, int, error) {
 	return nil, 0, fmt.Errorf("빈 포트를 찾지 못했습니다(%d~%d)", start, start+49)
 }
 
+// openBrowser 는 Windows 에서만 기본 브라우저로 URL 을 연다(rundll32, 따옴표 이슈 없음).
+// 다른 OS 에선 무동작 — 사용자가 콘솔에 출력된 URL 을 직접 연다.
 func openBrowser(url string) {
-	// Windows: rundll32 로 기본 브라우저 오픈(따옴표 이슈 없음).
-	_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	if runtime.GOOS != "windows" {
+		return
+	}
+	if err := exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start(); err != nil {
+		slog.Debug("브라우저 자동 열기 실패", "err", err)
+	}
 }
 
 func main() {
@@ -154,7 +161,9 @@ func main() {
 	slog.Info("대시보드 시작", "version", version, "url", url)
 	fmt.Printf("HSR 워프 대시보드 %s: %s\n(종료하려면 이 창에서 Ctrl+C)\n", version, url)
 	openBrowser(url)
-	if err := http.Serve(ln, srv.Handler()); err != nil {
-		slog.Error("서버 종료", "err", err)
+	// ReadHeaderTimeout: 로컬 slowloris 스톨 방지(헤더 읽기 단계만 제한 — SSE 장수명 응답엔 무영향).
+	httpSrv := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}
+	if err := httpSrv.Serve(ln); err != nil {
+		fatal("서버 종료", "err", err) // 감독자용 non-zero 종료(exit 0 로 조용히 빠지지 않도록)
 	}
 }

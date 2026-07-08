@@ -15,10 +15,20 @@ const FILES = ['characters.json', 'light_cones.json'];
 // SRGF/앱 언어코드 → StarRailRes 디렉토리명.
 const LANGS = { ko: 'kr', en: 'en', zh: 'cn', ja: 'jp' };
 
-async function fetchJSON(url) {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${url}`);
-  return res.json();
+// 타임아웃(AbortSignal.timeout) + 소규모 재시도 — 순차 fetch 가 응답 없이 행(hang)하면
+// 빌드가 무한 정지하던 문제 방지. 일시적 네트워크/CDN 오류엔 지수 백오프로 재시도.
+async function fetchJSON(url, { retries = 3, timeout = 30000 } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${url}`);
+      return await res.json();
+    } catch (e) {
+      if (attempt > retries) throw e;
+      process.stderr.write(`retry ${attempt}/${retries} (${e.message}) — ${url}\n`);
+      await new Promise((r) => setTimeout(r, attempt * 1000));
+    }
+  }
 }
 
 async function main() {
