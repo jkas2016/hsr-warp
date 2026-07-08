@@ -1,12 +1,15 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"hsr-warp/internal/collector"
@@ -35,6 +38,7 @@ type Server struct {
 	client      *http.Client
 	once        sync.Once
 	cached      updater.Updates
+	fetching    atomic.Bool // 수집 진행 중이면 true — 겹치는 /api/fetch 를 거절
 }
 
 // New 는 자산 없이 Server 를 만든다(API 테스트용).
@@ -150,6 +154,11 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		fail("게임 경로가 비어 있습니다.")
 		return
 	}
+	if !s.fetching.CompareAndSwap(false, true) {
+		fail("이미 수집이 진행 중입니다. 완료 후 다시 시도하세요.")
+		return
+	}
+	defer s.fetching.Store(false)
 	slog.Info("조회 시작", "path", gamePath)
 
 	ac, err := collector.FindAuthContext(gamePath)
@@ -179,6 +188,10 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 			send("progress", map[string]any{"banner": banner, "added": added})
 		})
 	if err != nil {
+		if errors.Is(err, context.Canceled) || r.Context().Err() != nil {
+			slog.Info("클라이언트 연결 종료로 수집 중단")
+			return
+		}
 		fail(err.Error())
 		return
 	}
@@ -193,6 +206,10 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		ExportApp:       "DIY-HSR-Warp", ExportAppVersion: "0.1.0", SRGFVersion: "v1.0",
 	}
 
+	if err := r.Context().Err(); err != nil {
+		slog.Info("클라이언트 연결 종료로 저장 생략")
+		return
+	}
 	updatedMonths, err := store.WriteAffectedMonths(s.paths.DataDir, info, newRecs)
 	if err != nil {
 		fail(err.Error())
