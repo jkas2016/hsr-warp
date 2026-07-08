@@ -145,6 +145,7 @@ func MaxIDByBanner(recs []Record) map[string]string {
 
 // WriteAffectedMonths 는 newRecords 를 월별로 그룹핑해, 신규가 생긴 월 파일만
 // 기존 내용과 병합(중복제거·정렬)해 재작성한다. 손대지 않은 월 파일은 보존된다.
+// 같은 ID 가 기존·신규 양쪽에 있으면 신규(재조회) 레코드가 이긴다(정정 반영).
 // 갱신된 월 코드 목록(정렬됨)을 반환한다.
 func WriteAffectedMonths(dir string, info Info, newRecords []Record) ([]string, error) {
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -165,7 +166,10 @@ func WriteAffectedMonths(dir string, info Info, newRecords []Record) ([]string, 
 		if err != nil && !os.IsNotExist(err) {
 			return nil, err
 		}
-		merged := dedupByID(append(existing.List, recs...))
+		// ID 충돌 시 신규(재조회) 레코드가 이기도록 recs 를 앞에 둔다 — dedupByID 는
+		// 먼저 본 레코드를 유지하므로, 정정된 이름/등급/시각이 기존 저장본을 덮어쓴다.
+		// (existing.List 백킹 배열을 변이하지 않도록 새 슬라이스로 시작.)
+		merged := dedupByID(append(append([]Record{}, recs...), existing.List...))
 		if err := writeSRGFAtomic(path, SRGF{Info: info, List: merged}); err != nil {
 			return nil, err
 		}
