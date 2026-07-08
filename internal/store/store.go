@@ -75,7 +75,7 @@ func writeSRGFAtomic(path string, s SRGF) error {
 		tmp.Close()
 		return err
 	}
-	// os.CreateTemp 는 0600 으로 만든다 — 기존 0644 동작을 보존.
+	// os.CreateTemp 는 0600 으로 만든다 — 명시적으로 0644 로 설정(umask 무관).
 	if err := tmp.Chmod(0o644); err != nil {
 		tmp.Close()
 		return err
