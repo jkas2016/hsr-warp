@@ -8,6 +8,14 @@ import (
 	"testing"
 )
 
+// readSRGF 는 미존재 파일에 대해 os.IsNotExist 로 구분 가능한 에러를 반환해야 한다(계약).
+func TestReadSRGF_MissingFileIsNotExist(t *testing.T) {
+	_, err := readSRGF(filepath.Join(t.TempDir(), "warp_209901.json"))
+	if !os.IsNotExist(err) {
+		t.Fatalf("미존재 파일은 os.IsNotExist 에러여야 함, got %v", err)
+	}
+}
+
 func TestIDLess_BigIntPrecision(t *testing.T) {
 	// 16자리 이상 — float64로는 구분 불가한 인접 값
 	a := "1700000000000000001"

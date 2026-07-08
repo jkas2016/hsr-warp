@@ -132,17 +132,20 @@ func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
 // handleFetch 는 증분 조회를 SSE 로 스트리밍한다.
 // 이벤트: progress {banner,added} / error {message} / done {summary,data}.
 func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		slog.Error("SSE 스트리밍 미지원(http.Flusher 없음)")
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	flusher, _ := w.(http.Flusher)
 
 	send := func(event string, payload any) {
 		b, _ := json.Marshal(payload)
 		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b)
-		if flusher != nil {
-			flusher.Flush()
-		}
+		flusher.Flush()
 	}
 	fail := func(msg string) {
 		slog.Error("조회 실패", "err", msg)
