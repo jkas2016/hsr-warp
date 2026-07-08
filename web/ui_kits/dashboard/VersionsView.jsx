@@ -1,7 +1,7 @@
 // Versions tab — per-patch comparison (item 4). A range Select filters which
 // versions show; a row click highlights it; a bar chart compares average pity
 // against the 62.5 theoretical line (shorter = luckier).
-function VersionsView({ D, theme }) {
+function VersionsView({ D, theme, lang }) {
   const { Card, Select } = window.HSRWarpDesignSystem_4a0d44;
   const { num } = window.WarpUtil;
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
@@ -41,7 +41,7 @@ function VersionsView({ D, theme }) {
 
       <Card padding={18} style={{ marginBottom: 16 }}>
         <div className="lbl" style={{ marginBottom: 12 }}>{t('versions.avgCompare', { name: bannerName })} <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>{t('versions.avgCompareNote', { base: baseLine.toFixed(1) })}</span></div>
-        <VersionPityChart rows={rows} banner={banner} baseLine={baseLine} sel={sel} theme={theme} />
+        <VersionPityChart rows={rows} banner={banner} baseLine={baseLine} sel={sel} theme={theme} lang={lang} />
       </Card>
 
       <Card padding={6}>
@@ -74,7 +74,7 @@ function VersionsView({ D, theme }) {
   );
 }
 
-function VersionPityChart({ rows, banner, baseLine, sel, theme }) {
+function VersionPityChart({ rows, banner, baseLine, sel, theme, lang }) {
   const ref = React.useRef();
   React.useEffect(() => {
     if (!window.Chart) return;
@@ -102,7 +102,7 @@ function VersionPityChart({ rows, banner, baseLine, sel, theme }) {
       },
     });
     return () => c.destroy();
-  }, [rows, banner, baseLine, sel, theme, window.I18N.lang]);
+  }, [rows, banner, baseLine, sel, theme, lang]);
   return <div style={{ position: 'relative', height: 210 }}><canvas ref={ref} /></div>;
 }
 window.VersionsView = VersionsView;

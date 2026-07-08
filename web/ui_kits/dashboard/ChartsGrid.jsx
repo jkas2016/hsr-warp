@@ -1,7 +1,7 @@
 // Chart.js analysis grid — rarity doughnut, char-banner pity histogram,
 // 50/50 stacked bars, monthly pulls. Reads themed colors from CSS vars and
 // rebuilds when the theme flips.
-function ChartsGrid({ D, theme }) {
+function ChartsGrid({ D, theme, lang }) {
   const t = window.I18N.t;
   const { Card } = window.HSRWarpDesignSystem_4a0d44;
   const refs = { rarity: React.useRef(), pity: React.useRef(), ff: React.useRef(), month: React.useRef() };
@@ -49,7 +49,7 @@ function ChartsGrid({ D, theme }) {
         scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: grid } } } } }));
 
     return () => made.forEach((c) => c.destroy());
-  }, [theme, window.I18N.lang]);
+  }, [theme, lang]);
 
   const wrap = { position: 'relative', height: 230 };
   const h3 = { fontSize: 13, marginBottom: 12, color: 'var(--muted)', fontWeight: 600, marginTop: 0, fontFamily: 'var(--font-display)' };

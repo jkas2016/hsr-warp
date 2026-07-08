@@ -21,9 +21,10 @@ function Dashboard() {
   }, [theme]);
 
   const [lang, setLangState] = React.useState(() => window.I18N.lang);
-  // 렌더 중 즉시 런타임 언어 반영 — 이 렌더의 모든 t()가 새 언어로 평가되도록.
-  // (setLang을 useEffect에 두면 커밋 후 실행이라 첫 렌더가 옛 언어로 남아 한 박자 밀린다.)
-  window.I18N.setLang(lang);
+  // 언어 변경은 핸들러에서 싱글턴을 먼저 동기화한 뒤 상태를 갱신한다 — 재렌더 시점엔
+  // I18N.lang 이 이미 새 값이라 이 트리의 모든 t()가 새 언어로 평가된다(render-purity 유지).
+  // 마운트 시엔 lang 초기값이 window.I18N.lang 과 동일하므로 별도 동기화 불필요.
+  const changeLang = (l) => { window.I18N.setLang(l); setLangState(l); };
   React.useEffect(() => {
     document.documentElement.setAttribute('lang', lang);
     try { localStorage.setItem('hsrwarp-lang', lang); } catch (e) {}
@@ -90,7 +91,7 @@ function Dashboard() {
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           {loaded && <RefreshBar runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
-          <Select value={lang} onChange={(e) => setLangState(e.target.value)} aria-label="Language">
+          <Select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">
             <option value="ko">한국어</option>
             <option value="en">English</option>
             <option value="zh">中文</option>
@@ -140,10 +141,10 @@ function Dashboard() {
             )}
           </div>
           <div key={view} className="view" style={{ marginTop: 22 }}>
-            {view === 'overview' && <OverviewView D={D} theme={theme} scoped={scoped} onSeeAll={() => setView('history')} onFiveClick={setFive} />}
+            {view === 'overview' && <OverviewView D={D} theme={theme} lang={lang} scoped={scoped} onSeeAll={() => setView('history')} onFiveClick={setFive} />}
             {view === 'banners' && <BannersView D={D} theme={theme} scoped={scoped} onFiveClick={setFive} />}
             {view === 'history' && <HistoryView D={D} onFiveClick={setFive} />}
-            {view === 'versions' && <VersionsView D={D} theme={theme} />}
+            {view === 'versions' && <VersionsView D={D} theme={theme} lang={lang} />}
           </div>
           <div className="foot">
             {t('foot.line1')}<br />
