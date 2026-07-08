@@ -9,23 +9,40 @@
 실제 수정은 이 문서를 근거로 이후 세션에서 진행한다. 이 문서는 구현 설계가 아니라 **작업 순서·의존성·파일 충돌 회피**를 정하는 로드맵이다.
 각 이슈의 상세 스코프·작업·완료 기준은 GitHub 이슈 본문이 단일 소스다 — 여기서 중복하지 않는다.
 
+## 진행 상황 (2026-07-08 갱신)
+
+**Track A (Go 백엔드) 5개 전부 완료·머지됨** ✅ — main 에 이슈당 1개 스쿼시 커밋으로 선형 통합.
+
+| 이슈 | 상태 | PR | main 커밋 |
+|---|---|---|---|
+| #17 | ✅ 완료·머지 | #30 | `16990a5` |
+| #18 | ✅ 완료·머지 | #35 (구 #31)¹ | `9aff6c7` |
+| #19 | ✅ 완료·머지 | #32 | `98df59b` |
+| #25 | ✅ 완료·머지 | #33 | `d88203d` |
+| #20 | ✅ 완료·머지 | #34 | `d16b142` |
+| #21·#22·#23·#24·#26·#27·#28·#29 | ⬜ 미착수 | — | — |
+
+**실제 실행 순서**(권장 순서와 다름): Track A 를 스택형 PR 로 한 번에 처리 — `#17 → #18 → #19 → #25 → #20`. 각 PR 은 이전 PR 브랜치 위에 스택했고, 머지 시 스쿼시 + 부모 위로 rebase 로 선형화.
+
+¹ **스택형 PR 스쿼시 머지 교훈**: 부모 브랜치를 `--delete-branch` 로 지우면 그 브랜치를 base 로 하던 자식 PR 이 GitHub 에서 자동 CLOSED 된다(#18 의 PR#31 이 이렇게 닫혀 PR#35 로 대체). **부모 머지 전에 자식 PR 을 미리 base=main 으로 재타깃**한 뒤 진행하면 안전하다.
+
 ## 대상 이슈 요약
 
-| # | 제목 | 우선순위 | 종류 |
-|---|---|---|---|
-| #17 | collector Windows 빌드 제약 누락 — darwin 테스트 스킵 | high | bug |
-| #18 | 동시 `/api/fetch` 수집 경합 — 레코드 유실·파일 손상 | high | bug |
-| #19 | 병합 dedup 우선순위 — 재조회 레코드 유실 | medium | bug |
-| #20 | collector fetch 견고성 (HTTP 상태·페이지 상한·ID 폴백·음수 일수) | medium | bug |
-| #21 | 대시보드 언어 전환 반응성 — useEffect 전역 deps·render 부수효과 | medium | bug |
-| #22 | FivesTable 리스트 key=index → 잘못된 상세 모달 | medium | bug |
-| #23 | CDN 스크립트 SRI 누락 + 프로덕션 빌드 (보안) | medium | bug |
-| #24 | copy.test.mjs false-pass — 실제 copy 불변식 미검증 | medium | bug |
-| #25 | Go 백엔드 견고성 정리 — slog·.tmp 정리·flusher·parseVer | low | task |
-| #26 | main.go·빌드·프리렌더 스크립트 견고성 | low | task |
-| #27 | 대시보드 React 관례 정리 — 중첩삼항·내부컴포넌트·하드코딩 | low | task |
-| #28 | i18n items.js ko 로케일 갭 재생성 | low | docs |
-| #29 | vite crossorigin iOS Safari — 실기기 검증 필요 | low | question |
+| # | 제목 | 우선순위 | 종류 | 상태 |
+|---|---|---|---|---|
+| #17 | collector Windows 빌드 제약 누락 — darwin 테스트 스킵 | high | bug | ✅ |
+| #18 | 동시 `/api/fetch` 수집 경합 — 레코드 유실·파일 손상 | high | bug | ✅ |
+| #19 | 병합 dedup 우선순위 — 재조회 레코드 유실 | medium | bug | ✅ |
+| #20 | collector fetch 견고성 (HTTP 상태·페이지 상한·ID 폴백·음수 일수) | medium | bug | ✅ |
+| #21 | 대시보드 언어 전환 반응성 — useEffect 전역 deps·render 부수효과 | medium | bug | ⬜ |
+| #22 | FivesTable 리스트 key=index → 잘못된 상세 모달 | medium | bug | ⬜ |
+| #23 | CDN 스크립트 SRI 누락 + 프로덕션 빌드 (보안) | medium | bug | ⬜ |
+| #24 | copy.test.mjs false-pass — 실제 copy 불변식 미검증 | medium | bug | ⬜ |
+| #25 | Go 백엔드 견고성 정리 — slog·.tmp 정리·flusher·parseVer | low | task | ✅ |
+| #26 | main.go·빌드·프리렌더 스크립트 견고성 | low | task | ⬜ |
+| #27 | 대시보드 React 관례 정리 — 중첩삼항·내부컴포넌트·하드코딩 | low | task | ⬜ |
+| #28 | i18n items.js ko 로케일 갭 재생성 | low | docs | ⬜ |
+| #29 | vite crossorigin iOS Safari — 실기기 검증 필요 | low | question | ⬜ |
 
 ## 배치 원칙
 
@@ -43,13 +60,13 @@
 
 ## 트랙별 상세 순서 & 의존성
 
-### 트랙 A — Go 백엔드
+### 트랙 A — Go 백엔드 ✅ 완료
 
 ```
-#17 ──┬──► #18 ──► #19 ──► #25
-      │    (store.go WriteAffectedMonths 공유 → 직렬)
-      └──► #20   (fetch.go, 다른 파일 → #18와 병렬 가능)
+#17 ✅ ──► #18 ✅ ──► #19 ✅ ──► #25 ✅ ──► #20 ✅   (실제: 전부 스택형 직렬로 처리)
 ```
+
+> 계획 당시엔 #20 을 #18 과 병렬 가능이라 봤으나, **#18 도 `fetch.go`(FetchIncremental 에 ctx 추가)를 수정**해 실제론 겹쳤다. 그래서 #20 을 스택 맨 위(#25 뒤)에 얹어 직렬 처리했다.
 
 - **#17 먼저 (foundation).** priority:high이자 **언블록커**. 현재 collector 패키지가 darwin에서 빌드 실패라 `go test ./internal/collector/`가 통째로 스킵된다. #17을 먼저 해야 #20이 추가하는 fetch.go 테스트를 dev기(darwin)에서 실제로 돌려 검증할 수 있다.
 - **#18 → #19 → #25는 직렬.** 셋 다 `store.go`를 건드린다. #18이 원자적 write·`WriteAffectedMonths` 경로를 재구조화 → #19(dedup 순서 반전, 소규모)가 그 위에 얹힘 → #25(readSRGF 계약 명시 등 견고성)가 정리. 순서를 어기면 store.go에서 리베이스 충돌.
@@ -82,23 +99,25 @@
 
 우선순위 + 언블록 + 리스크(데이터 무결성 우선)로 정렬:
 
-| 순번 | 이슈 | 근거 |
-|---|---|---|
-| 1 | **#17** | high, collector 테스트 언블록 (foundation) |
-| 2 | **#18** | high, 비파괴 저장 불변식 — 최고 리스크 |
-| 3 | **#19** | store.go, #18 위에 얹힘 |
-| 4 | **#20** | collector, #17 필요 |
-| 5 | **#22** | medium, 작고 독립 — quick win |
-| 6 | **#23** | medium, 보안 quick win |
-| 7 | **#24** | medium, 테스트 무결성 |
-| 8 | **#21** | medium, 대시보드 행동 |
-| 9 | **#25** | low, store.go 안정된 뒤 |
-| 10 | **#26** | low, 빌드 스크립트 |
-| 11 | **#27** | low, #21 뒤 프론트 클린업 |
-| 12 | **#28** | low, #26 뒤 (외부 소스 gated) |
-| 13 | **#29** | low, 검증 선행 (close 가능) |
+| 순번 | 이슈 | 근거 | 상태 |
+|---|---|---|---|
+| 1 | **#17** | high, collector 테스트 언블록 (foundation) | ✅ |
+| 2 | **#18** | high, 비파괴 저장 불변식 — 최고 리스크 | ✅ |
+| 3 | **#19** | store.go, #18 위에 얹힘 | ✅ |
+| 4 | **#20** | collector, #17 필요 | ✅ |
+| 5 | **#22** | medium, 작고 독립 — quick win | ⬜ |
+| 6 | **#23** | medium, 보안 quick win | ⬜ |
+| 7 | **#24** | medium, 테스트 무결성 | ⬜ |
+| 8 | **#21** | medium, 대시보드 행동 | ⬜ |
+| 9 | **#25** | low, store.go 안정된 뒤 | ✅ |
+| 10 | **#26** | low, 빌드 스크립트 | ⬜ |
+| 11 | **#27** | low, #21 뒤 프론트 클린업 | ⬜ |
+| 12 | **#28** | low, #26 뒤 (외부 소스 gated) | ⬜ |
+| 13 | **#29** | low, 검증 선행 (close 가능) | ⬜ |
 
 병렬로 진행할 경우 A/B/C 세 트랙을 각자 위 순서대로 돌린다.
+
+**남은 작업(9건): 트랙 B(#21·#22·#27) · 트랙 C(#23·#24·#26·#28·#29).** 둘 다 Go 백엔드(트랙 A) 밖이라 완료된 스택과 파일이 서로소 — `main` 에서 독립 브랜치로 시작하면 된다(더는 스택 불필요).
 
 ## 트랙 간 불변식 (모든 PR 공통)
 
