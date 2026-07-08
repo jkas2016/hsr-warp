@@ -11,7 +11,9 @@
 
 ## 진행 상황 (2026-07-08 갱신)
 
-**Track A (Go 백엔드) 5개 전부 완료·머지됨** ✅ — main 에 이슈당 1개 스쿼시 커밋으로 선형 통합.
+**13개 중 12개 완료·머지, 2개 남음(#28·#29).** Track A·B 전부 완료, Track C 는 #23·#24·#26 완료.
+
+### Track A (Go 백엔드) ✅ 완료·머지 — 스택형 PR
 
 | 이슈 | 상태 | PR | main 커밋 |
 |---|---|---|---|
@@ -20,11 +22,32 @@
 | #19 | ✅ 완료·머지 | #32 | `98df59b` |
 | #25 | ✅ 완료·머지 | #33 | `d88203d` |
 | #20 | ✅ 완료·머지 | #34 | `d16b142` |
-| #21·#22·#23·#24·#26·#27·#28·#29 | ⬜ 미착수 | — | — |
 
-**실제 실행 순서**(권장 순서와 다름): Track A 를 스택형 PR 로 한 번에 처리 — `#17 → #18 → #19 → #25 → #20`. 각 PR 은 이전 PR 브랜치 위에 스택했고, 머지 시 스쿼시 + 부모 위로 rebase 로 선형화.
+**실행 순서**: 스택형 PR 로 한 번에 — `#17 → #18 → #19 → #25 → #20`. 각 PR 은 이전 PR 위에 스택, 머지 시 스쿼시 + 부모 위로 rebase 로 선형화.
 
-¹ **스택형 PR 스쿼시 머지 교훈**: 부모 브랜치를 `--delete-branch` 로 지우면 그 브랜치를 base 로 하던 자식 PR 이 GitHub 에서 자동 CLOSED 된다(#18 의 PR#31 이 이렇게 닫혀 PR#35 로 대체). **부모 머지 전에 자식 PR 을 미리 base=main 으로 재타깃**한 뒤 진행하면 안전하다.
+### Track B (대시보드 React) ✅ 완료·머지 — main 독립 브랜치
+
+| 이슈 | 상태 | PR | main 커밋 |
+|---|---|---|---|
+| #22 | ✅ 완료·머지 | #37 | `7f0369d` |
+| #21 | ✅ 완료·머지 | #40 | `47f6c0d` |
+| #27 | ✅ 완료·머지 | #41 | `6fdf59b` |
+
+권장 순서(#22 → #21 → #27)대로 각각 main 기준 독립 브랜치·PR·스쿼시 머지. 트랙 내 의존(#21 → #27)만 순서 유지.
+
+### Track C (보안·빌드·문서) — 진행 중
+
+| 이슈 | 상태 | PR | main 커밋 |
+|---|---|---|---|
+| #23 | ✅ 완료·머지 | #38 | `9789a79` |
+| #24 | ✅ 완료·머지 | #39 | `2f56547` |
+| #26 | ✅ 완료·머지 | #42 | `44779a6` |
+| #28 | ⬜ 미착수 (#26 뒤·**외부 소스 gated**) | — | — |
+| #29 | ⬜ 미착수 (검증 태스크) | — | — |
+
+**docs 로드맵 갱신**: Track A 완료 반영 PR #36(`ca75416`), 본 갱신은 별도 커밋.
+
+¹ **스택형 PR 스쿼시 머지 교훈**: 부모 브랜치를 `--delete-branch` 로 지우면 그 브랜치를 base 로 하던 자식 PR 이 GitHub 에서 자동 CLOSED 된다(#18 의 PR#31 이 이렇게 닫혀 PR#35 로 대체). **부모 머지 전에 자식 PR 을 미리 base=main 으로 재타깃**한 뒤 진행하면 안전하다. Track B·C 는 main 독립 브랜치라 이 문제 없음.
 
 ## 대상 이슈 요약
 
@@ -34,13 +57,13 @@
 | #18 | 동시 `/api/fetch` 수집 경합 — 레코드 유실·파일 손상 | high | bug | ✅ |
 | #19 | 병합 dedup 우선순위 — 재조회 레코드 유실 | medium | bug | ✅ |
 | #20 | collector fetch 견고성 (HTTP 상태·페이지 상한·ID 폴백·음수 일수) | medium | bug | ✅ |
-| #21 | 대시보드 언어 전환 반응성 — useEffect 전역 deps·render 부수효과 | medium | bug | ⬜ |
-| #22 | FivesTable 리스트 key=index → 잘못된 상세 모달 | medium | bug | ⬜ |
-| #23 | CDN 스크립트 SRI 누락 + 프로덕션 빌드 (보안) | medium | bug | ⬜ |
-| #24 | copy.test.mjs false-pass — 실제 copy 불변식 미검증 | medium | bug | ⬜ |
+| #21 | 대시보드 언어 전환 반응성 — useEffect 전역 deps·render 부수효과 | medium | bug | ✅ |
+| #22 | FivesTable 리스트 key=index → 잘못된 상세 모달 | medium | bug | ✅ |
+| #23 | CDN 스크립트 SRI 누락 + 프로덕션 빌드 (보안) | medium | bug | ✅ |
+| #24 | copy.test.mjs false-pass — 실제 copy 불변식 미검증 | medium | bug | ✅ |
 | #25 | Go 백엔드 견고성 정리 — slog·.tmp 정리·flusher·parseVer | low | task | ✅ |
-| #26 | main.go·빌드·프리렌더 스크립트 견고성 | low | task | ⬜ |
-| #27 | 대시보드 React 관례 정리 — 중첩삼항·내부컴포넌트·하드코딩 | low | task | ⬜ |
+| #26 | main.go·빌드·프리렌더 스크립트 견고성 | low | task | ✅ |
+| #27 | 대시보드 React 관례 정리 — 중첩삼항·내부컴포넌트·하드코딩 | low | task | ✅ |
 | #28 | i18n items.js ko 로케일 갭 재생성 | low | docs | ⬜ |
 | #29 | vite crossorigin iOS Safari — 실기기 검증 필요 | low | question | ⬜ |
 
@@ -72,27 +95,27 @@
 - **#18 → #19 → #25는 직렬.** 셋 다 `store.go`를 건드린다. #18이 원자적 write·`WriteAffectedMonths` 경로를 재구조화 → #19(dedup 순서 반전, 소규모)가 그 위에 얹힘 → #25(readSRGF 계약 명시 등 견고성)가 정리. 순서를 어기면 store.go에서 리베이스 충돌.
 - **#20은 #17만 끝나면 #18과 병렬** 가능 (fetch.go는 store.go와 무관).
 
-### 트랙 B — 대시보드 React
+### 트랙 B — 대시보드 React ✅ 완료
 
 ```
-#22   (FivesTable.jsx 단독 → 트랙 내 독립, 언제든)
-#21 ──► #27   (effect deps·data.js 겹침 → 직렬)
+#22 ✅   (FivesTable.jsx 단독 → 트랙 내 독립, 언제든)
+#21 ✅ ──► #27 ✅   (effect deps·data.js 겹침 → 직렬)
 ```
 
-- **#22는 완전 독립** (FivesTable.jsx만). 작고 medium — quick win.
-- **#21 → #27 직렬.** #21이 언어를 React 상태로 끌어올리며 `Dashboard/ChartsGrid/VersionsView`의 effect·부수효과를 고침 → #27은 그 위에서 `BannersView` effect deps·`HeroSummary`·`data.js` 관례 정리. 둘 다 effect deps와 `data.js`를 건드려 겹침 → 행동 수정(#21) 먼저, 클린업(#27) 나중.
+- **#22는 완전 독립** (FivesTable.jsx만). 작고 medium — quick win. **실측 반전**: 이슈는 `f.id` 전제였으나 fives row 에 record id 가 아예 없었다(analyze.js 가 item_id 만 싣고 버림) → `analyze.js → data.js → FivesTable` 3레이어에 고유 id 배관.
+- **#21 → #27 직렬.** #21이 언어를 React prop 으로 끌어올려 `ChartsGrid/VersionsView` effect deps 와 `Dashboard` render-purity 를 고침 → #27은 그 위에서 `BannersView`·`HeroSummary`·`data.js`·`QueryPanel`·`util.js`·`analyze.js` 관례 정리(9 finding). 겹치는 파일(effect deps·data.js) 때문에 행동 수정(#21) 먼저, 클린업(#27) 나중.
 
-### 트랙 C — 보안·빌드·문서
+### 트랙 C — 보안·빌드·문서 — 진행 중
 
 ```
-#23   (index.html / architecture.html 단독)
-#24   (copy.test.mjs 단독)
-#26 ──► #28   (extract-item-names.mjs 겹침)
-#29   (실기기 검증 선행 — 코드 PR 아닐 수 있음)
+#23 ✅   (index.html / architecture.html 단독)
+#24 ✅   (copy.test.mjs 단독)
+#26 ✅ ──► #28 ⬜   (extract-item-names.mjs 겹침)
+#29 ⬜   (실기기 검증 선행 — 코드 PR 아닐 수 있음)
 ```
 
-- **#23, #24는 각자 독립** 단독 PR. #23(SRI/prod build)은 보안이라 medium — quick win.
-- **#26 → #28 순서.** #26이 `extract-item-names.mjs`에 타임아웃·재시도 추가 → #28은 견고해진 스크립트로 `items.js` 재생성. **#28은 외부 의존**(StarRailRes 상위 소스에 ko명이 채워졌는지)이라, 안 채워졌으면 재생성해도 갭이 남아 defer될 수 있다.
+- **#23, #24는 각자 독립** 단독 PR — 완료. #23(SRI/prod build) 보안 quick win: SRI 해시는 각 CDN URL 실제 바이트에서 계산(cdnjs/unpkg/jsdelivr 별도), React dev→prod 교체, 회귀 방지 `cdn-sri.test.js` 추가. #24: 문자열 등장 검사 false-pass → 실제 불변식(copy 소스 존재·prerender wiring·에셋 파일 존재) 검증.
+- **#26 → #28 순서.** #26(완료·머지, PR #42)이 `extract-item-names.mjs`에 타임아웃·재시도 추가 → #28은 견고해진 스크립트로 `items.js` 재생성. **#28은 외부 의존**(StarRailRes 상위 소스에 ko명이 채워졌는지)이라, 안 채워졌으면 재생성해도 갭이 남아 defer될 수 있다.
 - **#29는 코드 PR이 아니라 검증 태스크.** iOS Safari 실기기(또는 동등 환경)에서 흰 화면 재현부터. 재현되면 3줄짜리 vite `transformIndexHtml` 플러그인 PR, 안 되면 "재현 불가"로 close. memory에 관련 패턴 노트 존재 → 재현 시 수정은 자명.
 
 ## 권장 실행 순서 (단일 개발자 기준)
@@ -105,19 +128,23 @@
 | 2 | **#18** | high, 비파괴 저장 불변식 — 최고 리스크 | ✅ |
 | 3 | **#19** | store.go, #18 위에 얹힘 | ✅ |
 | 4 | **#20** | collector, #17 필요 | ✅ |
-| 5 | **#22** | medium, 작고 독립 — quick win | ⬜ |
-| 6 | **#23** | medium, 보안 quick win | ⬜ |
-| 7 | **#24** | medium, 테스트 무결성 | ⬜ |
-| 8 | **#21** | medium, 대시보드 행동 | ⬜ |
+| 5 | **#22** | medium, 작고 독립 — quick win | ✅ |
+| 6 | **#23** | medium, 보안 quick win | ✅ |
+| 7 | **#24** | medium, 테스트 무결성 | ✅ |
+| 8 | **#21** | medium, 대시보드 행동 | ✅ |
 | 9 | **#25** | low, store.go 안정된 뒤 | ✅ |
-| 10 | **#26** | low, 빌드 스크립트 | ⬜ |
-| 11 | **#27** | low, #21 뒤 프론트 클린업 | ⬜ |
+| 10 | **#26** | low, 빌드 스크립트 | ✅ |
+| 11 | **#27** | low, #21 뒤 프론트 클린업 | ✅ |
 | 12 | **#28** | low, #26 뒤 (외부 소스 gated) | ⬜ |
 | 13 | **#29** | low, 검증 선행 (close 가능) | ⬜ |
 
-병렬로 진행할 경우 A/B/C 세 트랙을 각자 위 순서대로 돌린다.
+병렬로 진행할 경우 A/B/C 세 트랙을 각자 위 순서대로 돌린다. **실제 실행**: 권장 순서대로 #22 → #23 → #24 → #21 → #27 → #26 을 각각 main 독립 브랜치·단독 PR·스쿼시 머지로 처리(#21 → #27 트랙 내 의존만 순서 유지).
 
-**남은 작업(9건): 트랙 B(#21·#22·#27) · 트랙 C(#23·#24·#26·#28·#29).** 둘 다 Go 백엔드(트랙 A) 밖이라 완료된 스택과 파일이 서로소 — `main` 에서 독립 브랜치로 시작하면 된다(더는 스택 불필요).
+**남은 작업(2건): #28 · #29 (둘 다 트랙 C).**
+- **#28** — 견고해진 `extract-item-names.mjs`(#26 완료·머지)로 `items.js` 재생성. **StarRailRes 상위 소스에 ko 명이 채워졌는지에 gated** — 실행 시 실제 네트워크로 `items.js` 를 덮어쓴다. ko 갭이 여전하면 재생성해도 남아 defer/close 판단.
+- **#29** — 코드 PR 아닌 검증 태스크. iOS Safari 실기기(또는 동등) 흰 화면 재현부터. 재현되면 3줄짜리 vite `transformIndexHtml` PR, 아니면 "재현 불가"로 close.
+
+**검증 방식 메모**(Track B·C): 대시보드 관측 대상 변경(#21·#22·#27)은 로컬 Go 서버 + 합성 SRGF 데이터로 차트를 렌더시켜 실브라우저에서 확인했다(언어 전환 시 차트 라벨·텍스트 즉시 갱신, 5★ 상세 모달, 50/50 판정). #23 SRI 는 브라우저가 해시를 실제 계산·통과하는지 `<script integrity>` 로드로 확인. #24·#26 은 회귀 재현(소스 삭제·copy 단계 제거·`$&` 특수패턴)으로 실패를 실증. 각 이슈에 회귀 방지 테스트 추가: `cdn-sri.test.js`(#23)·`lang-reactivity.test.js`(#21)·강화된 `copy.test.mjs`(#24).
 
 ## 트랙 간 불변식 (모든 PR 공통)
 
