@@ -158,6 +158,31 @@ func TestCheckSchedule_InvalidRemoteIgnored(t *testing.T) {
 	}
 }
 
+// writeAtomic 은 rename 실패 시 .tmp 를 남기지 않아야 한다.
+func TestWriteAtomic_CleansTempOnRenameFailure(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "schedule.json")
+	if err := os.Mkdir(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeAtomic(target, []byte(`{"version":1}`)); err == nil {
+		t.Fatal("target 이 디렉터리이므로 rename 실패를 기대")
+	}
+	if leftovers, _ := filepath.Glob(filepath.Join(dir, "*.tmp")); len(leftovers) != 0 {
+		t.Fatalf("임시 파일이 정리되지 않음: %v", leftovers)
+	}
+}
+
+// parseVer 는 비숫자 세그먼트를 0 으로 처리한다(관대 정책 — 회귀 방지로 고정).
+func TestParseVer_NonNumericSegmentTreatedAsZero(t *testing.T) {
+	if got := parseVer("1.beta.3"); got != [3]int{1, 0, 3} {
+		t.Fatalf("비숫자 세그먼트는 0 이어야 함, got %v", got)
+	}
+	if got := parseVer("v2.1.0"); got != [3]int{2, 1, 0} {
+		t.Fatalf("v 접두·정상 파싱, got %v", got)
+	}
+}
+
 func TestCompareVersions(t *testing.T) {
 	cases := []struct {
 		a, b string
