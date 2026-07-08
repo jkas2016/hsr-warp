@@ -174,7 +174,7 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 	}
 	lastID := store.MaxIDByBanner(existing)
 
-	newRecs, uid, err := collector.FetchIncremental(ac, lastID, 400*time.Millisecond,
+	newRecs, uid, err := collector.FetchIncremental(r.Context(), ac, lastID, 400*time.Millisecond,
 		func(banner string, added int) {
 			send("progress", map[string]any{"banner": banner, "added": added})
 		})

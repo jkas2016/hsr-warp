@@ -2,6 +2,7 @@ package collector
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -56,7 +57,7 @@ func TestFetchIncremental_StopsAtStoredID(t *testing.T) {
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr", Region: "asia"}
 	lastID := map[string]string{"1": "0", "2": "0", "11": "20", "12": "0"}
 
-	recs, uid, err := FetchIncremental(ac, lastID, 0, func(string, int) {})
+	recs, uid, err := FetchIncremental(context.Background(), ac, lastID, 0, func(string, int) {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +86,7 @@ func TestFetchIncremental_EmitsPerPageDebug(t *testing.T) {
 	defer srv.Close()
 
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	if _, _, err := FetchIncremental(ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {}); err != nil {
+	if _, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {}); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
@@ -102,9 +103,37 @@ func TestFetchIncremental_RateLimited(t *testing.T) {
 	}))
 	defer srv.Close()
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	_, _, err := FetchIncremental(ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 	if err == nil || !contains(err.Error(), "기다") {
 		t.Fatalf("expected a rate-limit wait message, got %v", err)
+	}
+}
+
+// SSE 클라이언트가 끊기면(ctx 취소) 진행 중 수집이 즉시 중단되고 ctx 에러를 반환해야 한다.
+func TestFetchIncremental_ContextCancellation(t *testing.T) {
+	started := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(started)
+		<-r.Context().Done() // 클라이언트 취소까지 응답을 보류
+	}))
+	defer srv.Close()
+
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "authkey=X"}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := FetchIncremental(ctx, ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+		done <- err
+	}()
+	<-started
+	cancel()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("취소 시 에러를 기대")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("취소 후에도 FetchIncremental 이 반환하지 않음(context 미전파)")
 	}
 }
 
@@ -114,7 +143,7 @@ func TestFetchIncremental_AuthkeyExpired(t *testing.T) {
 	}))
 	defer srv.Close()
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	_, _, err := FetchIncremental(ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 	if err == nil || !contains(err.Error(), "authkey") {
 		t.Fatalf("expected authkey error, got %v", err)
 	}
