@@ -15,7 +15,7 @@ function HeroSummary({ D, scoped }) {
   const win = useCountUp(cb.win5050);
   const avg = useCountUp(cb.avgPity5, { decimals: 1 });
   const [showBar, setShowBar] = React.useState(false);
-  React.useEffect(() => { const t = setTimeout(() => setShowBar(true), 350); return () => clearTimeout(t); }, []);
+  React.useEffect(() => { const timer = setTimeout(() => setShowBar(true), 350); return () => clearTimeout(timer); }, []);
 
   return (
     <div>
@@ -33,7 +33,7 @@ function HeroSummary({ D, scoped }) {
             </span>
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10 }}>
-            {lucky ? t('hero.luckDescLucky', { avg: 62.5, n: cb.count5 }) : t('hero.luckDescUnlucky', { avg: 62.5, n: cb.count5 })}
+            {lucky ? t('hero.luckDescLucky', { avg: cb.expAvg, n: cb.count5 }) : t('hero.luckDescUnlucky', { avg: cb.expAvg, n: cb.count5 })}
           </div>
           <div style={{ marginTop: 'auto', paddingTop: 22 }}>
             <LuckBar markerPct={showBar ? D.luck.markerPct : 50} />

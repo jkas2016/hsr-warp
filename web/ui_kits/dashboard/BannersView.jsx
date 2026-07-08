@@ -41,9 +41,12 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
                 <small style={{ fontSize: 15, color: 'var(--muted)' }}>{t('banners.cap', { cap: b.cap })}</small>
               </div>
               <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '14px 0 6px' }} />
-              {b.kind === 'limited' && b.guaranteed
-                ? <div style={{ marginTop: 10 }}><Badge variant="red">{t('banners.nextGuaranteedLoss')}</Badge></div>
-                : b.kind === 'limited' ? <div style={{ marginTop: 10 }}><Badge variant="green">{t('banners.next5050')}</Badge></div> : null}
+              {(() => {
+                if (b.kind !== 'limited') return null;           // 한정 배너만 다음 5★ 상태 표시
+                const variant = b.guaranteed ? 'red' : 'green';
+                const label = b.guaranteed ? t('banners.nextGuaranteedLoss') : t('banners.next5050');
+                return <div style={{ marginTop: 10 }}><Badge variant={variant}>{label}</Badge></div>;
+              })()}
             </>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 18 }}>
@@ -115,7 +118,8 @@ function BannerPityChart({ bins, cap, theme, sel }) {
         scales: { y: { grid: { color: grid }, ticks: { precision: 0, color: muted } }, x: { grid: { display: false }, ticks: { color: muted } } } },
     });
     return () => c.destroy();
-  }, [theme, sel, cap]);
+    // bins.join: 배열은 매 렌더 새 참조 → 값 기반 dep 로 D.fives 갱신 시에만 재빌드(매 렌더 재빌드 방지).
+  }, [theme, sel, cap, bins.join(',')]);
   return <div style={{ position: 'relative', height: 200 }}><canvas ref={ref} /></div>;
 }
 window.BannersView = BannersView;
