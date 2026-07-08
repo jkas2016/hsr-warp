@@ -63,7 +63,7 @@
       const rank = String(r.rank_type);
       if (rank === '5') {
         const id = String(r.item_id);
-        const f = { name: r.name, item_id: id, item_type: r.item_type, time: r.time, pity: p5, result: null, isPickup: null, fromGuarantee: false, unidentified: false };
+        const f = { id: String(r.id), name: r.name, item_id: id, item_type: r.item_type, time: r.time, pity: p5, result: null, isPickup: null, fromGuarantee: false, unidentified: false };
         if (meta.kind === 'limited') {
           const t = Date.parse(String(r.time).slice(0, 10));
           if (!(t < schedEnd)) { f.unidentified = true; }              // 일정 범위 밖(신규 패치 미반영) — 판정 보류

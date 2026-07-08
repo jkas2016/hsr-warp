@@ -18,10 +18,12 @@ function FivesTable({ rows, onRowClick, pageSize }) {
           {rows.length === 0 && (
             <tr><td colSpan={6} style={{ color: 'var(--muted)', textAlign: 'center', padding: '22px 0' }}>{t('table.empty5')}</td></tr>
           )}
-          {view.map((f, i) => {
+          {view.map((f) => {
             const r = f.result ? window.WarpUtil.resultMeta(f.result) : null;
+            // 안정적 per-row key: 고유 record id(BigInt 문자열). 부재 시 item_id+time 복합 — 인덱스 금지(재정렬/재필터 시 stale 렌더·오클릭 방지).
+            const rowKey = f.id != null ? String(f.id) : f.item_id + '|' + f.time;
             return (
-              <tr key={i} onClick={() => onRowClick && onRowClick(f)}
+              <tr key={rowKey} onClick={() => onRowClick && onRowClick(f)}
                 style={{ cursor: onRowClick ? 'pointer' : 'default' }}>
                 <td style={{ fontWeight: 600, color: f.isPickup === false ? 'var(--muted)' : 'var(--gold-ink)' }}>{window.I18N.itemName(f.item_id, f.name)}</td>
                 <td><Tag>{bl(f.banner)}</Tag></td>

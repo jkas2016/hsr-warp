@@ -93,6 +93,17 @@ assert.strictEqual(A.unknown5, 0, 'account-wide unknown5 exposed');
 assert.ok(A.luck.charBanner, 'char banner luck present');
 assert.ok(A.all5[0].time >= A.all5[A.all5.length - 1].time, 'all5 newest first');
 
+// ---- #22: 5★ rows carry the unique record id (stable per-row React key) ----
+id = 7100n;
+const idData = { info: {}, list: [r5(1102), r5(1415), r5(1409)] };
+const AI = analyze(idData, schedule);
+AI.banners.forEach((bn) => bn.stats.fives.forEach((f) => {
+  assert.ok(typeof f.id === 'string' && /^\d+$/.test(f.id), '5★ carries string bigint id');
+}));
+const rowIds = AI.all5.map((f) => f.id);
+assert.ok(rowIds.every((x) => x != null), 'every all5 row has an id');
+assert.strictEqual(new Set(rowIds).size, rowIds.length, 'all5 ids are unique — safe as keys');
+
 // ---- schedule 누락 방어: throw 없이 모두 unidentified ----
 id = 8000n;
 const noSched = analyzeBanner([r5(1415)], BANNERS['11'], []);
