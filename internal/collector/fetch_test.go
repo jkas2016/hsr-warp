@@ -149,6 +149,59 @@ func TestFetchIncremental_AuthkeyExpired(t *testing.T) {
 	}
 }
 
+// non-2xx HTTP 응답은 파싱 가능한 JSON 이어도 "신규 없음"으로 오인하지 말고 에러로 표면화해야 한다.
+func TestFetchIncremental_Non2xxStatusIsError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"retcode":0,"data":{"list":[]}}`)) // 파싱 가능하지만 502
+	}))
+	defer srv.Close()
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
+	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	if err == nil || !contains(err.Error(), "502") {
+		t.Fatalf("non-2xx 는 HTTP 상태 에러여야 함, got %v", err)
+	}
+}
+
+// 서버가 end_id 를 무시하고 같은 페이지를 반복해도 루프가 종료되어야 한다(무한 루프 방지).
+func TestFetchIncremental_TerminatesOnNoPageProgress(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var list []map[string]string
+		if r.URL.Query().Get("gacha_type") == "11" {
+			// end_id 무시하고 항상 같은 3건(서버 오작동 시뮬레이션).
+			list = []map[string]string{
+				{"id": "30", "gacha_type": "11", "rank_type": "5", "time": "2026-06-03 10:00:00", "name": "A", "item_id": "1", "uid": "777"},
+				{"id": "20", "gacha_type": "11", "rank_type": "4", "time": "2026-06-02 10:00:00", "name": "B", "item_id": "2", "uid": "777"},
+				{"id": "10", "gacha_type": "11", "rank_type": "3", "time": "2026-06-01 10:00:00", "name": "C", "item_id": "3", "uid": "777"},
+			}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": 0, "message": "ok", "data": map[string]any{"list": list}})
+	}))
+	defer srv.Close()
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
+
+	done := make(chan struct{})
+	var count int
+	var ferr error
+	go func() {
+		r, _, e := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+		count, ferr = len(r), e
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("end_id 불변 응답에서 FetchIncremental 이 종료되지 않음(무한 루프)")
+	}
+	if ferr != nil {
+		t.Fatal(ferr)
+	}
+	// page1 3건 수집 → page2 3건 수집 후 진전 없음(end_id 불변) 감지로 종료 → 6건.
+	if count != 6 {
+		t.Fatalf("진전 없는 페이지에서 2페이지 후 종료해 6건이어야 함, got %d", count)
+	}
+}
+
 // idLessEq 는 big.Int 로 비교해야 한다 — 사전식이면 "9" > "10" 로 오판한다.
 func TestIDLessEq_BigIntNotLexicographic(t *testing.T) {
 	cases := []struct {
