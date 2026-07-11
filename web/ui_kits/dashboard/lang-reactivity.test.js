@@ -14,9 +14,11 @@ const dir = __dirname;
 const jsx = fs.readdirSync(dir).filter((f) => f.endsWith('.jsx'));
 
 // 라인의 코드 부분만: 블록 주석 제거 후, '://' 가 아닌 '//' 이후를 잘라낸다(URL 보존).
+// split 은 CRLF 도 처리해야 한다 — 줄 끝 '\r' 이 남으면 '//.*$' 가 매칭에 실패해
+// 주석이 안 걸러지고 오탐이 난다(Windows 체크아웃의 CRLF 에서 재현).
 function codeLines(src) {
   const noBlock = src.replace(/\/\*[\s\S]*?\*\//g, '');
-  return noBlock.split('\n').map((ln) => ln.replace(/(^|[^:])\/\/.*$/, '$1'));
+  return noBlock.split(/\r?\n/).map((ln) => ln.replace(/(^|[^:])\/\/.*$/, '$1'));
 }
 
 const ALLOW_INIT = /useState\(\s*\(\)\s*=>\s*window\.I18N\.lang\s*\)/; // Dashboard 상태 초기화만 허용
