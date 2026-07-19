@@ -95,6 +95,8 @@ window.WarpData = (function () {
       },
       limited: {
         ...lim,
+        charCount5: charBnr ? charBnr.stats.count5 : 0,
+        lcCount5: lcBnr ? lcBnr.stats.count5 : 0,
         charGuaranteed: !!(charBnr && charBnr.stats.currentGuaranteed),
         lcGuaranteed: !!(lcBnr && lcBnr.stats.currentGuaranteed),
         charOdds: oddsOf('11'), lcOdds: oddsOf('12'),

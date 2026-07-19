@@ -35,8 +35,8 @@ function HeroSummary({ D, scoped }) {
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10 }}>
             {lucky
-              ? t('hero.luckDescLucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5 })
-              : t('hero.luckDescUnlucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5 })}
+              ? t('hero.luckDescLucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5, c: lim.charCount5, l: lim.lcCount5 })
+              : t('hero.luckDescUnlucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5, c: lim.charCount5, l: lim.lcCount5 })}
           </div>
           <div style={{ marginTop: 'auto', paddingTop: 22 }}>
             <LuckBar markerPct={showBar ? D.luck.markerPct : 50} />
