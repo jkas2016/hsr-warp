@@ -52,10 +52,14 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
               })()}
             </>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 18 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 18 }}>
             <Mini k={t('banners.total')} v={num(b.total)} />
             <Mini k={t('banners.got5')} v={b.count5 + t('common.count')} />
             <Mini k={t('banners.avgPulls')} v={b.avgPity5.toFixed(1) + t('common.times')} />
+            <Mini k={t('banners.luck')} color={b.luckPct == null ? undefined : b.luckPct >= 0 ? 'var(--green)' : 'var(--red)'}
+              v={b.luckPct == null ? '-' : (b.luckPct >= 0 ? '+' : '') + b.luckPct.toFixed(1) + '%'} />
+            <Mini k={t('banners.winrate')}
+              v={b.winRate == null ? '-' : <>{Math.round(b.winRate * 100)}% <small style={{ fontSize: 11, color: 'var(--muted)' }}>{t('banners.wl', { w: b.cWins, l: b.cLoss })}</small></>} />
             <Mini k={t('banners.jade')} v={num(b.total * 160)} />
           </div>
         </Card>
@@ -82,11 +86,11 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
   );
 }
 
-function Mini({ k, v }) {
+function Mini({ k, v, color }) {
   return (
     <div style={{ background: 'var(--panel-2)', borderRadius: 'var(--r-md)', padding: '10px 12px' }}>
       <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.5px', fontWeight: 600 }}>{k}</div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, marginTop: 3, fontVariantNumeric: 'tabular-nums', color }}>{v}</div>
     </div>
   );
 }
