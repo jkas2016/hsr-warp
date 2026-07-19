@@ -18,23 +18,36 @@ function BannerCards({ D, scoped }) {
               <span style={{ width: 9, height: 9, borderRadius: '50%', background: b.color, boxShadow: `0 0 10px ${b.color}` }} />
               {bl(b.short)}{t('bannercards.warpSuffix')}
             </h3>
-            {!scoped && (
-              <>
-                <div style={{ marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 38, fontWeight: 700, lineHeight: 1, color: pityColor(b.currentPity), fontVariantNumeric: 'tabular-nums' }}>{b.currentPity}</span>
-                  <small style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{t('bannercards.cap', { cap: b.cap })}</small>
+            {(() => {
+              const rows = (
+                <div>
+                  <Row k={t('bannercards.total')} v={num(b.total)} />
+                  <Row k={t('bannercards.got5')} v={b.count5} />
+                  <Row k={t('bannercards.avgPulls')} v={b.avgPity5 ? b.avgPity5.toFixed(1) : '-'} />
+                  {b.kind === 'limited' && <Row k={t('bannercards.wlg')} v={`${b.cWins} / ${b.cLoss} / ${b.gWins}`} />}
                 </div>
-                <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '11px 0 14px' }} />
-              </>
-            )}
-            <div style={{ marginTop: scoped ? 14 : 0 }}>
-              <Row k={t('bannercards.total')} v={num(b.total)} />
-              <Row k={t('bannercards.got5')} v={b.count5} />
-              <Row k={t('bannercards.avgPulls')} v={b.avgPity5 ? b.avgPity5.toFixed(1) : '-'} />
-              {b.kind === 'limited' && <Row k={t('bannercards.wlg')} v={`${b.cWins} / ${b.cLoss} / ${b.gWins}`} />}
-            </div>
-            {!scoped && b.kind === 'limited' && b.guaranteed &&
-              <div style={{ marginTop: 10 }}><Badge variant="red">{t('bannercards.nextGuaranteed')}</Badge></div>}
+              );
+              if (scoped) return <div style={{ marginTop: 14 }}>{rows}</div>;
+              return (
+                <div className="banner-split" style={{ marginTop: 14 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                      <span style={{ fontFamily: 'var(--font-display)', fontSize: 38, fontWeight: 700, lineHeight: 1, color: pityColor(b.currentPity), fontVariantNumeric: 'tabular-nums' }}>{b.currentPity}</span>
+                      <small style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 500 }}>{t('bannercards.cap', { cap: b.cap })}</small>
+                    </div>
+                    <ProgressBar value={b.currentPity} max={b.cap} style={{ margin: '11px 0 0' }} />
+                    {b.kind === 'limited' && (
+                      <div style={{ marginTop: 10 }}>
+                        {b.guaranteed
+                          ? <Badge variant="red">{t('bannercards.nextGuaranteed')}</Badge>
+                          : b.odds && <span style={{ fontSize: 12, color: 'var(--muted)' }}>{t('bannercards.nextOdds', { odds: b.odds })}</span>}
+                      </div>
+                    )}
+                  </div>
+                  {rows}
+                </div>
+              );
+            })()}
           </Card>
         ))}
       </div>

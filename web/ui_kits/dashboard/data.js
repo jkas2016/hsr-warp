@@ -35,12 +35,19 @@ window.WarpData = (function () {
     const verOf = verLookup();
     const cb = full.luck.charBanner || {};
     const visible = full.banners.filter((b) => b.type !== '2'); // 출발 워프는 킷 표시 대상 아님
+    // rateUp(0.5/0.75) → '50/50'/'75/25' 배지 문구(단일 소스 상수에서 유도).
+    const oddsOf = (type) => {
+      const r = window.WarpAnalyze.BANNERS[type].rateUp;
+      return Math.round(r * 100) + '/' + Math.round(100 - r * 100);
+    };
 
     const banners = visible.map((b) => ({
       type: b.type, short: b.meta.short, color: b.meta.color, cap: b.meta.cap, kind: b.meta.kind,
       currentPity: b.stats.currentPity5 || 0, total: b.stats.total, count5: b.stats.count5,
       avgPity5: b.stats.avgPity5 || 0, cWins: b.stats.cWins, cLoss: b.stats.cLoss, gWins: b.stats.gWins,
       guaranteed: !!b.stats.currentGuaranteed, expAvg: b.meta.expAvg,
+      winRate: b.stats.win5050Rate == null ? null : b.stats.win5050Rate,
+      odds: b.meta.rateUp != null ? oddsOf(b.type) : null,
     }));
 
     const fiveFiveBins = {};
@@ -54,6 +61,9 @@ window.WarpData = (function () {
       fives: m.fives || [], // 월별 표의 '획득 5★' 이름 목록
     }));
 
+    // 스코프 콤보박스용 전체 버전 라벨(오름차순) — 뽑기 0 버전도 선택 가능해야 한다.
+    const versionOptions = window.WarpAnalyze.versionWindows(versions).map((w) => w.v);
+
     const versionRows = (window.WarpAnalyze.analyzeVersions(full, { list }, versions) || []).map((r) => ({
       v: r.v, period: `${r.s} ~ ${r.e || window.I18N.t('common.now')}`, total: r.total, count5: r.count5,
       char: r.char, lc: r.lc, all: r.all, // 배너별 지표(평균뽑기·픽승/픽뚫·기준선) — 뷰가 셀렉터로 선택
@@ -65,10 +75,13 @@ window.WarpData = (function () {
     }));
 
     const luckPct = full.luck.charLuckPct;
-    const markerPct = full.luck.charAvgPity
-      ? Math.max(2, Math.min(98, (full.luck.charAvgPity / 125) * 100)) : 50;
+    const lim = full.luck.limited || {};
+    // 게이지: 이론 기준선(base)이 중앙 50%에 오도록 avg/(2*base). 기존 125=2*62.5 의 일반화.
+    const markerPct = lim.count5
+      ? Math.max(2, Math.min(98, (lim.avgPity5 / (2 * lim.base)) * 100)) : 50;
     // 캐릭터 배너 이론 평균 뽑기 수(단일 소스 analyze.js expAvg). 하드코딩 없이 HeroSummary 로 전달.
     const charBnr = full.banners.find((b) => b.type === '11');
+    const lcBnr = full.banners.find((b) => b.type === '12');
     const charExpAvg = charBnr ? charBnr.meta.expAvg : window.WarpAnalyze.BANNERS['11'].expAvg;
 
     return {
@@ -81,6 +94,14 @@ window.WarpData = (function () {
         charLuckPct: Math.round(luckPct ?? 0),
         markerPct,
       },
+      limited: {
+        ...lim,
+        charCount5: charBnr ? charBnr.stats.count5 : 0,
+        lcCount5: lcBnr ? lcBnr.stats.count5 : 0,
+        charGuaranteed: !!(charBnr && charBnr.stats.currentGuaranteed),
+        lcGuaranteed: !!(lcBnr && lcBnr.stats.currentGuaranteed),
+        charOdds: oddsOf('11'), lcOdds: oddsOf('12'),
+      },
       charBanner: {
         win5050: Math.round((cb.win5050Rate ?? 0) * 100),
         expAvg: charExpAvg,
@@ -90,14 +111,17 @@ window.WarpData = (function () {
         currentGuaranteed: !!cb.currentGuaranteed, currentPity: cb.currentPity5 || 0,
       },
       rarity: { c5: full.count5, c4: full.count4, c3: full.count3 },
-      banners, fiveFiveBins, monthly, versions: versionRows, fives,
+      banners, fiveFiveBins, monthly, versions: versionRows, versionOptions, fives,
     };
   }
 
   function analyzeAndAdapt(raw) {
-    const full = window.WarpAnalyze.analyze(raw, schedule);
+    // 일반(스텔라, '1')·출발(초심자, '2') 워프는 대시보드 집계 전체에서 제외한다 — 성옥 소비도
+    // 아니고 픽업 개념도 없어 통계를 오염시킨다. 수집·저장(SRGF)은 그대로 유지된다.
+    const list = ((raw && raw.list) || []).filter((r) => String(r.gacha_type) !== '1' && String(r.gacha_type) !== '2');
+    const full = window.WarpAnalyze.analyze({ ...raw, list }, schedule);
     _full = full;
-    _list = (raw && raw.list) || [];
+    _list = list;
     _fullData = adapt(full, _list);
     return _fullData;
   }

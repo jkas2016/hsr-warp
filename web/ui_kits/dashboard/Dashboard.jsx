@@ -130,12 +130,13 @@ function Dashboard() {
             <div style={{ flex: 1, minWidth: 220 }}>
               <Tabs tabs={tabs} value={view} onChange={setView} />
             </div>
-            {data.versions.length > 0 && (
+            {(data.versionOptions || []).length > 0 && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{t('scope.label')}</span>
                 <Select value={scopeVer} onChange={(e) => setScopeVer(e.target.value)}>
                   <option value="전체">{t('scope.allPeriod')}</option>
-                  {[...data.versions].reverse().map((v) => <option key={v.v} value={v.v}>{v.v}</option>)}
+                  {/* 대응된 모든 버전(최신 우선) — 뽑기 0 버전도 선택하면 0으로 표시된다. */}
+                  {[...data.versionOptions].reverse().map((v) => <option key={v} value={v}>{v}</option>)}
                 </Select>
               </span>
             )}

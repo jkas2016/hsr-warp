@@ -9,6 +9,9 @@ window.WarpUtil = (function () {
     return { label: window.I18N.t('result.' + code), color: C[code] };
   }
 
+  // 버전 스코프 필터는 구간 내 뽑기 0인 배너를 제거하므로, 선택 short 가 없으면 첫 배너로 폴백.
+  const pickBanner = (banners, short) => banners.find((b) => b.short === short) || banners[0] || null;
+
   // 9 pity buckets (1-10 … 81-90) for a banner's 5★ list.
   function pityBins(fives, banner) {
     const bins = Array(9).fill(0);
@@ -52,5 +55,5 @@ window.WarpUtil = (function () {
     };
   }
 
-  return { num, pityColor, resultMeta, pityBins, useCountUp, reveal };
+  return { num, pityColor, resultMeta, pickBanner, pityBins, useCountUp, reveal };
 })();

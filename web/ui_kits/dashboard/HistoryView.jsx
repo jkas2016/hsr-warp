@@ -5,7 +5,7 @@ function HistoryView({ D, onFiveClick }) {
   const [result, setResult] = React.useState('전체');   // 'win'|'loss'|'guaranteed'|'전체'
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
 
-  const bannerCodes = ['전체', '캐릭터', '광추', '일반'];               // 값=정규
+  const bannerCodes = ['전체', '캐릭터', '광추'];                       // 값=정규(일반은 집계 제외)
   const bannerLabels = bannerCodes.map((c) => (c === '전체' ? t('scope.all') : bl(c)));
   const resultCodes = ['전체', 'win', 'loss', 'guaranteed'];           // 값=정규
   const resultLabels = resultCodes.map((c) => (c === '전체' ? t('scope.all') : t('result.' + c)));

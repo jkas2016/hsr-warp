@@ -173,6 +173,15 @@ const b11_36 = v36.banners.find(b => b.type === '11');
 assert.strictEqual(b11_36.stats.cLoss, 1, '3.6 픽뚫 1');
 assert.strictEqual(b11_36.stats.total, 41, '3.6창 뽑기 41(loss 5★ + 3성 40)');
 
+// 뽑기 0 버전 스코프: 배너를 제거하지 않고 0 통계로 유지한다
+// (버전 콤보박스는 대응된 모든 버전을 노출하고, 무뽑기 버전 선택 시 0으로 표시).
+const v38 = filterAnalysis(full, vdata, w[2]); // 3.8 윈도우: 기록 없음
+const b11_38 = v38.banners.find(b => b.type === '11');
+assert.ok(b11_38, '뽑기 0 윈도우에도 배너 유지');
+assert.strictEqual(b11_38.stats.total, 0, '무뽑기 배너 total 0');
+assert.strictEqual(b11_38.stats.count5, 0, '무뽑기 배너 5★ 0');
+assert.strictEqual(v38.total, 0, '무뽑기 윈도우 총뽑기 0');
+
 // 불변식: 전체 윈도우 필터 == analyze 핵심 수치
 const wholeWin = { v: 'all', s: 0, e: Infinity };
 const whole = filterAnalysis(full, vdata, wholeWin);
@@ -241,5 +250,36 @@ assert.strictEqual(find('4.4').s, '2026-07-15', '4.4 실제 패치일(Asia/CST �
 assert.ok(find('3.8'), '3.8 존재(마지막 3.x)');
 assert.ok(!versions.find(x => x.v === '3.9'), '3.9 없음');
 assert.ok(!versions.find(x => x.v === '4.5'), '4.5 없음(마지막은 4.4)');
+
+// ---- combineLimited: 캐릭터+광추 합산(5★ 개수 가중) ----
+const { combineLimited } = require('./analyze.js');
+const cc = { count5: 2, avgPity5: 70, cWins: 1, cLoss: 1, gWins: 0, bestPity: 60, worstPity: 80 };
+const ll = { count5: 1, avgPity5: 50, cWins: 1, cLoss: 0, gWins: 0, bestPity: 50, worstPity: 50 };
+const comb = combineLimited(cc, ll);
+assert.ok(Math.abs(comb.avgPity5 - (70 * 2 + 50) / 3) < 1e-9, '개수 가중 평균');
+assert.ok(Math.abs(comb.base - (62.5 * 2 + 53.5) / 3) < 1e-9, '기준선 62.5·53.5 가중');
+assert.ok(Math.abs(comb.luckPct - (comb.base - comb.avgPity5) / comb.base * 100) < 1e-9, 'luckPct 정의');
+assert.strictEqual(comb.cWins, 2); assert.strictEqual(comb.cLoss, 1); assert.strictEqual(comb.contested, 3);
+assert.ok(Math.abs(comb.win5050Rate - 2 / 3) < 1e-9, '픽승률 2/3');
+assert.strictEqual(comb.bestPity, 50); assert.strictEqual(comb.worstPity, 80);
+assert.strictEqual(comb.count5, 3);
+
+// 한쪽 없음(null): 있는 쪽 값 그대로
+const only = combineLimited(cc, null);
+assert.strictEqual(only.avgPity5, 70); assert.strictEqual(only.base, 62.5);
+
+// 둘 다 5★ 0: 판정 불가 필드는 null, base 는 캐릭터 기준 폴백
+const zero = combineLimited({ count5: 0, cWins: 0, cLoss: 0, gWins: 0 }, null);
+assert.strictEqual(zero.luckPct, null); assert.strictEqual(zero.win5050Rate, null);
+assert.strictEqual(zero.base, 62.5); assert.strictEqual(zero.bestPity, null);
+
+// analyze()·filterAnalysis() 가 luck.limited 를 노출한다
+assert.ok(full.luck.limited, 'analyze luck.limited');
+assert.strictEqual(full.luck.limited.count5, full.luck.charBanner.count5, '광추 기록 없음 → 캐릭터와 동일');
+assert.ok(whole.luck.limited, 'filterAnalysis luck.limited');
+assert.strictEqual(whole.luck.limited.count5, full.luck.limited.count5, '전체창 필터 == analyze');
+// 혼합 데이터(캐릭 pity5 + 광추 pity10): 버전 비교 all 과 같은 산식
+assert.strictEqual(mixFull.luck.limited.avgPity5, 7.5, '합산 평균 (5+10)/2');
+assert.strictEqual(mixFull.luck.limited.base, 58, '합산 기준선 (62.5+53.5)/2');
 
 console.log('OK  all analyze tests passed');

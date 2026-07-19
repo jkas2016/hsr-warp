@@ -4,16 +4,17 @@
 function HeroSummary({ D, scoped }) {
   const { Card, LuckBar, StatCard, Badge } = window.HSRWarpDesignSystem_4a0d44;
   const { num, useCountUp } = window.WarpUtil;
-  const t = window.I18N.t;
-  const cb = D.charBanner;
+  const t = window.I18N.t, bl = window.I18N.bannerLabel;
+  const lim = D.limited;
 
-  const lp = D.luck.charLuckPct;          // +면 행운(적게 씀), -면 불운(많이 씀)
-  const lucky = lp >= 0;
+  // 운 지표 = 5★당 평균 뽑기 수의 기준선 대비 차이(회). 기준보다 빨리 뽑았으면 행운.
+  const diff = lim.count5 ? lim.avgPity5 - lim.base : 0;
+  const lucky = diff <= 0;
   const luckColor = lucky ? 'var(--green)' : 'var(--red)';
 
-  const luck = useCountUp(D.luck.charAvgPity, { decimals: 1 });
-  const win = useCountUp(cb.win5050);
-  const avg = useCountUp(cb.avgPity5, { decimals: 1 });
+  const luck = useCountUp(Math.abs(diff), { decimals: 1 });
+  const win = useCountUp(Math.round((lim.win5050Rate ?? 0) * 100));
+  const avg = useCountUp(lim.avgPity5 || 0, { decimals: 1 });
   const [showBar, setShowBar] = React.useState(false);
   React.useEffect(() => { const timer = setTimeout(() => setShowBar(true), 350); return () => clearTimeout(timer); }, []);
 
@@ -29,16 +30,18 @@ function HeroSummary({ D, scoped }) {
               {luck}<small style={{ fontFamily: 'var(--font-sans)', fontSize: 19, color: 'var(--muted)', fontWeight: 500, marginLeft: 4 }}>{t('common.times')}</small>
             </div>
             <span style={{ background: lucky ? 'var(--green-fill)' : 'var(--red-fill)', color: luckColor, border: `1px solid ${lucky ? 'var(--green-line)' : 'var(--red-line)'}`, borderRadius: 'var(--r-pill)', padding: '5px 12px', fontSize: 13, fontWeight: 700 }}>
-              {lucky ? '+' : ''}{lp}% {lucky ? t('hero.lucky') : t('hero.unlucky')}
+              {t('hero.avgChip', { avg: (lim.avgPity5 || 0).toFixed(1) })} · {lucky ? t('hero.lucky') : t('hero.unlucky')}
             </span>
           </div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10 }}>
-            {lucky ? t('hero.luckDescLucky', { avg: cb.expAvg, n: cb.count5 }) : t('hero.luckDescUnlucky', { avg: cb.expAvg, n: cb.count5 })}
+          <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10, whiteSpace: 'pre-line' }}>
+            {lucky
+              ? t('hero.luckDescLucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5, c: lim.charCount5, l: lim.lcCount5 })
+              : t('hero.luckDescUnlucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5, c: lim.charCount5, l: lim.lcCount5 })}
           </div>
           <div style={{ marginTop: 'auto', paddingTop: 22 }}>
             <LuckBar markerPct={showBar ? D.luck.markerPct : 50} />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
-              <span>{t('hero.scaleLuckyLess')}</span><span>{t('hero.scaleAvg')}</span><span>{t('hero.scaleMoreUnlucky')}</span>
+              <span>{t('hero.scaleLuckyLess')}</span><span>{t('hero.scaleAvg', { avg: lim.base.toFixed(1) })}</span><span>{t('hero.scaleMoreUnlucky')}</span>
             </div>
           </div>
         </Card>
@@ -50,14 +53,19 @@ function HeroSummary({ D, scoped }) {
             {win}<small style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--muted)', fontWeight: 500, marginLeft: 3 }}>%</small>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>
-            {t('hero.winrateDesc', { c: cb.contested, w: cb.cWins, l: cb.cLoss, g: cb.gWins })}
+            {t('hero.winrateDesc', { c: lim.contested, w: lim.cWins, l: lim.cLoss, g: lim.gWins })}
           </div>
-          <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+          <div style={{ marginTop: 'auto', paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
             {scoped
               ? <Badge variant="neutral">{t('hero.rangeStats')}</Badge>
-              : cb.currentGuaranteed
-                ? <Badge variant="red">{t('hero.nextGuaranteedLoss')}</Badge>
-                : <Badge variant="green">{t('hero.next5050')}</Badge>}
+              : <>
+                  <Badge variant={lim.charGuaranteed ? 'red' : 'green'}>
+                    {lim.charGuaranteed ? t('hero.nextBadgeGuar', { name: bl('캐릭터') }) : t('hero.nextBadge', { name: bl('캐릭터'), odds: lim.charOdds })}
+                  </Badge>
+                  <Badge variant={lim.lcGuaranteed ? 'red' : 'green'}>
+                    {lim.lcGuaranteed ? t('hero.nextBadgeGuar', { name: bl('광추') }) : t('hero.nextBadge', { name: bl('광추'), odds: lim.lcOdds })}
+                  </Badge>
+                </>}
           </div>
         </Card>
 
@@ -68,7 +76,7 @@ function HeroSummary({ D, scoped }) {
             {avg}<small style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--muted)', fontWeight: 500, marginLeft: 3 }}>{t('common.times')}</small>
           </div>
           <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>
-            {t('hero.bestWorst', { best: cb.bestPity, worst: cb.worstPity })}
+            {t('hero.bestWorst', { best: lim.bestPity ?? 0, worst: lim.worstPity ?? 0 })}
           </div>
           <div style={{ marginTop: 'auto', paddingTop: 16, display: 'flex', gap: 6 }}>
             <span style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--green)' }} />

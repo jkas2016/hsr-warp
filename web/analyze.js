@@ -50,6 +50,27 @@
     };
   }
 
+  // 캐릭터(11)+광추(12) 합산 지표 — 평균·기준선은 5★ 개수 가중(버전 비교 'all'과 동일 산식),
+  // 승/패/확정은 단순 합. 입력은 aggregateFives 산출물(없으면 null 허용).
+  function combineLimited(charStats, lcStats) {
+    const c = charStats || {}, l = lcStats || {};
+    const n1 = c.count5 || 0, n2 = l.count5 || 0, tot = n1 + n2;
+    const avg = tot ? ((c.avgPity5 || 0) * n1 + (l.avgPity5 || 0) * n2) / tot : 0;
+    const base = tot ? (BANNERS['11'].expAvg * n1 + BANNERS['12'].expAvg * n2) / tot : BANNERS['11'].expAvg;
+    const cWins = (c.cWins || 0) + (l.cWins || 0), cLoss = (c.cLoss || 0) + (l.cLoss || 0);
+    const gWins = (c.gWins || 0) + (l.gWins || 0), contested = cWins + cLoss;
+    const bests = [c.bestPity, l.bestPity].filter(v => v != null);
+    const worsts = [c.worstPity, l.worstPity].filter(v => v != null);
+    return {
+      count5: tot, avgPity5: avg, base,
+      luckPct: tot ? (base - avg) / base * 100 : null,
+      cWins, cLoss, gWins, contested,
+      win5050Rate: contested ? cWins / contested : null,
+      bestPity: bests.length ? Math.min(...bests) : null,
+      worstPity: worsts.length ? Math.max(...worsts) : null,
+    };
+  }
+
   function analyzeBanner(records, meta, schedule) {
     schedule = schedule || [];
     const schedEnd = schedule.length ? Date.parse(schedule[schedule.length - 1].e) : 0;
@@ -138,7 +159,7 @@
           fives,
         },
       };
-    }).filter(b => b.stats.total > 0);
+    }); // 뽑기 0 배너도 유지(0 통계) — 무뽑기 버전을 스코프해도 뷰가 0으로 표시해야 한다.
 
     const all5 = banners.flatMap(b => b.stats.fives.map(f => ({ ...f, banner: b.meta.short, gacha_type: b.type })));
     all5.sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));
@@ -158,6 +179,7 @@
         charLuckPct: charFives.length ? (62.5 - mean(charFives)) / 62.5 * 100 : null,
         charBanner: lim ? lim.stats : null,
         lcBanner: lc ? lc.stats : null,
+        limited: combineLimited(lim ? lim.stats : null, lc ? lc.stats : null),
       },
     };
   }
@@ -213,11 +235,12 @@
         charLuckPct: charFives.length ? (62.5 - mean(charFives)) / 62.5 * 100 : null,
         charBanner: lim ? lim.stats : null,
         lcBanner: lc ? lc.stats : null,
+        limited: combineLimited(lim ? lim.stats : null, lc ? lc.stats : null),
       },
     };
   }
 
-  const api = { analyze, analyzeBanner, aggregateFives, filterAnalysis, versionWindows, analyzeVersions, monthly, BANNERS, ORDER };
+  const api = { analyze, analyzeBanner, aggregateFives, combineLimited, filterAnalysis, versionWindows, analyzeVersions, monthly, BANNERS, ORDER };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WarpAnalyze = api;
 })(typeof window !== 'undefined' ? window : globalThis);
