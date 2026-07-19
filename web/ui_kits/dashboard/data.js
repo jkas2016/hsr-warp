@@ -115,9 +115,12 @@ window.WarpData = (function () {
   }
 
   function analyzeAndAdapt(raw) {
-    const full = window.WarpAnalyze.analyze(raw, schedule);
+    // 일반(스텔라, gacha_type '1') 워프는 대시보드 집계 전체에서 제외한다 — 성옥 소비도 아니고
+    // 픽업 개념도 없어 통계를 오염시킨다. 수집·저장(SRGF)은 그대로 유지된다.
+    const list = ((raw && raw.list) || []).filter((r) => String(r.gacha_type) !== '1');
+    const full = window.WarpAnalyze.analyze({ ...raw, list }, schedule);
     _full = full;
-    _list = (raw && raw.list) || [];
+    _list = list;
     _fullData = adapt(full, _list);
     return _fullData;
   }
