@@ -41,6 +41,8 @@ window.WarpData = (function () {
       currentPity: b.stats.currentPity5 || 0, total: b.stats.total, count5: b.stats.count5,
       avgPity5: b.stats.avgPity5 || 0, cWins: b.stats.cWins, cLoss: b.stats.cLoss, gWins: b.stats.gWins,
       guaranteed: !!b.stats.currentGuaranteed, expAvg: b.meta.expAvg,
+      luckPct: b.stats.luckPct == null ? null : b.stats.luckPct,
+      winRate: b.stats.win5050Rate == null ? null : b.stats.win5050Rate,
     }));
 
     const fiveFiveBins = {};
@@ -68,11 +70,19 @@ window.WarpData = (function () {
     }));
 
     const luckPct = full.luck.charLuckPct;
-    const markerPct = full.luck.charAvgPity
-      ? Math.max(2, Math.min(98, (full.luck.charAvgPity / 125) * 100)) : 50;
+    const lim = full.luck.limited || {};
+    // 게이지: 이론 기준선(base)이 중앙 50%에 오도록 avg/(2*base). 기존 125=2*62.5 의 일반화.
+    const markerPct = lim.count5
+      ? Math.max(2, Math.min(98, (lim.avgPity5 / (2 * lim.base)) * 100)) : 50;
     // 캐릭터 배너 이론 평균 뽑기 수(단일 소스 analyze.js expAvg). 하드코딩 없이 HeroSummary 로 전달.
     const charBnr = full.banners.find((b) => b.type === '11');
+    const lcBnr = full.banners.find((b) => b.type === '12');
     const charExpAvg = charBnr ? charBnr.meta.expAvg : window.WarpAnalyze.BANNERS['11'].expAvg;
+    // rateUp(0.5/0.75) → '50/50'/'75/25' 배지 문구(단일 소스 상수에서 유도).
+    const oddsOf = (type) => {
+      const r = window.WarpAnalyze.BANNERS[type].rateUp;
+      return Math.round(r * 100) + '/' + Math.round(100 - r * 100);
+    };
 
     return {
       info: full.info || {},
@@ -83,6 +93,12 @@ window.WarpData = (function () {
         charAvgPity: full.luck.charAvgPity || 0,
         charLuckPct: Math.round(luckPct ?? 0),
         markerPct,
+      },
+      limited: {
+        ...lim,
+        charGuaranteed: !!(charBnr && charBnr.stats.currentGuaranteed),
+        lcGuaranteed: !!(lcBnr && lcBnr.stats.currentGuaranteed),
+        charOdds: oddsOf('11'), lcOdds: oddsOf('12'),
       },
       charBanner: {
         win5050: Math.round((cb.win5050Rate ?? 0) * 100),
