@@ -41,7 +41,6 @@ window.WarpData = (function () {
       currentPity: b.stats.currentPity5 || 0, total: b.stats.total, count5: b.stats.count5,
       avgPity5: b.stats.avgPity5 || 0, cWins: b.stats.cWins, cLoss: b.stats.cLoss, gWins: b.stats.gWins,
       guaranteed: !!b.stats.currentGuaranteed, expAvg: b.meta.expAvg,
-      luckPct: b.stats.luckPct == null ? null : b.stats.luckPct,
       winRate: b.stats.win5050Rate == null ? null : b.stats.win5050Rate,
     }));
 

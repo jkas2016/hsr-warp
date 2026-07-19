@@ -7,11 +7,12 @@ function HeroSummary({ D, scoped }) {
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
   const lim = D.limited;
 
-  const lp = lim.luckPct;                 // +면 행운(적게 씀), -면 불운(많이 씀), null=5★ 없음
-  const lucky = (lp ?? 0) >= 0;
+  // 운 지표 = 5★당 평균 뽑기 수의 기준선 대비 차이(회). 기준보다 빨리 뽑았으면 행운.
+  const diff = lim.count5 ? lim.avgPity5 - lim.base : 0;
+  const lucky = diff <= 0;
   const luckColor = lucky ? 'var(--green)' : 'var(--red)';
 
-  const luck = useCountUp(lp ?? 0, { decimals: 1 });
+  const luck = useCountUp(Math.abs(diff), { decimals: 1 });
   const win = useCountUp(Math.round((lim.win5050Rate ?? 0) * 100));
   const avg = useCountUp(lim.avgPity5 || 0, { decimals: 1 });
   const [showBar, setShowBar] = React.useState(false);
@@ -26,14 +27,16 @@ function HeroSummary({ D, scoped }) {
           <div className="lbl">{t('hero.luckLabel')}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, flexWrap: 'wrap', marginTop: 2 }}>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 64, fontWeight: 700, lineHeight: 1, letterSpacing: '-1.5px', color: luckColor, fontVariantNumeric: 'tabular-nums' }}>
-              {lucky ? '+' : ''}{luck}<small style={{ fontFamily: 'var(--font-sans)', fontSize: 19, color: 'var(--muted)', fontWeight: 500, marginLeft: 4 }}>%</small>
+              {luck}<small style={{ fontFamily: 'var(--font-sans)', fontSize: 19, color: 'var(--muted)', fontWeight: 500, marginLeft: 4 }}>{t('common.times')}</small>
             </div>
             <span style={{ background: lucky ? 'var(--green-fill)' : 'var(--red-fill)', color: luckColor, border: `1px solid ${lucky ? 'var(--green-line)' : 'var(--red-line)'}`, borderRadius: 'var(--r-pill)', padding: '5px 12px', fontSize: 13, fontWeight: 700 }}>
               {t('hero.avgChip', { avg: (lim.avgPity5 || 0).toFixed(1) })} · {lucky ? t('hero.lucky') : t('hero.unlucky')}
             </span>
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10 }}>
-            {lucky ? t('hero.luckDescLucky', { avg: lim.base.toFixed(1), n: lim.count5 }) : t('hero.luckDescUnlucky', { avg: lim.base.toFixed(1), n: lim.count5 })}
+            {lucky
+              ? t('hero.luckDescLucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5 })
+              : t('hero.luckDescUnlucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5 })}
           </div>
           <div style={{ marginTop: 'auto', paddingTop: 22 }}>
             <LuckBar markerPct={showBar ? D.luck.markerPct : 50} />

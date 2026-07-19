@@ -56,8 +56,10 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
             <Mini k={t('banners.total')} v={num(b.total)} />
             <Mini k={t('banners.got5')} v={b.count5 + t('common.count')} />
             <Mini k={t('banners.avgPulls')} v={b.avgPity5.toFixed(1) + t('common.times')} />
-            <Mini k={t('banners.luck')} color={b.luckPct == null ? undefined : b.luckPct >= 0 ? 'var(--green)' : 'var(--red)'}
-              v={b.luckPct == null ? '-' : (b.luckPct >= 0 ? '+' : '') + b.luckPct.toFixed(1) + '%'} />
+            <Mini k={t('banners.luck')} color={!b.count5 ? undefined : b.avgPity5 <= b.expAvg ? 'var(--green)' : 'var(--red)'}
+              v={!b.count5 ? '-' : b.avgPity5 <= b.expAvg
+                ? t('banners.luckFast', { n: (b.expAvg - b.avgPity5).toFixed(1) })
+                : t('banners.luckSlow', { n: (b.avgPity5 - b.expAvg).toFixed(1) })} />
             <Mini k={t('banners.winrate')}
               v={b.winRate == null ? '-' : <>{Math.round(b.winRate * 100)}% <small style={{ fontSize: 11, color: 'var(--muted)' }}>{t('banners.wl', { w: b.cWins, l: b.cLoss })}</small></>} />
             <Mini k={t('banners.jade')} v={num(b.total * 160)} />
