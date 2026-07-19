@@ -173,6 +173,15 @@ const b11_36 = v36.banners.find(b => b.type === '11');
 assert.strictEqual(b11_36.stats.cLoss, 1, '3.6 픽뚫 1');
 assert.strictEqual(b11_36.stats.total, 41, '3.6창 뽑기 41(loss 5★ + 3성 40)');
 
+// 뽑기 0 버전 스코프: 배너를 제거하지 않고 0 통계로 유지한다
+// (버전 콤보박스는 대응된 모든 버전을 노출하고, 무뽑기 버전 선택 시 0으로 표시).
+const v38 = filterAnalysis(full, vdata, w[2]); // 3.8 윈도우: 기록 없음
+const b11_38 = v38.banners.find(b => b.type === '11');
+assert.ok(b11_38, '뽑기 0 윈도우에도 배너 유지');
+assert.strictEqual(b11_38.stats.total, 0, '무뽑기 배너 total 0');
+assert.strictEqual(b11_38.stats.count5, 0, '무뽑기 배너 5★ 0');
+assert.strictEqual(v38.total, 0, '무뽑기 윈도우 총뽑기 0');
+
 // 불변식: 전체 윈도우 필터 == analyze 핵심 수치
 const wholeWin = { v: 'all', s: 0, e: Infinity };
 const whole = filterAnalysis(full, vdata, wholeWin);

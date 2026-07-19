@@ -10,7 +10,8 @@
     "start": "npm run build && hsr-warp.exe",
     "start:debug": "npm run build:debug && hsr-warp-debug.exe",
     "vet": "node scripts/run-go.mjs vet ./...",
-    "test": "node scripts/run-go.mjs test ./... && node web/analyze.test.js && node web/ui_kits/dashboard/i18n.test.js && node web/ui_kits/dashboard/items.test.js && node web/ui_kits/dashboard/nohardcode.test.js && node web/ui_kits/dashboard/cdn-sri.test.js && node web/ui_kits/dashboard/lang-reactivity.test.js && node docs/site/copy.test.mjs",
+    "test": "node scripts/run-go.mjs test ./... && node web/analyze.test.js && node web/ui_kits/dashboard/util.test.js && node web/ui_kits/dashboard/i18n.test.js && node web/ui_kits/dashboard/items.test.js && node web/ui_kits/dashboard/nohardcode.test.js && node web/ui_kits/dashboard/cdn-sri.test.js && node web/ui_kits/dashboard/lang-reactivity.test.js && node docs/site/copy.test.mjs",
+    "schedule:status": "node -e \"const s=require('./web/schedule.json');const v=s.versions[s.versions.length-1];const p=s.schedule[s.schedule.length-1];console.log('배너 데이터 version :', s.version);console.log('최신 대응 게임 버전 :', v.v, '('+v.s+' ~)');console.log('픽업 일정 커버      : ~'+p.e)\"",
     "test:go": "node scripts/run-go.mjs test ./...",
     "test:analyze": "node web/analyze.test.js"
   }

@@ -138,7 +138,7 @@
           fives,
         },
       };
-    }).filter(b => b.stats.total > 0);
+    }); // 뽑기 0 배너도 유지(0 통계) — 무뽑기 버전을 스코프해도 뷰가 0으로 표시해야 한다.
 
     const all5 = banners.flatMap(b => b.stats.fives.map(f => ({ ...f, banner: b.meta.short, gacha_type: b.type })));
     all5.sort((a, b) => (a.time < b.time ? 1 : a.time > b.time ? -1 : 0));

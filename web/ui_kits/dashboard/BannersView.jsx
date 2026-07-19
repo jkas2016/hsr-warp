@@ -3,18 +3,21 @@
 // banner's full 5★ list (click → detail).
 function BannersView({ D, theme, scoped, onFiveClick }) {
   const { Card, ProgressBar, Badge, StatCard } = window.HSRWarpDesignSystem_4a0d44;
-  const { num, pityColor, pityBins } = window.WarpUtil;
+  const { num, pityColor, pityBins, pickBanner } = window.WarpUtil;
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
   const [sel, setSel] = React.useState('캐릭터');
-  const b = D.banners.find((x) => x.short === sel);
-  const fives = D.fives.filter((f) => f.banner === sel);
+  // 버전 스코프에서 선택 배너가 빠질 수 있다(구간 내 뽑기 0) — 첫 배너로 폴백.
+  const b = pickBanner(D.banners, sel);
+  if (!b) return null;
+  const cur = b.short;
+  const fives = D.fives.filter((f) => f.banner === cur);
 
   return (
     <div>
       {/* segmented banner picker */}
       <div style={{ display: 'inline-flex', gap: 4, padding: 4, borderRadius: 'var(--r-pill)', background: 'var(--panel-2)', border: '1px solid var(--line)' }}>
         {D.banners.map((x) => {
-          const on = x.short === sel;
+          const on = x.short === cur;
           return (
             <button key={x.type} onClick={() => setSel(x.short)} style={{
               appearance: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--r-pill)',
@@ -60,7 +63,7 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
         {/* pity histogram */}
         <Card padding={18}>
           <div className="lbl" style={{ marginBottom: 12 }}>{t('banners.pityDist')}</div>
-          <BannerPityChart bins={pityBins(D.fives, sel)} cap={b.cap} theme={theme} sel={sel} />
+          <BannerPityChart bins={pityBins(D.fives, cur)} cap={b.cap} theme={theme} sel={cur} />
           {b.kind === 'limited' && (
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
               <Split label={t('result.win')} v={b.cWins} color="var(--gold)" total={b.cWins + b.cLoss + b.gWins} />
@@ -73,7 +76,7 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
 
       <section style={{ marginTop: 22 }}>
         <h2 className="h2">{t('banners.fiveList', { name: bl(b.short) })} <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 400 }}>{t('banners.count', { n: fives.length })}</span></h2>
-        <FivesTable key={sel} rows={fives} onRowClick={onFiveClick} pageSize={20} />
+        <FivesTable key={cur} rows={fives} onRowClick={onFiveClick} pageSize={20} />
       </section>
     </div>
   );

@@ -54,6 +54,9 @@ window.WarpData = (function () {
       fives: m.fives || [], // 월별 표의 '획득 5★' 이름 목록
     }));
 
+    // 스코프 콤보박스용 전체 버전 라벨(오름차순) — 뽑기 0 버전도 선택 가능해야 한다.
+    const versionOptions = window.WarpAnalyze.versionWindows(versions).map((w) => w.v);
+
     const versionRows = (window.WarpAnalyze.analyzeVersions(full, { list }, versions) || []).map((r) => ({
       v: r.v, period: `${r.s} ~ ${r.e || window.I18N.t('common.now')}`, total: r.total, count5: r.count5,
       char: r.char, lc: r.lc, all: r.all, // 배너별 지표(평균뽑기·픽승/픽뚫·기준선) — 뷰가 셀렉터로 선택
@@ -90,7 +93,7 @@ window.WarpData = (function () {
         currentGuaranteed: !!cb.currentGuaranteed, currentPity: cb.currentPity5 || 0,
       },
       rarity: { c5: full.count5, c4: full.count4, c3: full.count3 },
-      banners, fiveFiveBins, monthly, versions: versionRows, fives,
+      banners, fiveFiveBins, monthly, versions: versionRows, versionOptions, fives,
     };
   }
 
