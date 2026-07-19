@@ -46,6 +46,7 @@ window.I18N_DICTS.zh = {
   'bannercards.avgPulls': '平均抽数',
   'bannercards.wlg': '没歪 / 歪了 / 大保底',
   'bannercards.nextGuaranteed': '下次5★大保底',
+  'bannercards.nextOdds': '下次5★ {odds}',
   'query.needPath': '请输入游戏路径。',
   'query.failed': '获取失败。',
   'query.placeholder': '游戏路径 (…\\Star Rail Games)',

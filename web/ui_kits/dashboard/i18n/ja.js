@@ -46,6 +46,7 @@ window.I18N_DICTS.ja = {
   'bannercards.avgPulls': '平均回数',
   'bannercards.wlg': 'すり抜けなし / すり抜け / PU確定',
   'bannercards.nextGuaranteed': '次の5★PU確定',
+  'bannercards.nextOdds': '次の5★ {odds}',
   'query.needPath': 'ゲームパスを入力してください。',
   'query.failed': '取得に失敗しました。',
   'query.placeholder': 'ゲームパス (…\\Star Rail Games)',

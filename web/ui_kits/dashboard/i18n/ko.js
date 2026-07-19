@@ -46,6 +46,7 @@ window.I18N_DICTS.ko = {
   'bannercards.avgPulls': '평균 뽑기 수',
   'bannercards.wlg': '픽승 / 픽뚫 / 확정',
   'bannercards.nextGuaranteed': '다음 5★ 확정',
+  'bannercards.nextOdds': '다음 5★ {odds}',
   'query.needPath': '게임 경로를 입력하세요.',
   'query.failed': '조회에 실패했습니다.',
   'query.placeholder': '게임 경로 (…\\Star Rail Games)',

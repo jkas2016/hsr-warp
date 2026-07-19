@@ -35,6 +35,11 @@ window.WarpData = (function () {
     const verOf = verLookup();
     const cb = full.luck.charBanner || {};
     const visible = full.banners.filter((b) => b.type !== '2'); // 출발 워프는 킷 표시 대상 아님
+    // rateUp(0.5/0.75) → '50/50'/'75/25' 배지 문구(단일 소스 상수에서 유도).
+    const oddsOf = (type) => {
+      const r = window.WarpAnalyze.BANNERS[type].rateUp;
+      return Math.round(r * 100) + '/' + Math.round(100 - r * 100);
+    };
 
     const banners = visible.map((b) => ({
       type: b.type, short: b.meta.short, color: b.meta.color, cap: b.meta.cap, kind: b.meta.kind,
@@ -42,6 +47,7 @@ window.WarpData = (function () {
       avgPity5: b.stats.avgPity5 || 0, cWins: b.stats.cWins, cLoss: b.stats.cLoss, gWins: b.stats.gWins,
       guaranteed: !!b.stats.currentGuaranteed, expAvg: b.meta.expAvg,
       winRate: b.stats.win5050Rate == null ? null : b.stats.win5050Rate,
+      odds: b.meta.rateUp != null ? oddsOf(b.type) : null,
     }));
 
     const fiveFiveBins = {};
@@ -77,11 +83,6 @@ window.WarpData = (function () {
     const charBnr = full.banners.find((b) => b.type === '11');
     const lcBnr = full.banners.find((b) => b.type === '12');
     const charExpAvg = charBnr ? charBnr.meta.expAvg : window.WarpAnalyze.BANNERS['11'].expAvg;
-    // rateUp(0.5/0.75) → '50/50'/'75/25' 배지 문구(단일 소스 상수에서 유도).
-    const oddsOf = (type) => {
-      const r = window.WarpAnalyze.BANNERS[type].rateUp;
-      return Math.round(r * 100) + '/' + Math.round(100 - r * 100);
-    };
 
     return {
       info: full.info || {},

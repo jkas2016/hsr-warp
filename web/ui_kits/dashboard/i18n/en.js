@@ -46,6 +46,7 @@ window.I18N_DICTS.en = {
   'bannercards.avgPulls': 'Average pulls',
   'bannercards.wlg': 'Won / Lost / Guaranteed',
   'bannercards.nextGuaranteed': 'Next 5★ guaranteed',
+  'bannercards.nextOdds': 'Next 5★ {odds}',
   'query.needPath': 'Please enter your game path.',
   'query.failed': 'Fetch failed.',
   'query.placeholder': 'Game path (…\\Star Rail Games)',
