@@ -10,6 +10,7 @@ function VersionsView({ D, theme, lang }) {
   const [sel, setSel] = React.useState(null);
 
   const all = D.versions;
+  // rows 는 시간순(ASC) — 차트가 그대로 쓴다. 하단 테이블만 렌더 시 reverse 해 최신 버전 우선(DESC).
   const rows = all.filter((v) =>
     range === '전체' ? true : range === '4.x' ? v.v.startsWith('4') : v.v.startsWith('3'));
 
@@ -48,7 +49,7 @@ function VersionsView({ D, theme, lang }) {
         <table className="tbl">
           <thead><tr><th>{t('versions.colVersion')}</th><th>{t('versions.colPeriod')}</th><th>{t('versions.colPulls')}</th><th>{t('versions.col5')}</th><th>{t('versions.colAvg')}</th><th>{t('versions.colWl')}</th></tr></thead>
           <tbody>
-            {rows.map((v) => {
+            {[...rows].reverse().map((v) => {
               const m = mOf(v);
               const on = sel === v.v;
               const has = m.avgPity != null;
