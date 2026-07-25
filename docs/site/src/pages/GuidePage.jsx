@@ -304,7 +304,7 @@ export function GuidePage({ dict, lang = 'ko' }) {
               <a href="https://github.com/jkas2016/hsr-warp/releases" target="_blank" rel="noopener">{t.footer.releases}</a>
               <a href="https://uigf.org/en/standards/srgf.html" target="_blank" rel="noopener">{t.footer.srgf}</a>
               <a href="https://www.prydwen.gg/star-rail/guides/gacha-system/" target="_blank" rel="noopener">{t.footer.gacha}</a>
-              <a href="architecture.html">{t.footer.arch}</a>
+              <a href={asset('architecture.html')}>{t.footer.arch}</a>
             </div>
           </div>
           <div className="foot-bottom">

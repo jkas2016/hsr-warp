@@ -28,7 +28,8 @@ for (const bad of ['dashboard.html', '같은 폴더', '설치 불필요', '실�
 }
 
 // --- (4) 아키텍처 문서 링크: 구조 앵커(주석 제거 후 href 속성). 단순 문자열 등장 아님 ---
-assert.ok(/href=["']architecture\.html["']/.test(code), 'GuidePage 에 architecture.html 링크(href) 없음');
+// base-absolute 링크: href={asset('architecture.html')} 형태(asset() = BASE_URL + f)만 통과.
+assert.ok(/href=\{asset\(['"]architecture\.html['"]\)\}/.test(code), 'GuidePage 에 architecture.html 링크(href) 없음');
 
 // --- (1) copy 소스 존재: docs/architecture.html (삭제/이름변경 시 실패) ---
 const copySrc = join(dir, '../architecture.html');
@@ -51,7 +52,9 @@ const refs = new Set();
 for (const m of code.matchAll(/asset\(\s*['"]([^'"]+)['"]\s*\)/g)) refs.add(m[1]);      // asset('smartscreen1.png') 등
 for (const m of code.matchAll(/BASE_URL\s*\+\s*['"]([^'"]+)['"]/g)) refs.add(m[1]);     // logo(BASE_URL + 'logo-train.svg')
 assert.ok(refs.size >= 4, `참조 에셋 추출 실패(logo+png 최소 4) — 추출 ${refs.size}개`);
+// architecture.html 은 public/ 이 아니라 docs/ 에서 온다(위 (1)(2)에서 별도로 존재·복사를 검증) — public 존재 검사에서 제외.
 for (const f of refs) {
+  if (f === 'architecture.html') continue;
   assert.ok(existsSync(join(dir, 'public', f)), `참조된 public 에셋 파일 없음: public/${f}`);
 }
 
