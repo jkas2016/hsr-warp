@@ -68,4 +68,7 @@ for (const [code, dict] of Object.entries(DICTS)) {
 assert.deepStrictEqual(LANGS.map((l) => l.code), ['ko', 'en', 'zh', 'ja'], 'LANGS 코드 불일치');
 assert.ok(LANGS.every((l) => l.path === '' || l.path.endsWith('/')), 'LANGS path 는 빈 문자열 또는 슬래시 종결');
 
+// 사전 완결성: LANGS 에 선언된 모든 언어의 사전이 존재해야 한다.
+assert.deepStrictEqual(Object.keys(DICTS).sort(), LANGS.map((l) => l.code).sort(), 'DICTS 가 LANGS 를 모두 커버하지 않음');
+
 console.log('i18n.test.mjs OK');

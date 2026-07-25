@@ -2,6 +2,7 @@
 import ko from './ko.jsx';
 import en from './en.jsx';
 import zh from './zh.jsx';
+import ja from './ja.jsx';
 
 export const LANGS = [
   { code: 'ko', path: '',    html: 'ko',      ogLocale: 'ko_KR', label: '한국어' },
@@ -9,4 +10,4 @@ export const LANGS = [
   { code: 'zh', path: 'zh/', html: 'zh-Hans', ogLocale: 'zh_CN', label: '简体中文' },
   { code: 'ja', path: 'ja/', html: 'ja',      ogLocale: 'ja_JP', label: '日本語' },
 ];
-export const DICTS = { ko, en, zh };
+export const DICTS = { ko, en, zh, ja };
