@@ -74,7 +74,7 @@ img{display:block}
 [data-theme="light"] .theme-toggle .sun{display:none}
 [data-theme="light"] .theme-toggle .moon{display:block}
 
-/* 언어 드롭다운 */
+/* ---- language dropdown ---- */
 .lang-menu{position:relative}
 .lang-menu summary{list-style:none}
 .lang-menu summary::-webkit-details-marker{display:none}
