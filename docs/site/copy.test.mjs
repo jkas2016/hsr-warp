@@ -39,6 +39,12 @@ const pre = readFileSync(join(dir, 'prerender.mjs'), 'utf8').replace(/\/\*[\s\S]
 assert.ok(/copyFileSync\(/.test(pre), 'prerender.mjs 에 copyFileSync 없음');
 assert.ok(/['"][^'"]*architecture\.html['"]/.test(pre), 'prerender.mjs 에 architecture.html copy 소스 참조 없음');
 assert.ok(/dist\/static\/architecture\.html/.test(pre), 'prerender.mjs 가 architecture.html 을 dist/static 로 복사하지 않음');
+assert.ok(/hreflang/.test(pre), 'prerender.mjs 에 hreflang 생성 없음');
+assert.ok(/x-default/.test(pre), 'prerender.mjs 에 x-default hreflang 없음');
+assert.ok(/og:locale/.test(pre), 'prerender.mjs 에 og:locale 주입 없음');
+assert.ok(/LANGS/.test(pre), 'prerender.mjs 가 LANGS 를 순회하지 않음');
+const idxSrc = readFileSync(join(dir, 'index.html'), 'utf8');
+assert.ok(idxSrc.includes('<!--head-i18n-->'), 'index.html 에 head-i18n 플레이스홀더 없음');
 
 // --- (3) 참조된 public 에셋의 실제 파일 존재(문자열 등장이 아니라 파일 자체) ---
 const refs = new Set();
