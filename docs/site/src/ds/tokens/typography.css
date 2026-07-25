@@ -46,3 +46,10 @@
   --text-base:     var(--fw-regular) var(--fs-body)/var(--lh-base) var(--font-sans);
   --text-mono:     var(--fw-medium) var(--fs-cap)/var(--lh-base) var(--font-mono);
 }
+
+/* ---- CJK 지역화(#46) ----
+   Noto Sans KR 의 unicode-range 는 간체자/신자체 다수를 커버하지 않아
+   zh/ja 카피가 한국어 글리프 변형이나 OS 폴백으로 렌더될 수 있다.
+   prerender.mjs 가 찍는 <html lang> 기준으로 지역 특화 폰트로 override. */
+[lang^="zh"] { --font-sans: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif; --font-display: "Space Grotesk", "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif; }
+[lang="ja"]  { --font-sans: "Noto Sans JP", "Yu Gothic", "Meiryo", system-ui, sans-serif; --font-display: "Space Grotesk", "Noto Sans JP", "Yu Gothic", "Meiryo", system-ui, sans-serif; }
