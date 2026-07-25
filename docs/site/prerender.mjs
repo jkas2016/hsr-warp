@@ -50,6 +50,16 @@ for (const l of LANGS) {
     `<link rel="canonical" href="${url}">`,
     alternates,
   ].join('\n'));
+
+  // head 치환은 정규식/문자열 매칭이라 no-match 시 조용히 no-op 된다 — index.html 의 head 구조가
+  // 바뀌면(속성 순서, 따옴표 종류 등) 감지 없이 한국어 head 가 그대로 배포될 수 있어 사후조건으로 막는다.
+  const must = (cond, what) => { if (!cond) throw new Error(`head 치환 실패(${l.code}): ${what} — index.html 의 head 를 확인하세요.`); };
+  must(html.includes(`<html lang="${l.html}"`), '<html lang>');
+  must(html.includes(`<title>${meta.title}</title>`), '<title>');
+  must(html.includes(`content="${meta.description}"`), 'description');
+  must((html.match(/hreflang=/g) || []).length === LANGS.length + 1, `hreflang ${LANGS.length + 1}개`);
+  must(!html.includes(HEAD_I18N) && !html.includes(PLACEHOLDER), '플레이스홀더 잔존');
+
   const out = abs('dist/static/' + l.path + 'index.html');
   fs.mkdirSync(path.dirname(out), { recursive: true });
   fs.writeFileSync(out, html);
