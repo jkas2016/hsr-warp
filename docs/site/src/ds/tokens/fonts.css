@@ -9,6 +9,10 @@
      • JetBrains Mono → Consolas                 (tabular code/number mono)
    System fonts remain first in the stack so a real Windows host
    still gets the authentic look. See README "Visual Foundations".
+   #46(사이트 다국어): zh/ja 페이지 카피에 Noto Sans KR 이 커버하지
+   못하는 한자·신자체가 있어(unicode-range 미포함) Noto Sans SC/JP 를
+   추가. Google Fonts 는 요청 언어 subset 만 내려주므로 ko/en 방문자
+   다운로드는 늘지 않는다 — 실제 페이지별 적용은 typography.css 참조.
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');

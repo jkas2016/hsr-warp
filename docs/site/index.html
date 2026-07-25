@@ -6,6 +6,21 @@
 <title>HSR 워프 대시보드 — 내 전언 기록을, 내 PC에서</title>
 <meta name="description" content="붕괴: 스타레일 전언(워프) 기록을 내 PC로 가져와 천장·운·픽뚫(50/50)·월별 통계를 보여주는 작은 로컬 프로그램. 간편 설치, 완전 로컬, 계정 로그인 불필요.">
 <link rel="icon" type="image/svg+xml" href="/logo-train.svg">
+<!--head-i18n-->
+<script>/*lang-redirect*/(function () { try {
+  var norm = function (s) { s = String(s || '').toLowerCase(); return s.indexOf('zh') === 0 ? 'zh' : s.indexOf('ja') === 0 ? 'ja' : s.indexOf('en') === 0 ? 'en' : s.indexOf('ko') === 0 ? 'ko' : ''; };
+  var PATHS = { ko: '', en: 'en/', zh: 'zh/', ja: 'ja/' };
+  // 페이지 언어는 URL 경로 세그먼트가 단일 소스(entry-client.jsx 와 동일) — dev/prod 동일 동작.
+  // <html lang> 은 prerender 산출물에서만 정확하고 dev 서버는 항상 ko 를 서빙해 무한 리다이렉트를 유발했다.
+  var seg = location.pathname.slice('%BASE_URL%'.length).split('/')[0];
+  var page = norm(seg) || 'ko';
+  var target = norm(new URLSearchParams(location.search).get('lang'));
+  if (!target && page === 'ko') { // 루트(ko)에서만 저장값·브라우저 언어로 자동 이동
+    var saved = ''; try { saved = localStorage.getItem('hsrwarp-lang') || ''; } catch (e) {}
+    target = norm(saved) || norm(navigator.language) || 'ko';
+  }
+  if (target && target !== page) location.replace('%BASE_URL%' + PATHS[target] + location.hash);
+} catch (e) {} })()</script>
 </head>
 <body>
 <div id="root"><!--app-html--></div>

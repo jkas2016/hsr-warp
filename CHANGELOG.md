@@ -5,6 +5,17 @@
 
 릴리스별 상세 산출물(zip·설치 파일·체크섬)은 [GitHub Releases](https://github.com/jkas2016/hsr-warp/releases)에 있습니다.
 
+## [Unreleased]
+
+### 추가됨
+- 가이드 사이트 다국어(en/zh/ja) 지원 — 언어별 프리렌더 4페이지(`/`, `/en/`, `/zh/`, `/ja/`), 루트 자동 언어 이동(?lang → localStorage → navigator → ko), 지구본 언어 전환 UI, 언어별 SEO 메타(og·hreflang) (#46)
+- 중국어·일본어 웹폰트(`Noto Sans SC`/`JP`) — 기존 `Noto Sans KR` 이 못 덮는 간체 한자·신자체가 OS 폴백으로 떨어지던 문제 해소 (#46)
+- README 영어 주 전환 + `README.ko.md` 분리, 저장소 description·topics 설정 (#46)
+
+### 수정됨
+- 가이드 아키텍처 문서 링크가 하위 경로 페이지(`/en/`·`/zh/`·`/ja/`)에서 404 나던 문제 — base 절대 경로로 수정 (#46)
+- 가이드 FAQ 의 소스 빌드 요구사항 정정 — `go` 도 설치돼 있어야 하며 PATH 에는 `node` 만 필요 (4개 언어) (#46)
+
 ## [0.5.0] - 2026-07-20
 
 ### 추가됨
