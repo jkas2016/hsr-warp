@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { GuidePage } from './pages/GuidePage.jsx';
+import { DICTS } from './i18n/index.js';
 
 // 페이지는 빌드 시 정적 프리렌더됨. 하이드레이션 후 테마 토글 + 스크롤 리빌을 부여한다.
 // (기존 guide.js 로직 이식: 테마는 localStorage 'hsrwarp-theme', 기본 dark.)
-export function App() {
+export function App({ lang = 'ko' }) {
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add('js');
@@ -45,5 +46,6 @@ export function App() {
     };
   }, []);
 
-  return <GuidePage />;
+  const dict = DICTS[lang] || DICTS.ko;
+  return <GuidePage dict={dict} lang={lang} />;
 }

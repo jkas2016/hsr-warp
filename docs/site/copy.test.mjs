@@ -5,21 +5,26 @@
 //   (3) GuidePage 가 참조하는 public 에셋의 실제 파일 존재
 //   (4) 아키텍처 링크는 주석 제거 후 구조 앵커(href 속성)로 검사
 import assert from 'node:assert';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = dirname(fileURLToPath(import.meta.url));
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
 const src = readFileSync(join(dir, 'src/pages/GuidePage.jsx'), 'utf8');
 // 블록/JSX 주석 {/* ... */} 제거 — 주석 속 마커가 통과하지 않도록. URL 의 '//' 는 건드리지 않는다.
-const code = src.replace(/\/\*[\s\S]*?\*\//g, '');
+const code = stripComments(src);
+// 사전 소스: 번역 문구가 옮겨간 곳. ko.jsx 는 필수(원문 카피 가드 대상).
+const koDict = stripComments(readFileSync(join(dir, 'src/i18n/ko.jsx'), 'utf8'));
+const dictFiles = readdirSync(join(dir, 'src/i18n')).filter((f) => f.endsWith('.jsx'));
+const allDicts = dictFiles.map((f) => stripComments(readFileSync(join(dir, 'src/i18n', f), 'utf8'))).join('\n');
 
-// --- 가이드 본문 카피(내용 drift 가드) ---
+// --- 가이드 본문 카피(내용 drift 가드): 원문 문구는 ko 사전에 있어야 한다 ---
 for (const need of ['설치 마법사', 'hsr-warp-setup-', '/ui_kits/dashboard/', '%LOCALAPPDATA%', 'schedule.json']) {
-  assert.ok(code.includes(need), `required copy missing: "${need}"`);
+  assert.ok(koDict.includes(need), `required copy missing in ko dict: "${need}"`);
 }
 for (const bad of ['dashboard.html', '같은 폴더', '설치 불필요', '실행파일 하나가 전부', '실행파일 하나만 받으면']) {
-  assert.ok(!code.includes(bad), `stale copy present: "${bad}"`);
+  assert.ok(!code.includes(bad) && !allDicts.includes(bad), `stale copy present: "${bad}"`);
 }
 
 // --- (4) 아키텍처 문서 링크: 구조 앵커(주석 제거 후 href 속성). 단순 문자열 등장 아님 ---
