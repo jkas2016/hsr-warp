@@ -6,7 +6,7 @@
 
 **Architecture:** `GuidePage.jsx`의 하드코딩 문구를 언어별 JSX 사전 모듈(`src/i18n/{ko,en,zh,ja}.jsx`)로 분리하고, `prerender.mjs`가 4개 언어를 루프 돌며 각 HTML에 `<html lang>`·title·description·og·hreflang을 박는다. 루트(/)만 인라인 스크립트로 `?lang → localStorage → navigator → ko` 자동 이동.
 
-**Tech Stack:** React 19 + Vite 8 SSG(기존), esbuild(테스트 사전 로드, vite 의존으로 이미 존재), node:test 없이 assert 기반 테스트(기존 컨벤션).
+**Tech Stack:** React 19 + Vite 8 SSG(기존), rolldown(테스트에서 JSX 사전 로드 — Vite 8의 번들러로 `docs/site/node_modules`에 이미 존재), assert 기반 테스트(기존 컨벤션).
 
 **Spec:** [docs/superpowers/specs/2026-07-25-guide-site-i18n-design.md](../specs/2026-07-25-guide-site-i18n-design.md)
 
@@ -18,7 +18,8 @@
 - `dict.meta`의 값(문자열)에 큰따옴표(`"`) 금지 — HTML 속성 주입 시 이스케이프를 피하기 위한 규약. 테스트로 강제.
 - 사전 4개는 **키 구조(중첩·배열 길이) 완전 일치** — i18n.test.mjs가 강제. 값은 문자열 또는 JSX 조각.
 - 게임 용어는 아래 용어 표(대시보드 사전 `web/ui_kits/dashboard/i18n/*.js` 대조 완료) 준수.
-- 테스트는 빌드 없이 node 단독 실행 가능해야 한다(기존 copy.test.mjs 원칙). 정규식 소스 파싱으로 사전 구조를 검사하지 말 것 — esbuild 로드 후 실제 객체 비교(#24 false-pass 교훈).
+- 테스트는 빌드 없이 node 단독 실행 가능해야 한다(기존 copy.test.mjs 원칙). 정규식 소스 파싱으로 사전 구조를 검사하지 말 것 — rolldown 로드 후 실제 객체 비교(#24 false-pass 교훈).
+- **번들러 사실 확인(검증 완료)**: `docs/site`에 esbuild는 **없다**. Vite 8.1.0은 rolldown(+oxc)을 쓴다(`node_modules/rolldown` 존재, vite deps에 `rolldown: ~1.1.2`). JSX transform 옵션은 `transform: { jsx: 'react-jsx' }` (`'automatic'`은 무효). 번들 출력은 **`docs/site` 하위 파일로 써서 file URL로 import**해야 한다 — `data:` URL은 `react/jsx-runtime` 같은 bare specifier를 해석하지 못한다.
 - 커밋 메시지는 기존 스타일: `feat(site): …`, `test(site): …`, `docs(changelog): …` + `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
 - `architecture.html`·스크린샷 png·대시보드 i18n 구조는 건드리지 않는다(Non-goal).
 
@@ -315,28 +316,41 @@ git commit -m "refactor(site): GuidePage 문구를 ko 사전 모듈로 추출 �
 
 **Interfaces:**
 - Consumes: Task 1의 사전 키 스키마와 `LANGS`/`DICTS`.
-- Produces: `i18n.test.mjs` — esbuild로 `src/i18n/index.js`를 번들해 실제 `DICTS`를 로드, (1) 각 사전의 키 구조가 ko와 완전 일치, (2) 로케일 불변 문자열이 모든 언어에 존재, (3) meta 값에 큰따옴표 금지 검증. 이후 태스크는 사전 파일 추가 + `index.js` 한 줄이면 자동 커버.
+- Produces: `i18n.test.mjs` — rolldown으로 `src/i18n/index.js`를 번들해 실제 `DICTS`를 로드, (1) 각 사전의 키 구조가 ko와 완전 일치, (2) 로케일 불변 문자열이 모든 언어에 존재, (3) meta 값에 큰따옴표 금지 검증. 이후 태스크는 사전 파일 추가 + `index.js` 한 줄이면 자동 커버.
 
 - [ ] **Step 1: i18n.test.mjs 작성 (failing test)**
 
+아래 로드 방식은 실측 검증됨(rolldown 1.1.x + react 19, `transform.jsx='react-jsx'`, 산출물을 `docs/site` 하위 파일로 써서 file URL import). `data:` URL import·esbuild·`jsx:'automatic'`은 이 환경에서 동작하지 않으므로 바꾸지 말 것.
+
 ```js
-// 사전 구조·불변식 테스트(실행 기반). JSX 모듈은 esbuild(vite 의존)로 번들해 로드한다
+// 사전 구조·불변식 테스트(실행 기반). JSX 모듈은 rolldown(Vite 8 의 번들러)으로 번들해 로드한다
 // — 정규식 소스 파싱 금지(#24 false-pass 교훈).
 import assert from 'node:assert';
+import { readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(join(dir, 'package.json'));
-const esbuild = require('esbuild');
+const { rolldown } = require('rolldown');
 
-const { outputFiles } = await esbuild.build({
-  entryPoints: [join(dir, 'src/i18n/index.js')],
-  bundle: true, write: false, format: 'esm', platform: 'node',
-  jsx: 'automatic', absWorkingDir: dir, logLevel: 'silent',
+// 번들 산출물은 docs/site 하위에 써야 한다 — data: URL 은 react/jsx-runtime 같은
+// bare specifier 를 해석하지 못한다(ERR_UNSUPPORTED_RESOLVE_REQUEST).
+const bundle = await rolldown({
+  input: join(dir, 'src/i18n/index.js'),
+  cwd: dir, platform: 'node', logLevel: 'silent',
+  transform: { jsx: 'react-jsx' },
 });
-const mod = await import('data:text/javascript;base64,' + Buffer.from(outputFiles[0].text).toString('base64'));
+const { output } = await bundle.generate({ format: 'esm' });
+const tmp = join(dir, 'node_modules/.i18n-test-bundle.mjs');
+writeFileSync(tmp, output[0].code);
+let mod;
+try {
+  mod = await import(pathToFileURL(tmp).href);
+} finally {
+  rmSync(tmp, { force: true });
+}
 const { LANGS, DICTS } = mod;
 
 // React 엘리먼트는 리프로 취급($$typeof 심벌 존재).
@@ -956,11 +970,10 @@ git commit -m "feat(site): render(lang)·META export + 경로 기반 클라이�
 
 - [ ] **Step 1: i18n.test.mjs에 리다이렉트 동작 테스트 추가 (failing test)**
 
-`console.log('i18n.test.mjs OK')` 직전에 추가:
+`console.log('i18n.test.mjs OK')` 직전에 추가(`readFileSync`는 Task 2에서 이미 import됨):
 
 ```js
 // --- 루트 자동 이동 인라인 스크립트: 소스에서 추출해 셤과 함께 실제 실행 ---
-import { readFileSync } from 'node:fs';
 const htmlSrc = readFileSync(join(dir, 'index.html'), 'utf8');
 const m = htmlSrc.match(/<script>\/\*lang-redirect\*\/([\s\S]*?)<\/script>/);
 assert.ok(m, 'index.html 에 lang-redirect 인라인 스크립트 없음');
@@ -993,8 +1006,6 @@ assert.strictEqual(runRedirect({ pageLang: 'en', search: '?lang=ja' }), '/hsr-wa
 assert.strictEqual(runRedirect({ pageLang: 'zh-Hans', search: '?lang=zh' }), null); // zh-Hans 페이지 == zh 대상
 ```
 
-(`readFileSync` import는 파일 상단 기존 import에 병합.)
-
 Run: `node docs/site/i18n.test.mjs`
 Expected: FAIL — `lang-redirect 인라인 스크립트 없음`
 
@@ -1017,7 +1028,7 @@ Expected: FAIL — `lang-redirect 인라인 스크립트 없음`
 } catch (e) {} })()</script>
 ```
 
-`%BASE_URL%`는 Vite의 HTML Env 치환으로 빌드·dev 서빙 시 `/hsr-warp/`로 바뀐다. (Vite 공식: index.html의 `%CONST%`는 `import.meta.env` 속성으로 치환 — https://vite.dev/guide/env-and-mode#html-constant-replacement)
+`%BASE_URL%`는 Vite의 HTML Env 치환으로 빌드·dev 서빙 시 `/hsr-warp/`로 바뀐다 — **설치된 vite 8.1.0 소스에서 확인됨**: `htmlEnvHook`이 `/%(\S+?)%/g`를 `config.env`로 치환하고(`node_modules/vite/dist/node/chunks/node.js:23845`), `config.env`에 `BASE_URL`이 포함된다(같은 파일 `:35337`). (Vite 공식 문서: https://vite.dev/guide/env-and-mode#html-constant-replacement)
 
 - [ ] **Step 3: 통과 확인 + BASE_URL 치환 검증**
 
@@ -1025,7 +1036,7 @@ Run: `node docs/site/i18n.test.mjs`
 Expected: `i18n.test.mjs OK`
 
 Run: `cd docs/site && npm run build && grep -c "'/hsr-warp/'" dist/static/index.html`
-Expected: 1 이상 — `%BASE_URL%`가 실제 치환됐는지 확인. **치환이 안 됐다면**(grep 0) Vite 버전이 해당 문법을 지원하지 않는 것이므로 스크립트의 `'%BASE_URL%'`를 리터럴 `'/hsr-warp/'`로 바꾸고 테스트의 replace도 제거한다.
+Expected: 1 이상 — `%BASE_URL%`가 실제 치환됐는지 확인(소스 확인 완료지만 산출물로 재확인).
 
 - [ ] **Step 4: Commit**
 
