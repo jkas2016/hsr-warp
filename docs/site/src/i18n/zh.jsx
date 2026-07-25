@@ -103,7 +103,7 @@ export default {
       { q: '数据会被发送到哪里？', a: <>不会发送到任何地方。只存在你的电脑与米哈游查询服务器之间的通信，结果只保存在你的电脑上。</> },
       { q: '可以使用多个账号吗？', a: <>目前按最后一次查询的账号保存。</> },
       { q: '新版本·新卡池会自动生效吗？', a: <>有两样东西自动更新。<b>UP 日程数据</b>（<code>schedule.json</code>）在启动时自动拉取最新版，刚上线新版本 5★ 的"未确认"标记无需发版即可解决。<b>程序本身</b>出新版本时启动会提醒，并通过安装向导更新。</> },
-      { q: '可以从源码自己构建吗？', a: <>只需要 <code>node</code> — 构建脚本会自动寻找 <code>go</code>。用 <code>npm run build</code> 构建静态单文件 exe，用 <code>npm start</code> 运行。详见仓库 README。</> },
+      { q: '可以从源码自己构建吗？', a: <>需要同时安装 <code>go</code> 和 <code>node</code> — 只有 <code>node</code> 必须在 PATH 中，<code>go</code> 由构建脚本自动寻找。用 <code>npm run build</code> 构建静态单文件 exe，用 <code>npm start</code> 运行。详见仓库 README。</> },
     ],
   },
   cta: {

@@ -103,7 +103,7 @@ export default {
       { q: 'Where is my data sent?', a: <>Nowhere. The only traffic is between your PC and the HoYoverse records server, and results are stored on your PC only.</> },
       { q: 'Can I use multiple accounts?', a: <>Currently, records are stored per the account you fetched last.</> },
       { q: 'Are new patches and versions applied automatically?', a: <>Two things update automatically. The <b>rate-up schedule data</b> (<code>schedule.json</code>) is fetched fresh at app launch, so "unknown" 5★s from a brand-new patch resolve without a release. The <b>app itself</b> notifies you at launch when a new version is out, and updates via the installer.</> },
-      { q: 'Can I build from source?', a: <>All you need is <code>node</code> — the build script finds <code>go</code> automatically. Build a static single exe with <code>npm run build</code> and run it with <code>npm start</code>. See the repository README for details.</> },
+      { q: 'Can I build from source?', a: <>You need both <code>go</code> and <code>node</code> installed — only <code>node</code> has to be on your PATH, since the build script finds <code>go</code> automatically. Build a static single exe with <code>npm run build</code> and run it with <code>npm start</code>. See the repository README for details.</> },
     ],
   },
   cta: {
