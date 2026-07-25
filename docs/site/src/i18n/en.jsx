@@ -117,6 +117,6 @@ export default {
     repo: 'GitHub repository', releases: 'Download (Releases)', srgf: 'SRGF format standard',
     gacha: 'Rates · 50/50 guide', arch: 'Architecture docs',
     license: 'MIT License · © 2026 hsr-warp',
-    mono: 'SRGF v1.0 · hard pity 90 (char) / 80 (LC)',
+    mono: 'SRGF v1.0 · hard pity 90 Character / 80 Light Cone',
   },
 };
