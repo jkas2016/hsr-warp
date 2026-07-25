@@ -7,7 +7,7 @@
 
 ## [Unreleased]
 
-### Added
+### 추가됨
 - 가이드 사이트 다국어(en/zh/ja) 지원 — 언어별 프리렌더 4페이지(`/`, `/en/`, `/zh/`, `/ja/`), 루트 자동 언어 이동(?lang → localStorage → navigator → ko), 지구본 언어 전환 UI, 언어별 SEO 메타(og·hreflang) (#46)
 
 ## [0.5.0] - 2026-07-20
