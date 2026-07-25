@@ -8,7 +8,17 @@ import { createRequire } from 'node:module';
 
 const dir = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(join(dir, 'package.json'));
-const { rolldown } = require('rolldown');
+// raw MODULE_NOT_FOUND 금지(prerender.mjs 의 readBuilt 관례와 동일) — docs/site 의존성이
+// 설치되지 않은 채 루트 npm test 를 돌리면 원인을 바로 알 수 있게 문맥을 붙여 던진다.
+let rolldown;
+try {
+  ({ rolldown } = require('rolldown'));
+} catch (e) {
+  if (e.code === 'MODULE_NOT_FOUND') {
+    throw new Error(`rolldown 모듈 없음 — 'npm ci --prefix docs/site' 를 먼저 실행했는지 확인하세요.`);
+  }
+  throw e;
+}
 
 // 번들 산출물은 docs/site 하위에 써야 한다 — data: URL 은 react/jsx-runtime 같은
 // bare specifier 를 해석하지 못한다(ERR_UNSUPPORTED_RESOLVE_REQUEST).
