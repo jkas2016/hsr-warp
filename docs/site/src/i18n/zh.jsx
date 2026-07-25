@@ -22,7 +22,7 @@ export default {
   mock: {
     heading: <>Honkai: Star Rail <span className="g">跃迁仪表盘</span></>,
     totalPulls: '总抽数', totalUnit: ' 抽', fiveStar: '5★', fiveUnit: ' 个',
-    winRate: '不歪率', winUnit: ' %', luckLabel: '运气指标 · 角色平均保底', luckUnit: ' 抽',
+    winRate: '没歪率', winUnit: ' %', luckLabel: '运气指标 · 角色平均保底', luckUnit: ' 抽',
   },
   features: [
     { title: '安装简单', body: '一个安装向导即可完成（无需管理员权限）。自动创建开始菜单和桌面快捷方式，出新版本时启动会提醒你。' },
@@ -61,7 +61,7 @@ export default {
     lead: '所有数值均按标准官方概率计算。保底越低，运气越好。',
     luck: { title: '运气指标', big: '62.5', bigUnit: ' 抽基准', body: <>将你的 5★ 平均保底与理论平均 <b style={{ color: 'var(--txt)' }}>62.5 抽</b>（综合概率 1.6%）对比。低于该值说明运气不错。</> },
     avg: { title: '平均保底', body: '展示抽出角色 5★ 平均花了多少抽，以及最幸运/最不幸的保底数。' },
-    win: { title: '不歪率 (50/50)', body: <>限定卡池 50/50 对决中<b style={{ color: 'var(--txt)' }}>抽中 UP 的比例</b>。歪了之后的大保底另行统计。</> },
+    win: { title: '没歪率 (50/50)', body: <>限定卡池 50/50 对决中<b style={{ color: 'var(--txt)' }}>抽中 UP 的比例</b>。歪了之后的大保底另行统计。</> },
     monthly: { title: '月度汇总', body: '每月抽数 · 消耗星琼 · 获得 5★ 一目了然，哪个版本花得最多一看便知。' },
     criteria: {
       title: '判定标准',
