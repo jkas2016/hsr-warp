@@ -71,4 +71,36 @@ assert.ok(LANGS.every((l) => l.path === '' || l.path.endsWith('/')), 'LANGS path
 // 사전 완결성: LANGS 에 선언된 모든 언어의 사전이 존재해야 한다.
 assert.deepStrictEqual(Object.keys(DICTS).sort(), LANGS.map((l) => l.code).sort(), 'DICTS 가 LANGS 를 모두 커버하지 않음');
 
+// --- 루트 자동 이동 인라인 스크립트: 소스에서 추출해 셤과 함께 실제 실행 ---
+const htmlSrc = readFileSync(join(dir, 'index.html'), 'utf8');
+const m = htmlSrc.match(/<script>\/\*lang-redirect\*\/([\s\S]*?)<\/script>/);
+assert.ok(m, 'index.html 에 lang-redirect 인라인 스크립트 없음');
+const scriptSrc = m[1].replace(/%BASE_URL%/g, '/hsr-warp/');
+
+// 셤 주입 실행기: 리다이렉트가 일어나면 그 URL, 아니면 null 반환.
+function runRedirect({ pageLang, search = '', saved = null, nav = '', hash = '', savedThrows = false }) {
+  let redirected = null;
+  const doc = { documentElement: { getAttribute: (a) => (a === 'lang' ? pageLang : null) } };
+  const loc = { search, hash, replace: (u) => { redirected = u; } };
+  const ls = { getItem: () => { if (savedThrows) throw new Error('denied'); return saved; } };
+  const navi = { language: nav };
+  new Function('document', 'location', 'localStorage', 'navigator', scriptSrc)(doc, loc, ls, navi);
+  return redirected;
+}
+
+// 루트(ko): ?lang 최우선, 그다음 saved, 그다음 navigator, 전부 없으면 이동 없음
+assert.strictEqual(runRedirect({ pageLang: 'ko', search: '?lang=en', hash: '#faq' }), '/hsr-warp/en/#faq');
+assert.strictEqual(runRedirect({ pageLang: 'ko', search: '?lang=en', saved: 'ja' }), '/hsr-warp/en/');
+assert.strictEqual(runRedirect({ pageLang: 'ko', saved: 'ja' }), '/hsr-warp/ja/');
+assert.strictEqual(runRedirect({ pageLang: 'ko', nav: 'en-US' }), '/hsr-warp/en/');
+assert.strictEqual(runRedirect({ pageLang: 'ko', nav: 'zh-CN' }), '/hsr-warp/zh/');
+assert.strictEqual(runRedirect({ pageLang: 'ko', nav: 'fr' }), null);            // 미지원 → ko 폴백(이동 없음)
+assert.strictEqual(runRedirect({ pageLang: 'ko', nav: 'ko-KR' }), null);
+assert.strictEqual(runRedirect({ pageLang: 'ko', search: '?lang=ko', saved: 'en' }), null); // ?lang=ko 명시 → 유지
+assert.strictEqual(runRedirect({ pageLang: 'ko', savedThrows: true, nav: 'ja' }), '/hsr-warp/ja/'); // localStorage 예외 무시
+// 언어 페이지: 명시적 진입 존중 — saved/navigator 로는 이동하지 않음, ?lang 만 동작
+assert.strictEqual(runRedirect({ pageLang: 'en', saved: 'ja', nav: 'ja' }), null);
+assert.strictEqual(runRedirect({ pageLang: 'en', search: '?lang=ja' }), '/hsr-warp/ja/');
+assert.strictEqual(runRedirect({ pageLang: 'zh-Hans', search: '?lang=zh' }), null); // zh-Hans 페이지 == zh 대상
+
 console.log('i18n.test.mjs OK');
