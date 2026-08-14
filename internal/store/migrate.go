@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// MigrateLegacyLayout は構버전 레이아웃(data/warp_*.json)을 게임별
+// MigrateLegacyLayout 은 구버전 레이아웃(data/warp_*.json)을 게임별
 // 디렉터리(data/hsr/)로 옮긴다. 멱등하며, 이미 옮겨진 상태나 새 설치에서는
 // 아무 일도 하지 않는다. 대상 이름이 이미 있으면 덮어쓰지 않고 건너뛴다 —
 // 신규 레이아웃 쪽이 최신이기 때문이다.

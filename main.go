@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"hsr-warp/internal/server"
+	"hsr-warp/internal/store"
 )
 
 // 아이콘 리소스(resource_windows_amd64.syso)는 아래 generate 로 만든다(icon.ico 변경 시 재실행):
@@ -146,6 +147,11 @@ func main() {
 	paths := server.Paths{
 		DataDir:    filepath.Join(base, "data"),
 		ConfigFile: filepath.Join(base, "config.json"),
+	}
+	// 구버전 레이아웃을 게임별 디렉터리로 옮긴다. 실패해도 앱은 계속 뜬다 —
+	// 최악의 경우 기존 기록이 안 보일 뿐이고, 재수집으로 복구된다.
+	if _, err := store.MigrateLegacyLayout(paths.DataDir); err != nil {
+		slog.Error("데이터 마이그레이션 실패", "err", err)
 	}
 	assets, err := fs.Sub(webFiles, "web")
 	if err != nil {
