@@ -46,7 +46,12 @@ function ShareModal({ open, onClose, uid, lang }) {
       // 다운로드가 막힌 환경(iOS Safari 등)이면 모달 안에 이미지를 띄우고 길게 눌러 저장하게 한다.
       if (!ok) setPreview(URL.createObjectURL(blob));
     } catch (e) {
-      setErr(e.message || t('share.failed'));
+      // 사용자에게는 번역된 문구만 — e.message 를 그대로 쓰면 CDN 차단·SRI 불일치 때
+      // "Cannot read properties of undefined (reading 'domToBlob')" 같은 영문 기술 문자열이 노출되고,
+      // 거의 모든 Error 가 message 를 가지므로 t('share.failed') 는 영영 렌더되지 않는다.
+      // 원인은 개발자 콘솔에만 남긴다.
+      console.error('[share] PNG 내보내기 실패', e);
+      setErr(t('share.failed'));
     }
     setBusy(false);
   }
