@@ -32,7 +32,12 @@
     });
   }
 
-  var BANNER_CODE = { '캐릭터': 'char', '광추': 'lc', '일반': 'std', '출발': 'departure' };
+  // 배너 short 는 표시 문자열이 아니라 정규 키다(schedule.json banners[].short).
+  // 표시할 땐 반드시 bannerLabel() 로 감싼다. 앞 4개는 HSR, 뒤 4개는 ZZZ.
+  var BANNER_CODE = {
+    '캐릭터': 'char', '광추': 'lc', '일반': 'std', '출발': 'departure',
+    '독점': 'exclusive', 'W-엔진': 'wengine', '상시': 'standard', '본디': 'bangboo',
+  };
 
   var I18N = {
     lang: initialLang(),

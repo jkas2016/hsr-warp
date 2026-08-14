@@ -41,6 +41,17 @@ function Dashboard() {
   // 데이터가 새로 로드/조회되면 버전 구간을 전체로 초기화.
   React.useEffect(() => { setScopeVer('전체'); }, [data]);
 
+  // 현재 게임. WarpData 싱글턴이 localStorage 로 유지하고, 여기선 prop/렌더용 상태로만 둔다.
+  const [gameID, setGameID] = React.useState(() => window.WarpData.game());
+  // 게임 전환은 데이터 재로드를 동반한다. setGame 이 일정·분석 캐시를 비우므로 곧바로 다시 읽는다.
+  // 새 게임에 기록이 없을 수 있어 결과가 없으면 빈 화면(QueryPanel)으로 돌아간다.
+  // 연속 전환 시 늦게 도착한 이전 게임의 응답이 화면을 덮지 않도록 도착 시점 게임을 확인한다.
+  const reload = (id) => {
+    setData(null);
+    window.WarpData.loadStored().then((d) => { if (window.WarpData.game() === id) setData(d || null); });
+  };
+  const changeGame = (id) => { window.WarpData.setGame(id); setGameID(id); reload(id); };
+
   // 시작 시: 저장된 기록 표시 + 업데이트 확인(베스트에포트).
   React.useEffect(() => {
     window.WarpData.loadStored().then((d) => { if (d) setData(d); });
@@ -82,7 +93,7 @@ function Dashboard() {
         <img src="../../assets/logo-train.svg" alt="" width="46" height="46" style={{ borderRadius: 12, boxShadow: 'var(--glow-gold)' }} />
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: '-.4px' }}>
-            Honkai: Star Rail <span style={{ color: 'var(--gold-ink)' }}>{t('header.title2')}</span>
+            {t('game.' + gameID)} <span style={{ color: 'var(--gold-ink)' }}>{t('header.title2')}</span>
           </h1>
           <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 3 }}>
             {loaded ? t('header.subtitleLoaded', { uid: uid ? 'UID ' + uid + ' · ' : '' })
@@ -90,7 +101,11 @@ function Dashboard() {
           </div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          {loaded && <RefreshBar runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
+          {loaded && <RefreshBar key={gameID} runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
+          {/* 게임 전환. key 로 RefreshBar/QueryPanel 을 다시 마운트해 경로 자동 채움을 새 게임 기준으로 돌린다. */}
+          <Select value={gameID} onChange={(e) => changeGame(e.target.value)} aria-label="Game">
+            {window.WarpData.games().map((g) => <option key={g} value={g}>{t('game.' + g)}</option>)}
+          </Select>
           <Select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">
             <option value="ko">한국어</option>
             <option value="en">English</option>
@@ -105,7 +120,7 @@ function Dashboard() {
 
       {!loaded ? (
         <>
-          <QueryPanel runFetch={runFetch} onLoaded={setData} />
+          <QueryPanel key={gameID} runFetch={runFetch} onLoaded={setData} />
           <div className="empty">
             <div className="empty-glyph"><img src="../../assets/logo-train.svg" alt="" width="64" height="64" style={{ borderRadius: 16 }} /></div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, marginTop: 18 }}>{t('empty.noData')}</div>
@@ -141,7 +156,8 @@ function Dashboard() {
               </span>
             )}
           </div>
-          <div key={view} className="view" style={{ marginTop: 22 }}>
+          {/* key 에 게임을 섞어 전환 시 뷰 내부 필터 상태(배너 칩 등)를 초기화한다. */}
+          <div key={view + gameID} className="view" style={{ marginTop: 22 }}>
             {view === 'overview' && <OverviewView D={D} theme={theme} lang={lang} scoped={scoped} onSeeAll={() => setView('history')} onFiveClick={setFive} />}
             {view === 'banners' && <BannersView D={D} theme={theme} scoped={scoped} onFiveClick={setFive} />}
             {view === 'history' && <HistoryView D={D} onFiveClick={setFive} />}

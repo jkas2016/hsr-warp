@@ -10,9 +10,11 @@ function VersionsView({ D, theme, lang }) {
   const [sel, setSel] = React.useState(null);
 
   const all = D.versions;
+  const majorOf = (v) => String(v).split('.')[0];
+  // 비교 범위 선택지는 데이터의 메이저 버전에서 유도한다(게임마다 버전대가 다르다).
+  const majors = [...new Set(all.map((v) => majorOf(v.v)))].sort((a, b) => Number(b) - Number(a));
   // rows 는 시간순(ASC) — 차트가 그대로 쓴다. 하단 테이블만 렌더 시 reverse 해 최신 버전 우선(DESC).
-  const rows = all.filter((v) =>
-    range === '전체' ? true : range === '4.x' ? v.v.startsWith('4') : v.v.startsWith('3'));
+  const rows = all.filter((v) => (range === '전체' ? true : majorOf(v.v) === range));
 
   // 선택 배너의 지표(평균뽑기·픽승/픽뚫·기준선). 없으면 all 로 폴백(구 데이터 방어).
   const mOf = (v) => v[banner] || v.all;
@@ -20,7 +22,10 @@ function VersionsView({ D, theme, lang }) {
   const withData = rows.map(mOf).filter((m) => m && m.count5 > 0);
   const baseLine = withData.length ? withData.reduce((s, m) => s + m.base, 0) / withData.length
     : (rows[0] ? mOf(rows[0]).base : 62.5);
-  const bannerName = banner === 'all' ? t('scope.all') : bl(banner === 'char' ? '캐릭터' : '광추');
+  // 배너 이름은 게임마다 다르다 — 역할로 현재 게임의 short 를 얻어 라벨링한다.
+  const charShort = window.WarpData.roleShort('limited-char');
+  const lcShort = window.WarpData.roleShort('limited-weapon');
+  const bannerName = banner === 'all' ? t('scope.all') : bl(banner === 'char' ? charShort : lcShort);
 
   return (
     <div>
@@ -28,14 +33,13 @@ function VersionsView({ D, theme, lang }) {
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('table.banner')}</span>
         <Select value={banner} onChange={(e) => setBanner(e.target.value)}>
           <option value="all">{t('scope.all')}</option>
-          <option value="char">{bl('캐릭터')}</option>
-          <option value="lc">{bl('광추')}</option>
+          <option value="char">{bl(charShort)}</option>
+          <option value="lc">{bl(lcShort)}</option>
         </Select>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('versions.compareRange')}</span>
         <Select value={range} onChange={(e) => setRange(e.target.value)}>
           <option value="전체">{t('scope.all')}</option>
-          <option value="4.x">4.x</option>
-          <option value="3.x">3.x</option>
+          {majors.map((m) => <option key={m} value={m}>{m + '.x'}</option>)}
         </Select>
         <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 'auto' }}>{t('versions.clickRow')}</span>
       </div>

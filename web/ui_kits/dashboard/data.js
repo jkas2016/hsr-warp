@@ -4,19 +4,69 @@
 // into the shape the kit's view components consume. No analysis is reimplemented
 // here — adapt() only reshapes WarpAnalyze output (analyze.js) into WARP_DATA.
 window.WarpData = (function () {
-  let schedule = [];     // /schedule.json -> schedule[] (픽업 일정, 50/50 판정용)
-  let versions = [];     // /schedule.json -> versions[] (버전 시작일, 비교/버전라벨용)
+  // 지원 게임 목록(표시 순서). 서버 internal/game 의 목록과 같아야 한다 — 알 수 없는 id 는
+  // /api/* 가 400 을 주므로 여기서 걸러 저장된 값이 오염돼도 hsr 로 되돌아간다.
+  const GAMES = ['hsr', 'zzz'];
+  // 현재 게임. localStorage 에 저장해 새로고침에도 유지한다.
+  let gameID = 'hsr';
+  try { const s = localStorage.getItem('hsrwarp-game'); if (GAMES.includes(s)) gameID = s; } catch (e) {}
+  let sched = null;      // schedule.json 응답 전체 — analyze() 에 그대로 넘겨야 게임별 ranks/banners 가 적용된다
+  let cfg = null;        // resolveConfig 결과 {list,ranks,banners,order} — 역할 조회에 쓴다
+  let versions = [];     // schedule.json -> versions[] (버전 시작일, 비교/버전라벨용)
   let inited = false;
   // 마지막 전체 분석 결과(버전 구간 스코프용 — 재조회 없이 filterAnalysis 재계산).
   let _full = null, _list = [], _fullData = null;
 
+  // HSR 은 구버전 호환을 위해 경로를 유지하고, 나머지 게임은 하위 경로에 둔다.
+  function scheduleURL() { return gameID === 'hsr' ? '/schedule.json' : `/${gameID}/schedule.json`; }
+  function q(extra) { return `game=${encodeURIComponent(gameID)}${extra ? '&' + extra : ''}`; }
+
+  // 스케줄 로드 전에도 배너 메타를 물어볼 수 있어야 한다(첫 렌더). 그땐 HSR 기본 테이블.
+  function conf() { return cfg || window.WarpAnalyze.resolveConfig(null); }
+
+  function setGame(id) {
+    if (id === gameID || !GAMES.includes(id)) return;
+    gameID = id;
+    try { localStorage.setItem('hsrwarp-game', id); } catch (e) {}
+    // 캐시 무효화 — 다음 loadStored()가 새 게임의 일정과 기록을 다시 읽는다.
+    inited = false;
+    sched = cfg = _full = _fullData = null;
+    versions = []; _list = [];
+  }
+  function game() { return gameID; }
+  function games() { return GAMES.slice(); }
+
+  // 역할 → 배너 코드. 게임마다 코드가 다르므로 '11'/'12' 같은 리터럴을 쓰지 않는다.
+  function byRole(role) {
+    const c = conf();
+    return c.order.find((code) => c.banners[code] && c.banners[code].role === role) || null;
+  }
+  // 역할 → 배너 short(= i18n 정규 키). 표시할 땐 I18N.bannerLabel() 로 감싼다.
+  function roleShort(role) {
+    const code = byRole(role);
+    return code ? conf().banners[code].short : '';
+  }
+  // 현재 게임의 배너 목록(표시 순서). QueryPanel 진행 표시가 쓴다.
+  function banners() {
+    const c = conf();
+    return c.order.filter((code) => c.banners[code]).map((code) => ({ code, role: c.banners[code].role, short: c.banners[code].short }));
+  }
+
+  // SSE progress 의 banner 키는 서버가 역할에서 유도한 이름이다(internal/collector/fetch.go
+  // roleName). 게임 공통이라 배너 short 와 다를 수 있어(HSR 광추 ↔ '무기') 역할로 되돌려 맞춘다.
+  const PROGRESS_ROLE = {
+    '캐릭터': 'limited-char', '무기': 'limited-weapon',
+    '일반': 'standard', '출발': 'beginner', '본디': 'bangboo',
+  };
+  function roleOfProgress(label) { return PROGRESS_ROLE[label] || null; }
+
   async function init() {
     if (inited) return;
     try {
-      const j = await fetch('/schedule.json').then((r) => r.json());
-      schedule = (j && j.schedule) || [];
-      versions = (j && j.versions) || [];
-    } catch (e) { schedule = []; versions = []; }
+      sched = await fetch(scheduleURL()).then((r) => r.json());
+    } catch (e) { sched = null; }
+    cfg = window.WarpAnalyze.resolveConfig(sched);
+    versions = (sched && sched.versions) || [];
     inited = true;
   }
 
@@ -34,11 +84,12 @@ window.WarpData = (function () {
   function adapt(full, list) {
     const verOf = verLookup();
     const cb = full.luck.charBanner || {};
-    const visible = full.banners.filter((b) => b.type !== '2'); // 출발 워프는 킷 표시 대상 아님
-    // rateUp(0.5/0.75) → '50/50'/'75/25' 배지 문구(단일 소스 상수에서 유도).
+    const visible = full.banners.filter((b) => b.meta.role !== 'beginner'); // 초보자 채널은 킷 표시 대상 아님
+    // rateUp(0.5/0.75) → '50/50'/'75/25' 배지 문구(게임별 배너 테이블에서 유도).
     const oddsOf = (type) => {
-      const r = window.WarpAnalyze.BANNERS[type].rateUp;
-      return Math.round(r * 100) + '/' + Math.round(100 - r * 100);
+      const b = type && conf().banners[type];
+      if (!b || b.rateUp == null) return null;
+      return Math.round(b.rateUp * 100) + '/' + Math.round(100 - b.rateUp * 100);
     };
 
     const banners = visible.map((b) => ({
@@ -47,7 +98,7 @@ window.WarpData = (function () {
       avgPity5: b.stats.avgPity5 || 0, cWins: b.stats.cWins, cLoss: b.stats.cLoss, gWins: b.stats.gWins,
       guaranteed: !!b.stats.currentGuaranteed, expAvg: b.meta.expAvg,
       winRate: b.stats.win5050Rate == null ? null : b.stats.win5050Rate,
-      odds: b.meta.rateUp != null ? oddsOf(b.type) : null,
+      odds: oddsOf(b.type),
     }));
 
     const fiveFiveBins = {};
@@ -80,9 +131,10 @@ window.WarpData = (function () {
     const markerPct = lim.count5
       ? Math.max(2, Math.min(98, (lim.avgPity5 / (2 * lim.base)) * 100)) : 50;
     // 캐릭터 배너 이론 평균 뽑기 수(단일 소스 analyze.js expAvg). 하드코딩 없이 HeroSummary 로 전달.
-    const charBnr = full.banners.find((b) => b.type === '11');
-    const lcBnr = full.banners.find((b) => b.type === '12');
-    const charExpAvg = charBnr ? charBnr.meta.expAvg : window.WarpAnalyze.BANNERS['11'].expAvg;
+    const charCode = byRole('limited-char'), lcCode = byRole('limited-weapon');
+    const charBnr = full.banners.find((b) => b.type === charCode);
+    const lcBnr = full.banners.find((b) => b.type === lcCode);
+    const charExpAvg = charBnr ? charBnr.meta.expAvg : (conf().banners[charCode] || {}).expAvg;
 
     return {
       info: full.info || {},
@@ -100,7 +152,7 @@ window.WarpData = (function () {
         lcCount5: lcBnr ? lcBnr.stats.count5 : 0,
         charGuaranteed: !!(charBnr && charBnr.stats.currentGuaranteed),
         lcGuaranteed: !!(lcBnr && lcBnr.stats.currentGuaranteed),
-        charOdds: oddsOf('11'), lcOdds: oddsOf('12'),
+        charOdds: oddsOf(charCode), lcOdds: oddsOf(lcCode),
       },
       charBanner: {
         win5050: Math.round((cb.win5050Rate ?? 0) * 100),
@@ -115,11 +167,19 @@ window.WarpData = (function () {
     };
   }
 
+  // 대시보드 집계에서 뺄 채널의 역할: 상시·초보자. 성옥 소비도 아니고 픽업 개념도 없어
+  // 통계를 오염시킨다. 본디(bangboo)는 천장·평균 뽑기가 의미 있으므로 남긴다.
+  // 채널 코드는 게임마다 다르므로 반드시 역할로 거른다(ZZZ 의 '2' 는 독점 채널이다).
+  // 수집·저장(SRGF/UIGF)은 전부 그대로다.
+  const HIDDEN_ROLES = ['standard', 'beginner'];
+
   function analyzeAndAdapt(raw) {
-    // 일반(스텔라, '1')·출발(초심자, '2') 워프는 대시보드 집계 전체에서 제외한다 — 성옥 소비도
-    // 아니고 픽업 개념도 없어 통계를 오염시킨다. 수집·저장(SRGF)은 그대로 유지된다.
-    const list = ((raw && raw.list) || []).filter((r) => String(r.gacha_type) !== '1' && String(r.gacha_type) !== '2');
-    const full = window.WarpAnalyze.analyze({ ...raw, list }, schedule);
+    const c = conf();
+    const list = ((raw && raw.list) || []).filter((r) => {
+      const b = c.banners[String(r.gacha_type)];
+      return !b || !HIDDEN_ROLES.includes(b.role);
+    });
+    const full = window.WarpAnalyze.analyze({ ...raw, list }, sched);
     _full = full;
     _list = list;
     _fullData = adapt(full, _list);
@@ -143,7 +203,7 @@ window.WarpData = (function () {
   async function loadStored() {
     await init();
     try {
-      const d = await fetch('/api/data').then((r) => r.json());
+      const d = await fetch(`/api/data?${q()}`).then((r) => r.json());
       if (d && Array.isArray(d.list) && d.list.length) return analyzeAndAdapt(d);
     } catch (e) {} // first run or no data yet
     return null;
@@ -153,7 +213,7 @@ window.WarpData = (function () {
   // 성공 시 adapt 된 데이터(+summary)로 resolve, 실패 시 Error 로 reject.
   function runFetch(path, onProgress) {
     return new Promise((resolve, reject) => {
-      const es = new EventSource('/api/fetch?path=' + encodeURIComponent(path));
+      const es = new EventSource(`/api/fetch?${q('path=' + encodeURIComponent(path))}`);
       es.addEventListener('progress', (e) => {
         try { const d = JSON.parse(e.data); if (onProgress) onProgress(d.banner, d.added); } catch (x) {}
       });
@@ -175,14 +235,16 @@ window.WarpData = (function () {
     });
   }
 
-  // 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지.
+  // 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지. 경로는 게임별로 따로 저장된다
+  // (/api/config 는 전역 설정이라 게임 파라미터를 받지 않는다 — 응답에서 현재 게임만 꺼낸다).
   async function configPath() {
     try {
       const c = await fetch('/api/config').then((r) => r.json());
-      if (c && c.game_path) return c.game_path;
+      const g = c && c.games && c.games[gameID];
+      if (g && g.game_path) return g.game_path;
     } catch (e) {}
     try {
-      const d = await fetch('/api/detect').then((r) => r.json());
+      const d = await fetch(`/api/detect?${q()}`).then((r) => r.json());
       if (d && d.path) return d.path;
     } catch (e) {}
     return '';
@@ -193,5 +255,5 @@ window.WarpData = (function () {
     try { return await fetch('/api/updates').then((r) => r.json()); } catch (e) { return null; }
   }
 
-  return { loadStored, runFetch, configPath, checkUpdates, scopeTo };
+  return { loadStored, runFetch, configPath, checkUpdates, scopeTo, setGame, game, games, roleShort, banners, roleOfProgress };
 })();

@@ -66,4 +66,27 @@ assert.strictEqual(I.itemName('21000', '태양이 없는 나날들'), '태양이
 assert.strictEqual(I.itemName('9999', '신규광추'), '신규광추', '사전에 없는 id → raw 폴백');
 assert.strictEqual(I.itemName('9999', undefined), undefined, 'raw 없으면 raw 그대로 반환');
 
+// 7) 게임별 용어 키 — 게임 스위처가 두 게임의 제목·배너 라벨을 모두 번역해야 한다.
+// 키가 한 언어에만 있으면 (1)의 키 일치 검사가 이미 잡는다. 여기서는 필요한 키가
+// 네 사전에서 통째로 빠지지 않았는지 본다.
+{
+  const required = [
+    'game.hsr', 'game.zzz',
+    'banner.exclusive', 'banner.wengine', 'banner.standard', 'banner.bangboo',
+  ];
+  for (const lang of langs) {
+    for (const k of required) {
+      assert.ok(DICTS[lang][k], `${lang} 사전에 ${k} 가 없다`);
+    }
+  }
+}
+
+// 8) 배너 short → i18n 코드 매핑이 두 게임을 모두 덮어야 한다.
+{
+  for (const short of ['캐릭터', '광추', '일반', '출발', '독점', 'W-엔진', '상시', '본디']) {
+    assert.ok(I.BANNER_CODE[short], `BANNER_CODE 에 ${short} 가 없다`);
+    assert.ok(DICTS.ko['banner.' + I.BANNER_CODE[short]], `ko 에 banner.${I.BANNER_CODE[short]} 누락`);
+  }
+}
+
 console.log('i18n.test.js OK');

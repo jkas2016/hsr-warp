@@ -5,7 +5,9 @@ function HistoryView({ D, onFiveClick }) {
   const [result, setResult] = React.useState('전체');   // 'win'|'loss'|'guaranteed'|'전체'
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
 
-  const bannerCodes = ['전체', '캐릭터', '광추'];                       // 값=정규(일반은 집계 제외)
+  // 값=정규 short. 게임마다 배너가 다르므로 현재 데이터의 배너에서 유도한다
+  // (상시·초보자는 집계 단계에서 이미 빠져 있어 여기 나타나지 않는다).
+  const bannerCodes = ['전체'].concat(D.banners.map((b) => b.short));
   const bannerLabels = bannerCodes.map((c) => (c === '전체' ? t('scope.all') : bl(c)));
   const resultCodes = ['전체', 'win', 'loss', 'guaranteed'];           // 값=정규
   const resultLabels = resultCodes.map((c) => (c === '전체' ? t('scope.all') : t('result.' + c)));

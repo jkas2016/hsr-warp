@@ -27,12 +27,18 @@ function QueryPanel({ runFetch, onLoaded }) {
     }
   }
 
-  // 배너 short 는 분석 계층(analyze.js BANNERS) 단일 소스에서 — 서버 progress 키와 동일.
-  // 표준 3배너는 항상, 출발은 신규가 잡힐 때만 표시.
-  const B = window.WarpAnalyze.BANNERS;
-  const order = ['11', '12', '1'].map((k) => B[k].short);
-  const departure = B['2'].short;
-  const shown = prog ? order.concat(prog[departure] !== undefined ? [departure] : []) : [];
+  // 배너 목록은 현재 게임의 schedule.json 단일 소스에서 온다. 서버 progress 키는 배너 short 가
+  // 아니라 역할 이름이라(게임 공통) 역할로 되돌려 붙인다. 초보자 채널은 신규가 잡힐 때만 표시.
+  const addedByRole = {};
+  if (prog) {
+    for (const k of Object.keys(prog)) {
+      const role = window.WarpData.roleOfProgress(k);
+      if (role) addedByRole[role] = prog[k];
+    }
+  }
+  const shown = prog
+    ? window.WarpData.banners().filter((b) => b.role !== 'beginner' || addedByRole.beginner !== undefined)
+    : [];
 
   return (
     <Card padding={18} style={{ marginTop: 20 }}>
@@ -50,11 +56,11 @@ function QueryPanel({ runFetch, onLoaded }) {
       {err && <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>{err}</div>}
       {prog && shown.length > 0 && (
         <div style={{ marginTop: 14, display: 'grid', gap: 9 }}>
-          {shown.map((k) => {
-            const added = prog[k] || 0;
+          {shown.map((b) => {
+            const added = addedByRole[b.role] || 0;
             return (
-              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ width: 52, fontSize: 12.5, color: 'var(--muted)' }}>{bl(k)}</span>
+              <div key={b.code} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ width: 52, fontSize: 12.5, color: 'var(--muted)' }}>{bl(b.short)}</span>
                 <div style={{ flex: 1, height: 7, borderRadius: 'var(--r-pill)', background: 'var(--panel-2)', overflow: 'hidden' }}>
                   <div className={busy ? 'indet' : ''} style={{ height: '100%', borderRadius: 'var(--r-pill)', background: 'var(--grad-gold)', width: busy ? '42%' : '100%' }} />
                 </div>
