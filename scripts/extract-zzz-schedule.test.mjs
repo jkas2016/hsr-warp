@@ -31,9 +31,14 @@ const RAW = {
       start_time: { time: '2026-07-29 02:00:00+08:00', is_server_time: false },
       end_time: { time: '2026-08-19 11:59:59+01:00', is_server_time: true },
     },
+    // 소스가 uprate_5 를 비운 실제 배너. UPRATE_FALLBACK 이 픽업을 보완해야 한다.
     { name: 'Paradise Regained', banner_type: 2, uprate_5: [{}],
       start_time: { time: '2026-07-29 02:00:00+08:00', is_server_time: false },
-      end_time: { time: '2026-08-19 11:59:59+01:00', is_server_time: true } },
+      end_time: { time: '2026-09-08 14:59:59+01:00', is_server_time: true } },
+    // 폴백 테이블에 없는 빈 배너는 여전히 skipped 여야 한다.
+    { name: 'Unknown Empty Banner', banner_type: 2, uprate_5: [{}],
+      start_time: { time: '2026-10-01 02:00:00+08:00', is_server_time: false },
+      end_time: { time: '2026-10-21 11:59:59+01:00', is_server_time: true } },
   ],
   '3': [
     {
@@ -69,9 +74,24 @@ const { schedule, skipped, warnings } = buildSchedule(RAW);
 {
   const aug = schedule.filter((p) => p.s === '2026-07-29');
   assert.strictEqual(aug.length, 1, '같은 시작일은 한 항목으로 병합');
-  // 독점 2건(Neon Angel, 잘못 분류된 Misfiled Exclusive)이 c 에 모인다.
-  assert.deepStrictEqual(aug[0].c.sort(), ['1381', '1501'], 'banner_type 필드가 권위');
+  // 독점 3건(Neon Angel, 잘못 분류된 Misfiled Exclusive, 폴백으로 보완된
+  // Paradise Regained)이 c 에 모인다.
+  assert.deepStrictEqual(aug[0].c.sort(), ['1381', '1501', '1581'], 'banner_type 필드가 권위 + 폴백 보완');
   assert.deepStrictEqual(aug[0].l, ['14158'], '음의 엔진은 l 로');
+  // 병행 배너의 종료일은 늦은 쪽을 취한다(레미엘 배너가 09-08 까지).
+  assert.strictEqual(aug[0].e, '2026-09-08', '병행 배너 종료일은 늦은 쪽');
+}
+
+// ---- 소스가 uprate_5 를 비운 배너를 공식 정보로 보완한다 ----
+// 소스 repo 가 신규 배너의 픽업 id 를 늦게 채우는 일이 실제로 있었고, 그동안
+// 그 기간의 S급이 전부 '픽뚫'로 오판됐다(레미엘 3.1 배너). 이 폴백이 없으면
+// 같은 사고가 반복된다.
+{
+  const p = schedule.find((x) => x.s === '2026-07-29');
+  assert.ok(p.c.includes('1581'), '레미엘(1581)이 픽업으로 보완돼야 한다');
+  const w = warnings.find((x) => x.name === 'Paradise Regained');
+  assert.ok(w, '보완 사실이 warnings 로 표면화돼야 한다');
+  assert.ok(/폴백|보완/.test(w.reason), `보완 사유가 담겨야 한다: ${w && w.reason}`);
 }
 
 // ---- 특별 채널 12/13 매핑 ----
@@ -89,10 +109,12 @@ for (const p of schedule) {
   }
 }
 
-// ---- 빈 uprate_5 항목은 조용히 무시되지 않고 보고된다 ----
+// ---- 폴백 테이블에 없는 빈 uprate_5 항목은 여전히 보고된다 ----
 {
   assert.strictEqual(skipped.length, 1, '건너뛴 항목 수');
-  assert.strictEqual(skipped[0].name, 'Paradise Regained');
+  assert.strictEqual(skipped[0].name, 'Unknown Empty Banner');
+  // 폴백으로 보완된 배너는 건너뛰지 않는다.
+  assert.ok(!skipped.some((s) => s.name === 'Paradise Regained'), '보완된 배너는 skipped 가 아니다');
 }
 
 // ---- 날짜는 UTC 정규화 후 YYYY-MM-DD ----
@@ -107,9 +129,11 @@ for (const p of schedule) {
   const first = schedule.find((p) => p.s === '2024-07-04');
   assert.deepStrictEqual(first.c, ['1191'], '5자리 id 는 c 에서 빠진다');
   assert.deepStrictEqual(first.l, ['14119'], 'banner_type 오표기라도 5자리 id 는 l 로 교정된다');
-  assert.strictEqual(warnings.length, 1, '교정 건수');
-  assert.strictEqual(warnings[0].id, '14119');
-  assert.strictEqual(warnings[0].name, 'Mellow Waveride');
+  // warnings 에는 pool 교정과 폴백 보완이 함께 담기므로 이름으로 골라 본다.
+  const fix = warnings.find((w) => w.name === 'Mellow Waveride');
+  assert.ok(fix, 'pool 교정 사실이 보고돼야 한다');
+  assert.strictEqual(fix.id, '14119');
+  assert.ok(/교정/.test(fix.reason), `교정 사유가 담겨야 한다: ${fix.reason}`);
 }
 
 // ---- order/ranks/banners 확률 값은 회귀 방지를 위해 고정한다 ----

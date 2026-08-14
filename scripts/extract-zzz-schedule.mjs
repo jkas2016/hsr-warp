@@ -67,6 +67,21 @@ function poolFor(pool, id) {
   return pool;
 }
 
+// 소스가 uprate_5 를 비운 채 배너 이름·기간만 담는 일이 실제로 있다. 소스
+// repo 가 신규 배너의 픽업 id 를 늦게 채우기 때문이며, 그동안 그 기간에 뽑은
+// S급이 전부 '픽뚫'로 오판된다(픽업 목록에 없으니 wasPickup 이 false).
+//
+// 그래서 배너 이름으로 픽업을 보완하는 테이블을 둔다. 소스에 id 가 들어오면
+// 소스가 이기므로(아래 ids.length === 0 일 때만 조회) 소스가 갱신되면 이
+// 항목은 자연히 무효가 된다. 각 항목에 근거를 남긴다 — 추론으로 채우지 않는다.
+const UPRATE_FALLBACK = {
+  // ZZZ 3.1 (2026-07-29 ~ 09-08). 근거: 공식 3.1 배너 안내(레미엘 독점 채널
+  // "Paradise Regained", 시그니처 W-엔진 "Ode of Resurrected Wings")와
+  // 실제 수집 데이터에서 확인한 item_id — 레미엘 1581, 돌아온 날개의 시 14158.
+  'Paradise Regained': ['1581'],
+  'Ode of Resurrected Wings': ['14158'],
+};
+
 // buildSchedule 은 원본을 schedule 배열로 변환한다. 순수 함수라 테스트가
 // 네트워크 없이 돈다.
 export function buildSchedule(raw) {
@@ -91,9 +106,17 @@ export function buildSchedule(raw) {
       continue;
     }
     // id 는 string / number 가 섞여 있고, 빈 객체 항목도 있다.
-    const ids = (b.uprate_5 || [])
+    let ids = (b.uprate_5 || [])
       .map((u) => (u && u.id !== undefined && u.id !== null ? String(u.id) : null))
       .filter(Boolean);
+    // 소스가 비운 경우에만 폴백 테이블을 본다 — 소스에 값이 들어오면 소스가 이긴다.
+    if (ids.length === 0 && UPRATE_FALLBACK[b.name]) {
+      ids = UPRATE_FALLBACK[b.name].slice();
+      warnings.push({
+        name: b.name, id: ids.join(','),
+        reason: `소스가 uprate_5 를 비워 폴백 테이블로 보완(공식 배너 안내 + 실측 item_id 근거)`,
+      });
+    }
     if (ids.length === 0) {
       skipped.push({ name: b.name, reason: 'uprate_5 에 id 가 없다' });
       continue;
