@@ -1,7 +1,12 @@
 package collector
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+
+	"hsr-warp/internal/game"
 )
 
 func TestParseAuthURL(t *testing.T) {
@@ -131,6 +136,56 @@ func contains(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// ZZZ 는 캐시 루트 디렉터리 이름이 다르다. 게임 값 테이블의 DataDirName 을
+// 실제로 쓰는지 확인한다 — 하드코딩된 StarRail_Data 가 남아 있으면 실패한다.
+func TestFindAuthContext_UsesGameDataDirName(t *testing.T) {
+	root := t.TempDir()
+	// ZZZ 캐시 구조만 만들고 HSR 구조는 만들지 않는다.
+	dir := filepath.Join(root, "ZenlessZoneZero_Data", "webCaches", "2.51.0.0", "Cache", "Cache_Data")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	raw := "https://public-operation-common-sg.hoyoverse.com/common/gacha_record/api/getGachaLog" +
+		"?authkey=AAA&region=prod_gf_jp&lang=ko&real_gacha_type=2&timestamp=1700000000"
+	if err := os.WriteFile(filepath.Join(dir, "data_2"), []byte(raw), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	zzz, _ := game.ByID("zzz")
+	ac, err := FindAuthContext(root, zzz)
+	if err != nil {
+		t.Fatalf("ZZZ 캐시를 찾지 못했다: %v", err)
+	}
+	if ac.Region != "prod_gf_jp" || ac.Lang != "ko" {
+		t.Errorf("region/lang = %q/%q, want prod_gf_jp/ko", ac.Region, ac.Lang)
+	}
+
+	// 같은 루트를 HSR 로 보면 StarRail_Data 가 없으므로 실패해야 한다.
+	hsr, _ := game.ByID("hsr")
+	if _, err := FindAuthContext(root, hsr); err == nil {
+		t.Error("HSR 캐시가 없는데 성공했다")
+	}
+}
+
+// 실측: authkey URL 의 베이스 쿼리에 real_gacha_type 이 이미 들어 있다.
+// pageKeys 로 제거하지 않으면 페이지 조립 시 파라미터가 중복되고 서버가 앞의
+// 값을 채택해 4개 채널이 전부 같은 데이터를 반환한다.
+func TestParseAuthURL_StripsRealGachaType(t *testing.T) {
+	raw := "https://h/common/gacha_record/api/getGachaLog" +
+		"?authkey=AAA&region=prod_gf_jp&lang=ko&real_gacha_type=2&size=20&timestamp=1700000000"
+	ac, err := parseAuthURL([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(ac.BaseQuery, "real_gacha_type") {
+		t.Errorf("BaseQuery 에 real_gacha_type 이 남았다: %q", ac.BaseQuery)
+	}
+	// 다른 파라미터는 보존돼야 한다.
+	if !strings.Contains(ac.BaseQuery, "authkey=AAA") || !strings.Contains(ac.BaseQuery, "lang=ko") {
+		t.Errorf("필요한 쿼리가 사라졌다: %q", ac.BaseQuery)
+	}
 }
 
 func TestLatestVersion(t *testing.T) {
