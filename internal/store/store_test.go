@@ -1,11 +1,15 @@
 package store
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
+
+	"hsr-warp/internal/game"
 )
 
 // readSRGF 는 미존재 파일에 대해 os.IsNotExist 로 구분 가능한 에러를 반환해야 한다(계약).
@@ -168,8 +172,9 @@ func TestWriteAffectedMonths_ConcurrentNoCorruption(t *testing.T) {
 }
 
 func TestMaxIDByBanner(t *testing.T) {
+	hsr, _ := game.ByID("hsr")
 	recs := []Record{rec("5", "11", "t", "3"), rec("9", "11", "t", "3"), rec("3", "12", "t", "3")}
-	m := MaxIDByBanner(recs)
+	m := MaxIDByBanner(recs, hsr)
 	if m["11"] != "9" {
 		t.Fatalf("expected max 9 for banner 11, got %s", m["11"])
 	}
@@ -178,5 +183,99 @@ func TestMaxIDByBanner(t *testing.T) {
 	}
 	if m["1"] != "0" {
 		t.Fatalf("expected baseline 0 for banner 1, got %s", m["1"])
+	}
+}
+
+// 게임별 디렉터리는 서로를 침범하지 않아야 한다. 구조는 그대로고 dir 만
+// 다르므로, 같은 월 파일명이 양쪽에 생겨도 내용이 섞이면 안 된다.
+func TestWriteAffectedMonths_IsolatesGames(t *testing.T) {
+	root := t.TempDir()
+	hsrDir := filepath.Join(root, "hsr")
+	zzzDir := filepath.Join(root, "zzz")
+
+	hsrRec := []Record{{ID: "100", GachaType: "11", Time: "2026-08-01 10:00:00", ItemID: "1102", RankType: "5"}}
+	zzzRec := []Record{{ID: "200", GachaType: "2", Time: "2026-08-01 10:00:00", ItemID: "1191", RankType: "4"}}
+
+	if _, err := WriteAffectedMonths(hsrDir, Info{UID: "1"}, hsrRec); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := WriteAffectedMonths(zzzDir, Info{UID: "2"}, zzzRec); err != nil {
+		t.Fatal(err)
+	}
+
+	h, hi, err := LoadAll(hsrDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	z, zi, err := LoadAll(zzzDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(h) != 1 || h[0].ID != "100" {
+		t.Errorf("hsr 레코드 = %+v, want ID 100 하나", h)
+	}
+	if len(z) != 1 || z[0].ID != "200" {
+		t.Errorf("zzz 레코드 = %+v, want ID 200 하나", z)
+	}
+	if hi == nil || hi.UID != "1" || zi == nil || zi.UID != "2" {
+		t.Error("info 가 게임 간에 섞였다")
+	}
+}
+
+// 증분 조회의 시작점은 게임의 배너 코드마다 있어야 한다. HSR 코드가 ZZZ 조회에
+// 쓰이면 모든 채널이 처음부터 다시 긁힌다.
+func TestMaxIDByBanner_UsesGameCodes(t *testing.T) {
+	zzz, _ := game.ByID("zzz")
+	got := MaxIDByBanner(nil, zzz)
+	for _, c := range zzz.Codes() {
+		if got[c] != "0" {
+			t.Errorf("zzz 코드 %q 기본값 = %q, want 0", c, got[c])
+		}
+	}
+	if _, ok := got["11"]; ok {
+		t.Error("zzz 결과에 HSR 코드 11 이 들어 있다")
+	}
+
+	hsr, _ := game.ByID("hsr")
+	recs := []Record{
+		{ID: "500", GachaType: "11"},
+		{ID: "400", GachaType: "11"},
+		{ID: "700", GachaType: "12"},
+	}
+	h := MaxIDByBanner(recs, hsr)
+	if h["11"] != "500" {
+		t.Errorf("hsr 11 최대 ID = %q, want 500", h["11"])
+	}
+	if h["12"] != "700" {
+		t.Errorf("hsr 12 최대 ID = %q, want 700", h["12"])
+	}
+	if h["1"] != "0" || h["2"] != "0" {
+		t.Errorf("레코드 없는 채널 기본값이 0 이 아니다: %+v", h)
+	}
+}
+
+// 한 Info 구조체가 두 규격을 표현한다. 쓰지 않는 버전 필드는 JSON 에서
+// 빠져야 규격 검증기가 통과한다.
+func TestInfo_VersionFieldsAreExclusive(t *testing.T) {
+	srgf, err := json.Marshal(Info{UID: "1", SRGFVersion: "v1.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(srgf), `"srgf_version":"v1.0"`) {
+		t.Errorf("srgf_version 이 빠졌다: %s", srgf)
+	}
+	if strings.Contains(string(srgf), "uigf_version") {
+		t.Errorf("HSR info 에 uigf_version 이 들어갔다: %s", srgf)
+	}
+
+	uigf, err := json.Marshal(Info{UID: "2", UIGFVersion: "v4.0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(uigf), `"uigf_version":"v4.0"`) {
+		t.Errorf("uigf_version 이 빠졌다: %s", uigf)
+	}
+	if strings.Contains(string(uigf), "srgf_version") {
+		t.Errorf("ZZZ info 에 srgf_version 이 들어갔다: %s", uigf)
 	}
 }

@@ -3,7 +3,8 @@ package store
 
 import "math/big"
 
-// Info 는 SRGF 메타데이터다.
+// Info 는 저장 파일의 메타 블록이다. HSR 은 SRGF v1.0, ZZZ 는 UIGF v4.0 을
+// 쓰므로 버전 필드를 둘 다 두고 omitempty 로 쓰지 않는 쪽을 뺀다.
 type Info struct {
 	UID              string `json:"uid"`
 	Lang             string `json:"lang"`
@@ -12,7 +13,8 @@ type Info struct {
 	ExportTimestamp  int64  `json:"export_timestamp"`
 	ExportApp        string `json:"export_app"`
 	ExportAppVersion string `json:"export_app_version"`
-	SRGFVersion      string `json:"srgf_version"`
+	SRGFVersion      string `json:"srgf_version,omitempty"`
+	UIGFVersion      string `json:"uigf_version,omitempty"`
 }
 
 // Record 는 단일 워프 기록이다. 모든 필드는 SRGF 규약상 문자열이다.
