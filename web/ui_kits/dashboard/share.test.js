@@ -6,6 +6,16 @@ global.window = global;
 require('./share.js');
 const { SECTIONS, selectSections, maskUid, shareFileName } = window.WarpShare;
 
+// --- 공개 API 표면 ---
+
+// 0) 7개 키가 전부 있어야 한다. DOM 함수 3개(presentSections/exportPng/saveBlob)는
+//    jsdom 이 없어 호출은 못 하지만, 이름이 바뀌면 ShareModal.jsx 가 런타임에 터진다.
+//    이 단언이 없으면 오타 rename 을 npm test 가 통째로 놓친다.
+for (const k of ['SECTIONS', 'selectSections', 'maskUid', 'shareFileName',
+                 'presentSections', 'exportPng', 'saveBlob']) {
+  assert.ok(window.WarpShare[k], 'window.WarpShare.' + k + ' 가 없다 — ShareModal.jsx 가 이 이름으로 호출한다');
+}
+
 // --- SECTIONS 레지스트리 ---
 
 // 1) id 중복이 없어야 한다. DOM 마커와 1:1 대응이 깨지면 섹션이 조용히 사라진다.
@@ -66,11 +76,11 @@ const path = require('path');
 const JSX_FILES = [
   'HeroSummary.jsx', 'BannerCards.jsx', 'ChartsGrid.jsx', 'MonthlyTable.jsx',
   'OverviewView.jsx', 'BannersView.jsx', 'HistoryView.jsx', 'VersionsView.jsx',
-  'Dashboard.jsx',
+  'FivesTable.jsx', 'Dashboard.jsx',
 ];
-const src = JSX_FILES
-  .map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8'))
-  .join('\n');
+const byFile = {};
+for (const f of JSX_FILES) byFile[f] = fs.readFileSync(path.join(__dirname, f), 'utf8');
+const src = JSX_FILES.map((f) => byFile[f]).join('\n');
 
 // 13) 레지스트리의 모든 섹션 id 에 대응하는 data-share 마커가 있어야 한다.
 for (const s of SECTIONS) {
@@ -90,6 +100,25 @@ for (const id of marked) {
 assert.strictEqual(
   (src.match(/data-share-header/g) || []).length, 1,
   'data-share-header 는 Dashboard.jsx 의 <header> 에 정확히 하나 있어야 한다',
+);
+
+// --- data-share-omit 마커: 인터랙티브 컨트롤이 공유 이미지에 찍히지 않는가 ---
+// exportPng 은 클론에서 [data-share-omit] 을 지운다. 마커가 사라지면 조회 실패가 아니라
+// "컨트롤이 그대로 찍힌 PNG" 라는 조용한 품질 저하로 나타나므로 정적으로 개수를 지킨다.
+
+// 18) 최소 6곳에 있어야 한다(현재: BannersView 배너 피커, Dashboard 헤더 컨트롤,
+//     FivesTable 페이지네이션, HistoryView 필터, OverviewView 전체보기, VersionsView 필터).
+const omitCount = (src.match(/data-share-omit/g) || []).length;
+assert.ok(
+  omitCount >= 6,
+  'data-share-omit 마커가 ' + omitCount + '개뿐이다(최소 6). 마커를 지운 컨트롤이 공유 PNG 에 그대로 찍힌다',
+);
+
+// 19) 헤더 컨트롤 그룹은 특히 중요하다 — 여기가 빠지면 새로고침·언어·테마 버튼과
+//     공유 버튼 자신이 모든 공유 이미지 맨 위에 찍힌다.
+assert.ok(
+  byFile['Dashboard.jsx'].includes('data-share-omit'),
+  'Dashboard.jsx 헤더 컨트롤 그룹에 data-share-omit 이 없다 — 공유 버튼 자신이 PNG 에 찍힌다',
 );
 
 // --- i18n 정합: 레지스트리의 labelKey 가 4개 로케일에 전부 있는가 ---
