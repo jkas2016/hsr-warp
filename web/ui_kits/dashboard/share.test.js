@@ -141,4 +141,31 @@ for (const loc of ['ko', 'en', 'zh', 'ja']) {
   }
 }
 
+// --- 720px 박스 그리드: 어떤 폭 미디어 쿼리를 박스 안에 적용할지 ---
+// narrowGridCss 는 document.styleSheets 를 읽으므로 node 에서 직접 못 부른다.
+// 판정 술어만 share.js 원문에서 떼어내 실행한다(로직을 여기에 복제하지 않는다).
+const shareSrc = fs.readFileSync(path.join(__dirname, 'share.js'), 'utf8');
+const predSrc = shareSrc.match(/function widthCondMatches\(cond\) \{[\s\S]*?\n {2}\}/);
+assert.ok(predSrc, 'share.js 에서 widthCondMatches 를 찾지 못했다 — 이름이 바뀌면 이 가드가 죽는다');
+const widthCondMatches = new Function('SHARE_WIDTH', predSrc[0] + '\nreturn widthCondMatches;')(720);
+
+// 20) 720px 박스에서 성립하는 폭 조건만 골라야 한다.
+//     (max-width:920px 는 720 에 적용됨 → 좁은 그리드가 박스 안에 항상 걸린다)
+assert.strictEqual(widthCondMatches('(max-width: 920px)'), true, '720px 박스는 max-width:920px 블록에 해당한다');
+assert.strictEqual(widthCondMatches('(max-width:920px)'), true, '공백 없는 표기도 같게 처리해야 한다');
+assert.strictEqual(widthCondMatches('(max-width: 700px)'), false, '720px 박스는 max-width:700px 블록에 해당하지 않는다');
+assert.strictEqual(widthCondMatches('(min-width: 900px)'), false, '720px 박스는 min-width:900px 블록에 해당하지 않는다');
+assert.strictEqual(widthCondMatches('(min-width: 600px)'), true, '720px 박스는 min-width:600px 블록에 해당한다');
+
+// 21) 폭 조건이 아닌 미디어 쿼리는 절대 대상이 아니다(애니메이션 정책까지 덮어쓰면 안 된다).
+assert.strictEqual(widthCondMatches('(prefers-reduced-motion: reduce)'), false, '폭 조건이 없으면 대상 아님');
+assert.strictEqual(widthCondMatches('print'), false, '폭 조건이 없으면 대상 아님');
+
+// 22) 데스크톱 그리드를 720px 박스에 강제하지 않는다(옛 widthMediaOverrideCss 회귀 방어).
+//     강제하면 4~5열 칸이 화면의 1/3 이하로 좁아져 카드 내용이 슬롯을 넘치고 잘린다.
+assert.ok(
+  !/widthMediaOverrideCss/.test(shareSrc),
+  'share.js 가 다시 데스크톱 그리드를 720px 박스에 강제하고 있다 — 카드 내용 잘림이 재발한다',
+);
+
 console.log('share.test.js OK');

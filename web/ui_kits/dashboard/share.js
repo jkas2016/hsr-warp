@@ -98,9 +98,15 @@
       // 전부 position:relative + height 숫자. Chart.js 의 maintainAspectRatio:false 가 그걸 요구한다.
       // 새 차트를 넣을 때도 래퍼에 확정 높이를 줘야 height:100% 가 0 으로 붕괴하지 않는다.
       // 축소해도 화질 손실은 없다 — toBase64Image() 는 canvas 백킹 해상도(DPR 배율)로 굽는다.
+      // max-width/max-height 는 object-fit 이 살아 있으면 무의미한 중복이지만,
+      // 캡처 경로에서 object-fit 이 그대로 재현되지 않는 경우까지 덮는 안전망이다 —
+      // 이미지 상자가 슬롯을 넘으면 카드 경계에서 잘려 나가므로(막대 끝·축 눈금 소실),
+      // "절대 슬롯보다 커지지 않는다" 를 상자 크기 차원에서도 못 박아 둔다.
       img.style.display = 'block';
       img.style.width = '100%';
       img.style.height = '100%';
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
       img.style.objectFit = 'contain';
       dsts[i].parentNode.replaceChild(img, dsts[i]);
     }
@@ -123,22 +129,26 @@
   }
 
   // 폭 미디어 쿼리는 오프스크린 박스의 폭(720px)이 아니라 뷰포트 폭을 본다.
-  // 그래서 모바일 뷰포트에서 내보내면 같은 데이터인데도 좁은 그리드가 캡처된다
+  // 그래서 손대지 않으면 같은 데이터인데도 뷰포트에 따라 다른 그리드가 캡처된다
   // (수정 전 측정: 뷰포트 1280 → 1440x4307, 뷰포트 390 → 1440x7108).
   //
-  // index.html 의 grid 값을 여기에 베끼지 않는다. 대신 문서에 이미 있는
-  // "미디어 쿼리 밖" 선언(= 데스크톱 레이아웃)을 CSSOM 으로 그대로 읽어
-  // 박스 하위 한정으로 재선언한다. 값이 한 곳에만 있으므로 index.html 이 바뀌어도 따라간다.
+  // 요구사항은 "데스크톱과 픽셀 단위로 같은 레이아웃" 이 아니라 "화면 크기·스크롤 위치에
+  // 결과가 좌우되지 않는 것" 이다. 그래서 데스크톱 그리드를 720px 박스에 밀어 넣지 않는다 —
+  // 그러면 4~5열 칸 폭이 화면의 1/3 이하로 좁아져 카드 내용이 슬롯을 넘치고 카드 경계에서
+  // 잘려 나간다(실측: charts-row 2열에서 좌측 열 차트가 x=329CSS 에서 절단, 축 눈금 7 소실).
+  // 대신 반대로 간다 — 박스 폭(720px)에서 성립하는 좁은 그리드를 뷰포트와 무관하게 항상 적용한다.
+  // 720px 에는 그쪽이 원래 맞는 레이아웃이고, 넘침도 잘림도 생기지 않는다.
+  //
+  // index.html 의 grid 값을 여기에 베끼지 않는다. 문서의 폭 미디어 쿼리 중
+  // 720px 에서 성립하는 블록을 CSSOM 으로 그대로 읽어 박스 하위 한정으로 재선언한다.
+  // 값이 한 곳에만 있으므로 index.html 이 바뀌어도 따라간다.
   //
   // 재선언 셀렉터는 앞에 [data-share-box] 가 붙어 특이성이 정확히 한 단계 높다.
-  // → 폭 미디어 쿼리를 이기고, 박스 밖 요소에는 아예 매치되지 않아 실화면은 그대로다.
+  // → 넓은 뷰포트(미디어 쿼리 미적용)에서도 최상위 데스크톱 선언을 이기고,
+  //   박스 밖 요소에는 아예 매치되지 않아 실화면은 그대로다.
   // 폭 조건이 아닌 미디어 쿼리(prefers-reduced-motion 등)는 건드리지 않는다.
+  // 좁은 뷰포트에서는 원래 미디어 쿼리도 같은 값을 주므로 결과가 동일하다 → 390 과 1280 이 같다.
   //
-  // 이 특이성 주장은 추론이 아니라 실측이다. 헤드리스 Chrome 에 exportPng 과 같은 순서
-  // (박스 생성 → 분리 상태에서 <style> append → body 부착 → 클론 append)를 재현하고
-  // index.html 의 CSS 원문과 이 함수 원문을 그대로 써서 확인했다:
-  //   뷰포트 390 → 실화면 .hero-bento 는 2열(256px 256px), 박스 안 클론은 4열(157.5px x 4)
-  //   modern-screenshot 통과 후 PNG 도 뷰포트 390/1280 모두 720x182 로 동일
   // (modern-screenshot 은 getComputedStyle 결과를 클론에 인라인으로 굽는 방식이라
   //  캡처 시점의 실 DOM 레이아웃이 그대로 고정된다 — SVG 안에서 미디어 쿼리가 재평가되지 않는다.)
   //
@@ -146,42 +156,37 @@
   // main.go 가 //go:embed all:web 로 웹 자산을 빌드 시점에 exe 안에 굽기 때문에,
   // 파일만 고치고 예전 exe 로 서빙하면 이 함수가 아예 실행되지 않는다.
   // 실제로 첫 검증 라운드가 그 상태로 돌아 "효과 없음" 으로 오판됐다.
-  function widthMediaOverrideCss() {
-    const sheets = [];
-    for (let i = 0; i < document.styleSheets.length; i++) {
-      const sheet = document.styleSheets[i];
-      // 교차 출처 스타일시트는 cssRules 접근이 예외를 던진다. 조용히 건너뛴다.
-      try {
-        if (sheet.cssRules) sheets.push(sheet.cssRules);
-      } catch (e) { /* cross-origin */ }
-    }
 
-    // 1) 폭 미디어 쿼리가 덮어쓰는 셀렉터를 모은다(쉼표 목록은 낱개로 쪼갠다).
-    const overridden = new Set();
-    for (const rules of sheets) {
-      for (let i = 0; i < rules.length; i++) {
-        const rule = rules[i];
-        const cond = rule.media ? (rule.conditionText || rule.media.mediaText || '') : '';
-        if (!cond || !cond.includes('width')) continue;
-        for (let j = 0; j < rule.cssRules.length; j++) {
-          const inner = rule.cssRules[j];
-          if (!inner.selectorText) continue;
-          inner.selectorText.split(',').forEach((s) => overridden.add(s.trim()));
-        }
-      }
+  // 폭 조건이 720px 박스에서 성립하는가. 폭 조건이 하나도 없으면 false(= 대상 아님).
+  function widthCondMatches(cond) {
+    const re = /\((max|min)-width\s*:\s*([\d.]+)px\)/g;
+    let m, seen = false;
+    while ((m = re.exec(cond))) {
+      seen = true;
+      const v = parseFloat(m[2]);
+      if (m[1] === 'max' ? SHARE_WIDTH > v : SHARE_WIDTH < v) return false;
     }
-    if (!overridden.size) return '';
+    return seen;
+  }
 
-    // 2) 같은 셀렉터를 가진 최상위(미디어 쿼리 밖) 규칙을 박스 하위로 재선언한다.
+  function narrowGridCss() {
     const out = [];
-    for (const rules of sheets) {
-      for (let i = 0; i < rules.length; i++) {
-        const rule = rules[i];
-        if (!rule.selectorText || !rule.style) continue;
-        const parts = rule.selectorText.split(',').map((s) => s.trim());
-        if (!parts.some((s) => overridden.has(s))) continue;
-        const scoped = parts.map((s) => '[' + BOX_ATTR + '] ' + s).join(',');
-        out.push(scoped + '{' + rule.style.cssText + '}');
+    for (let i = 0; i < document.styleSheets.length; i++) {
+      let rules = null;
+      // 교차 출처 스타일시트는 cssRules 접근이 예외를 던진다. 조용히 건너뛴다.
+      try { rules = document.styleSheets[i].cssRules; } catch (e) { /* cross-origin */ }
+      if (!rules) continue;
+      for (let j = 0; j < rules.length; j++) {
+        const rule = rules[j];
+        const cond = rule.media ? (rule.conditionText || rule.media.mediaText || '') : '';
+        if (!cond || !cond.includes('width') || !widthCondMatches(cond)) continue;
+        for (let k = 0; k < rule.cssRules.length; k++) {
+          const inner = rule.cssRules[k];
+          if (!inner.selectorText || !inner.style) continue;
+          const scoped = inner.selectorText.split(',')
+            .map((s) => '[' + BOX_ATTR + '] ' + s.trim()).join(',');
+          out.push(scoped + '{' + inner.style.cssText + '}');
+        }
       }
     }
     return out.join('\n');
@@ -216,9 +221,9 @@
     box.setAttribute(BOX_ATTR, '');
     box.style.cssText = 'position:fixed;left:-99999px;top:0;width:' + SHARE_WIDTH + 'px;padding:24px;';
 
-    // 뷰포트가 좁아도 데스크톱 그리드로 캡처되도록. style 을 박스 안에 두면
+    // 뷰포트와 무관하게 720px 기준 그리드로 캡처되도록. style 을 박스 안에 두면
     // finally 의 box.remove() 로 함께 사라져 문서에 잔재가 남지 않는다.
-    const css = widthMediaOverrideCss();
+    const css = narrowGridCss();
     if (css) {
       const style = document.createElement('style');
       style.textContent = css;
