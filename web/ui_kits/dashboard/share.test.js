@@ -92,4 +92,24 @@ assert.strictEqual(
   'data-share-header 는 Dashboard.jsx 의 <header> 에 정확히 하나 있어야 한다',
 );
 
+// --- i18n 정합: 레지스트리의 labelKey 가 4개 로케일에 전부 있는가 ---
+require('./i18n/ko.js');
+require('./i18n/en.js');
+require('./i18n/zh.js');
+require('./i18n/ja.js');
+
+// 16) 모든 섹션 labelKey 가 4개 로케일에 존재해야 한다.
+//     (i18n.test.js 가 키 집합 일치를 따로 강제하지만, 여기서는 '레지스트리 ↔ 사전' 연결을 본다.)
+for (const loc of ['ko', 'en', 'zh', 'ja']) {
+  const dict = window.I18N_DICTS[loc];
+  for (const s of SECTIONS) {
+    assert.ok(dict[s.labelKey], loc + ' 사전에 ' + s.labelKey + ' 가 없다');
+  }
+  // 17) 모달 자체 문구도 4개 로케일에 있어야 한다.
+  for (const k of ['share.button', 'share.title', 'share.sections', 'share.maskUid',
+                   'share.export', 'share.exporting', 'share.failed', 'share.saveHint']) {
+    assert.ok(dict[k], loc + ' 사전에 ' + k + ' 가 없다');
+  }
+}
+
 console.log('share.test.js OK');
