@@ -124,6 +124,10 @@ const SECTIONS = [
 
 이 목록이 전부다. 각 id는 해당 `.jsx`의 섹션 래퍼에 `data-share`로 1:1 대응한다.
 
+**컨트롤 제외 — `data-share-omit`:** 섹션 안에는 공유 이미지에 있으면 안 되는 인터랙티브 컨트롤이 섞여 있다(헤더의 새로고침·언어·테마 컨트롤, 배너 세그먼트 피커, 히스토리 필터 칩, 버전 필터 Select, 표의 "더보기"·"전체 보기" 버튼). 이런 요소에 `data-share-omit`을 붙이고, **합성 시 클론 트리에서 `[data-share-omit]`을 전부 제거**한다. 원본은 그대로다.
+
+**헤더:** `Dashboard.jsx`의 `<header>`에 `data-share-header`를 붙여 합성 함수가 잡는다(§3.3).
+
 **존재 여부와 순서는 DOM이 진실이다.** 모달은 `document.querySelectorAll('[data-share]')`로 지금 화면에 실재하는 섹션만 DOM 순서대로 노출한다. 탭이 바뀌면 목록도 자연히 따라간다. 레지스트리에 있으나 DOM에 없는 섹션은 조용히 빠진다.
 
 ### 4.3 합성 파이프라인
@@ -135,6 +139,7 @@ const SECTIONS = [
      → document.body에 append (:root CSS 변수·data-theme 그대로 상속)
   2. 헤더 클론 → append
   3. 선택 섹션을 DOM 순서대로 클론 → append
+  3-1. 클론 트리에서 [data-share-omit] 전부 제거 (컨트롤류)
   4. canvas 치환: 원본 canvas마다 Chart.getChart(el).toBase64Image()
                   → 클론 쪽 대응 canvas를 같은 w/h의 <img>로 교체
   5. 마스킹 ON이면 클론 트리 텍스트 노드에서 UID 치환 (원본 DOM 무손상)
