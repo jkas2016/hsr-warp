@@ -27,6 +27,32 @@ func TestScheduleVersion(t *testing.T) {
 	}
 }
 
+// order 가 banners 에 없는 코드를 참조하면 web/analyze.js 의 codesByRole 이 TypeError로
+// 죽어 대시보드가 백지가 된다(F3). schedule.json 은 원격에서 받아 그대로 기록하는 파일이라
+// 이 검증이 없으면 오배포가 그대로 사용자 앱까지 전파된다. banners/order 가 아예 없는
+// 구 스키마(HSR 구버전 호환)는 이 검증을 건너뛰고 여전히 유효해야 한다.
+func TestScheduleVersion_BannersOrderConsistency(t *testing.T) {
+	mismatched := `{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}],
+		"banners":{"2":{"role":"limited-char"}},
+		"order":["2","99"]}`
+	if _, ok := ScheduleVersion([]byte(mismatched)); ok {
+		t.Fatal("order 의 코드가 banners 에 없으면 무효여야 한다")
+	}
+
+	matched := `{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}],
+		"banners":{"2":{"role":"limited-char"},"3":{"role":"limited-weapon"}},
+		"order":["2","3"]}`
+	if v, ok := ScheduleVersion([]byte(matched)); !ok || v != 3 {
+		t.Fatalf("일치하는 banners/order 는 유효해야 한다: got (%d,%v)", v, ok)
+	}
+
+	// 구 스키마(banners/order 없음) — goodSchedule 은 이미 위 TestScheduleVersion 에서
+	// 통과를 확인했지만, 여기선 그 동작이 이 검증 추가로 깨지지 않았음을 재확인한다.
+	if _, ok := ScheduleVersion([]byte(goodSchedule)); !ok {
+		t.Fatal("banners/order 없는 구 스키마는 여전히 유효해야 한다")
+	}
+}
+
 func TestEffectiveSchedule(t *testing.T) {
 	embedded := []byte(`{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`)
 	dir := t.TempDir()

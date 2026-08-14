@@ -25,10 +25,17 @@ type scheduleFile struct {
 		C []string `json:"c"`
 		L []string `json:"l"`
 	} `json:"schedule"`
+	// Banners/Order 는 신 스키마(배너 코드 테이블)에서만 온다. 구 스키마(HSR 구버전)엔
+	// 아예 없으므로 nil 이 정상 — 그땐 아래 일치 검증을 건너뛴다.
+	Banners map[string]json.RawMessage `json:"banners"`
+	Order   []string                   `json:"order"`
 }
 
 // ScheduleVersion 은 schedule.json 바이트를 검증하고 version 을 돌려준다.
 // 구조가 깨졌거나 version<1 이거나 항목이 없거나 s/e 가 YYYY-MM-DD 로 파싱 불가면 ok=false.
+// banners/order 블록이 있으면(신 스키마) order 의 모든 코드가 banners 에 존재해야 한다 —
+// 어긋나면 web/analyze.js 의 codesByRole 이 해당 채널을 통째로 못 찾아 대시보드가 깨진다.
+// banners/order 가 아예 없는 구 스키마는 이 검증을 건너뛰고 그대로 유효하다.
 func ScheduleVersion(b []byte) (int, bool) {
 	var f scheduleFile
 	if err := json.Unmarshal(b, &f); err != nil {
@@ -42,6 +49,11 @@ func ScheduleVersion(b []byte) (int, bool) {
 			return 0, false
 		}
 		if _, err := time.Parse("2006-01-02", e.E); err != nil {
+			return 0, false
+		}
+	}
+	for _, code := range f.Order {
+		if _, ok := f.Banners[code]; !ok {
 			return 0, false
 		}
 	}

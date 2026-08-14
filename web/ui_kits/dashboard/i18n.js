@@ -61,8 +61,20 @@
       return code ? I18N.t('banner.' + code) : short;
     },
     // 캐릭터/광추 item_id → 현재 언어 이름. 사전(window.ITEM_NAMES)에 없거나
-    // 해당 언어값이 비면 raw(SRGF 원본 name)로 폴백 — 신규 패치 미반영 안전망.
+    // 해당 언어값이 비면 raw(SRGF/UIGF 원본 name)로 폴백 — 신규 패치 미반영 안전망.
+    //
+    // ITEM_NAMES 는 StarRailRes 에서 뽑은 HSR 전용 사전이다. ZZZ 에이전트/W-엔진은
+    // HSR 캐릭터/광추와 같은 4·5자리 id 공간을 공유하므로, 게임 구분 없이 조회하면
+    // ZZZ id 가 HSR 이름과 충돌한다(예: 1221→HSR 사전엔 없지만 실제 충돌 다수 확인됨).
+    // ZZZ는 getGachaLog API가 이미 lang에 맞춰 현지화된 name을 주므로 raw 그대로가 정답.
+    // i18n.js는 data.js보다 먼저 로드될 수 있어 window.WarpData 참조를 top-level에
+    // 캐시하지 않고 호출 시점에 평가한다. WarpData가 아직 없는 경우(예: 이 파일 단독
+    // 로드되는 테스트) 사전을 쓰던 기존 HSR 단일 게임 시절 동작을 보존하도록 'hsr'로
+    // 가정한다 — 실제 앱에서는 itemName이 렌더 시점에만 호출되고 그때는 data.js가
+    // 이미 로드돼 있어 이 폴백이 실사용 경로에 영향을 주지 않는다.
     itemName: function (id, raw) {
+      var game = (window.WarpData && window.WarpData.game()) || 'hsr';
+      if (game !== 'hsr') return raw;
       var m = (window.ITEM_NAMES || {})[String(id)];
       var v = m && m[I18N.lang];
       return v ? v : raw; // 빈/누락값은 raw 폴백

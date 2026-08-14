@@ -164,7 +164,7 @@ function Dashboard() {
             {view === 'versions' && <VersionsView D={D} theme={theme} lang={lang} />}
           </div>
           <div className="foot">
-            {t('foot.line1')}<br />
+            {t(gameID === 'zzz' ? 'foot.line1Zzz' : 'foot.line1Hsr')}<br />
             {t('foot.line2')}
           </div>
         </>

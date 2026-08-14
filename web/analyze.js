@@ -51,7 +51,9 @@
 
   // 역할로 배너 코드를 찾는다. 하드코딩된 '11'/'12' 를 대체한다.
   function codesByRole(cfg, ...roles) {
-    return cfg.order.filter((c) => roles.includes(cfg.banners[c].role));
+    // order 에 banners 없는 코드가 섞이면(예: 원격 schedule.json 오배포) 여기서 TypeError로
+    // 대시보드 전체가 백지가 된다 — data.js 의 동일 조회(banners()/roleOf 등)와 방어 수준을 맞춘다.
+    return cfg.order.filter((c) => cfg.banners[c] && roles.includes(cfg.banners[c].role));
   }
 
   const byId = (a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : BigInt(a.id) > BigInt(b.id) ? 1 : 0);

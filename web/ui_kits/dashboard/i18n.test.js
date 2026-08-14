@@ -89,4 +89,18 @@ assert.strictEqual(I.itemName('9999', undefined), undefined, 'raw 없으면 raw 
   }
 }
 
+// 9) itemName: HSR/ZZZ id 공간 충돌 — ZZZ 게임 상태에서는 HSR 전용 ITEM_NAMES 사전을
+// 참조하면 안 되고 raw(API가 이미 현지화한 이름)가 이겨야 한다. 리뷰에서 실증된
+// 충돌 id(1221→운리 등)로 검증한다.
+window.ITEM_NAMES = {
+  '1221': { ko: '운리', en: 'Yunli', zh: '云璃', ja: 'ユンリー' }, // HSR 캐릭터
+};
+I.setLang('ko');
+window.WarpData = { game: () => 'hsr' };
+assert.strictEqual(I.itemName('1221', '운리'), '운리', 'hsr: 사전이 이긴다');
+window.WarpData = { game: () => 'zzz' };
+assert.strictEqual(I.itemName('1221', '청작'), '청작', 'zzz: raw(API 현지화 이름)가 이긴다 — HSR 사전 충돌 무시');
+delete window.WarpData;
+assert.strictEqual(I.itemName('1221', '운리'), '운리', 'WarpData 없으면 hsr로 가정(기존 단일 게임 동작 보존)');
+
 console.log('i18n.test.js OK');

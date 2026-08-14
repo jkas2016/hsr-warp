@@ -201,4 +201,23 @@ const low = (rank, gacha_type = '2', time = T) => ({
   assert.ok(Math.abs(out.luck.charLuckPct - 50) < 1e-9, 'charLuckPct 는 cfg 의 expAvg(40) 기준, 62.5 하드코딩이면 어긋난다');
 }
 
+// ---- codesByRole 가드: order 에 banners 없는 코드가 섞여도 TypeError로 죽지 않는다 ----
+// (원격 schedule.json 오배포로 order/banners 가 어긋나는 상황을 재현. F3)
+{
+  const BROKEN = {
+    ranks: { top: '4', mid: '3' },
+    order: ['2', '99'], // '99' 는 banners 에 없음
+    banners: {
+      '2': { role: 'limited-char', short: '독점', cap: 90, rateUp: 0.5, expAvg: 62.5 },
+    },
+    schedule: [],
+    versions: [{ v: '2.5', s: '2026-07-29' }],
+  };
+  id = 9200n;
+  assert.doesNotThrow(() => {
+    const out = analyze({ info: {}, list: [s4(1501, '2')] }, BROKEN);
+    assert.strictEqual(out.luck.limited.count5, 1, '유효한 코드만으로도 정상 집계됨');
+  }, 'order 의 미등록 코드가 codesByRole 에서 TypeError를 던지면 안 된다');
+}
+
 console.log('OK  analyze.zzz tests passed');
