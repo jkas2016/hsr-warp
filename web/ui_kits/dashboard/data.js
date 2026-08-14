@@ -167,11 +167,12 @@ window.WarpData = (function () {
     };
   }
 
-  // 대시보드 집계에서 뺄 채널의 역할: 상시·초보자. 성옥 소비도 아니고 픽업 개념도 없어
-  // 통계를 오염시킨다. 본디(bangboo)는 천장·평균 뽑기가 의미 있으므로 남긴다.
+  // 대시보드 집계에서 뺄 채널의 역할: 상시·초보자·본디. 픽업(50/50) 개념이 없어
+  // 한정 배너 지표를 오염시킨다. 두 게임 모두 한정 캐릭터·한정 무기 두 축만
+  // 수치화한다(HSR 이 캐릭터 이벤트·광추 이벤트만 보여주는 것과 같은 기준).
   // 채널 코드는 게임마다 다르므로 반드시 역할로 거른다(ZZZ 의 '2' 는 독점 채널이다).
-  // 수집·저장(SRGF/UIGF)은 전부 그대로다.
-  const HIDDEN_ROLES = ['standard', 'beginner'];
+  // 수집·저장(SRGF/UIGF)은 전부 그대로다 — 표시에서만 뺀다.
+  const HIDDEN_ROLES = ['standard', 'beginner', 'bangboo'];
 
   function analyzeAndAdapt(raw) {
     const c = conf();
