@@ -1,7 +1,7 @@
 // ZZZ 분석 회귀 테스트. HSR 과 구조적으로 동형이므로 50/50 판정 함수는
 // 그대로 두고, 배너 코드·랭크 코드만 주입으로 갈리는지 확인한다.
 const assert = require('assert');
-const { analyze, resolveConfig, filterAnalysis } = require('./analyze.js');
+const { analyze, resolveConfig, filterAnalysis, analyzeVersions } = require('./analyze.js');
 
 // 공시 원문 기준 ZZZ 설정. expAvg = 1 / 종합확률.
 // order: HSR과 달리 숫자 오름차순(1,2,3,5)이 아니라 독점(2)이 먼저 오는 표시 순서를
@@ -134,21 +134,50 @@ const low = (rank, gacha_type = '2', time = T) => ({
   assert.ok(b.stats.fives.length === 2, '거대 정수 id 가 정렬돼 처리됐다');
 }
 
-// ---- cfg 폴백 체인: filterAnalysis/analyzeVersions 가 cfg 인자 없이 analyze() 결과를
-// 재사용해도 HSR 기본값으로 조용히 틀리게 계산되지 않는다(analyze() 가 실은 _cfg 로 복원) ----
+// ---- cfg 폴백 체인 (filterAnalysis): cfg 인자 없이 analyze() 결과를 재사용해도
+// HSR 기본값으로 조용히 틀리게 계산되지 않는다(analyze() 가 실은 _cfg 로 복원) ----
+// 주의: filtered.total(원본 리스트 시각 필터 길이)과 banner.stats.count5(analyze() 가
+// 이미 분류해 둔 fives 를 그대로 복사한 값)는 cfg 에 의존하지 않으므로 이 회귀를 못 잡는다.
+// cfg 에 실제로 의존하는 건 배너별 stats.total(cnt 맵 — cfg.order 로 초기화)과
+// luck.charAvgPity/limited(codesByRole 로 역할별 코드를 찾는 경로)다.
+// gacha_type '3'(W-엔진)·'5'(본디)는 HSR ORDER(['11','12','1','2'])에 없는 코드라,
+// cfg 가 HSR 로 잘못 폴백되면 cnt 맵에 키가 없어 해당 배너의 stats.total 이 0으로 버려진다.
 {
   id = 9000n;
-  const list = [s4(1501, '2'), low(2, '2'), low(2, '2'), low(3, '3')];
+  const list = [
+    ...[...Array(3)].map(() => low(2, '3')), s4(14158, '3'), // W-엔진: 3성 3건 + 5★ 1건 = 4건
+    ...[...Array(2)].map(() => low(2, '5')), s4(53001, '5'), // 본디  : 3성 2건 + 5★ 1건 = 3건
+  ];
   const full = analyze({ info: {}, list }, ZZZ);
   assert.ok(full._cfg, 'analyze() 결과가 사용한 cfg 를 실어 보낸다');
 
   // cfg 인자 없이 호출 — data.js 의 기존 두 호출부와 동일한 형태(3번째 인자까지만 전달).
   const win = { v: 'all', s: 0, e: Infinity };
   const filtered = filterAnalysis(full, { list }, win);
-  assert.strictEqual(filtered.total, list.length, 'ZZZ gacha_type 이 버려지지 않고 전부 집계됐다(HSR ORDER 폴백이면 0)');
-  const b2 = filtered.banners.find((x) => x.type === '2');
-  assert.ok(b2, 'ZZZ 독점 배너가 cfg 없이도 인식됐다');
-  assert.strictEqual(b2.stats.count5, 1, 'ZZZ 독점 배너 5★ 집계');
+  const b3 = filtered.banners.find((x) => x.type === '3');
+  const b5 = filtered.banners.find((x) => x.type === '5');
+  assert.ok(b3, 'W-엔진 배너가 cfg 없이도 인식됐다');
+  assert.strictEqual(b3.stats.total, 4, 'W-엔진 stats.total — HSR cfg 로 폴백되면 cnt 맵에 키가 없어 0');
+  assert.ok(b5, '본디 배너가 cfg 없이도 인식됐다');
+  assert.strictEqual(b5.stats.total, 3, '본디 stats.total — HSR cfg 로 폴백되면 cnt 맵에 키가 없어 0');
+  // luck 경로도 cfg 에 의존한다: codesByRole(cfg,'limited-char')[0] 이 ZZZ면 '2', HSR 폴백이면 '11'.
+  assert.ok(filtered.luck.limited, 'luck.limited 계산됨');
+  assert.strictEqual(filtered.luck.limited.count5, 1, '한정(독점+W-엔진) 5★ 집계 — HSR 코드로 폴백되면 배너를 못 찾아 0');
+}
+
+// ---- cfg 폴백 체인 (analyzeVersions): cfg 인자 없이도 버전별 한정 배너 집계가 맞는다 ----
+// char/lc 는 charCode=codesByRole(cfg,'limited-char')[0] 로 a.banners 를 찾는 경로라
+// cfg 가 HSR 로 잘못 폴백되면 charCode='11'이 되어 ZZZ 배너('2')를 못 찾고 count5=0 이 된다.
+{
+  id = 9050n;
+  const VERS_Z = [{ v: '2.5', s: '2026-07-29' }];
+  const list = [s4(1501, '2')]; // 독점(limited-char) 픽업 1건
+  const full = analyze({ info: {}, list }, ZZZ);
+  const rows = analyzeVersions(full, { list }, VERS_Z); // cfg 인자 없음
+  const row = rows.find((r) => r.v === '2.5');
+  assert.ok(row, '2.5 윈도우 집계됨');
+  assert.strictEqual(row.char.count5, 1, '독점 배너 5★ 집계 — HSR cfg 로 폴백되면 배너 코드 불일치로 0');
+  assert.strictEqual(row.all.count5, 1, '한정 합산도 동일 경로 — 폴백되면 0');
 }
 
 // ---- charLuckPct 는 하드코딩 62.5 가 아니라 cfg 의 limited-char expAvg 를 쓴다 ----
