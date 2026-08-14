@@ -10,6 +10,7 @@ function Dashboard() {
   const [scopeVer, setScopeVer] = React.useState('전체'); // 버전 구간 필터(전 화면 적용)
   const [view, setView] = React.useState('overview');
   const [five, setFive] = React.useState(null);
+  const [share, setShare] = React.useState(false);
   const [updates, setUpdates] = React.useState(null);
   const [theme, setTheme] = React.useState(() => {
     try { return localStorage.getItem('hsrwarp-theme') || 'dark'; } catch (e) { return 'dark'; }
@@ -90,7 +91,7 @@ function Dashboard() {
           </div>
         </div>
         <div data-share-omit style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          {loaded && <RefreshBar runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
+          {loaded && <RefreshBar runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} onShare={() => setShare(true)} />}
           <Select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">
             <option value="ko">한국어</option>
             <option value="en">English</option>
@@ -155,6 +156,7 @@ function Dashboard() {
       )}
 
       <FiveDetail five={five} onClose={() => setFive(null)} />
+      <ShareModal open={share} onClose={() => setShare(false)} uid={uid} lang={lang} />
     </div>
   );
 }

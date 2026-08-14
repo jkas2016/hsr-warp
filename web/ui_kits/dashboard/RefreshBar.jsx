@@ -1,7 +1,7 @@
 // Collapsed refresh control shown after data is loaded. A compact chip with
 // last-updated time + ↻ refresh; clicking path expands the path input inline.
 // Refresh runs the real incremental fetch (runFetch prop) and re-loads data.
-function RefreshBar({ runFetch, onLoaded, lastUpdated }) {
+function RefreshBar({ runFetch, onLoaded, lastUpdated, onShare }) {
   const { Input, Button } = window.HSRWarpDesignSystem_4a0d44;
   const t = window.I18N.t;
   const [open, setOpen] = React.useState(false);
@@ -41,6 +41,7 @@ function RefreshBar({ runFetch, onLoaded, lastUpdated }) {
           placeholder={t('refresh.pathPlaceholder')} style={{ flex: 1, minWidth: 200, padding: '7px 11px' }} />
       )}
       <div style={{ marginLeft: open ? 0 : 'auto', display: 'flex', gap: 8 }}>
+        <Button variant="ghost" size="sm" onClick={onShare}>{t('share.button')}</Button>
         <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)}>{open ? t('refresh.closePath') : t('refresh.path')}</Button>
         <Button size="sm" onClick={run} disabled={busy}>{busy ? t('refresh.running') : t('refresh.refresh')}</Button>
       </div>
