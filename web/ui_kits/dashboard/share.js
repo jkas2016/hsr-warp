@@ -80,10 +80,18 @@
       chart.update('none');
       const img = document.createElement('img');
       img.src = chart.toBase64Image();
-      img.width = srcs[i].clientWidth;
-      img.height = srcs[i].clientHeight;
+      // 화면 픽셀 치수를 width/height 속성으로 굳히지 않는다 — 그러면 intrinsic 종횡비가
+      // "화면 canvas 폭 : 화면 canvas 높이" 로 박히는데, 분모가 되는 슬롯은 720px 박스 기준이라
+      // 비율이 어긋난다(뷰포트 1280 이면 차트 아래에 100px 남고, 뷰포트 390 이면 컨테이너를 넘친다).
+      // 대신 슬롯을 그대로 채우고 object-fit 으로 비율만 지킨다.
+      // 차트 래퍼는 세 곳 모두 고정 높이다 — ChartsGrid 230 / BannersView 200 / VersionsView 210,
+      // 전부 position:relative + height 숫자. Chart.js 의 maintainAspectRatio:false 가 그걸 요구한다.
+      // 새 차트를 넣을 때도 래퍼에 확정 높이를 줘야 height:100% 가 0 으로 붕괴하지 않는다.
+      // 축소해도 화질 손실은 없다 — toBase64Image() 는 canvas 백킹 해상도(DPR 배율)로 굽는다.
+      img.style.display = 'block';
       img.style.width = '100%';
-      img.style.height = 'auto';
+      img.style.height = '100%';
+      img.style.objectFit = 'contain';
       dsts[i].parentNode.replaceChild(img, dsts[i]);
     }
   }
