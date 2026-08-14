@@ -189,6 +189,18 @@
     // 호출부는 이 동안 '만드는 중…' 을 표시한다.
     await settle(SETTLE_MS);
 
+    // 원본 조회는 박스를 만들기 전에 끝낸다. 클론도 data-share 속성을 그대로 갖고 있어서,
+    // 박스가 문서에 붙은 뒤에 조회하면 "박스가 body 끝에 있다" 는 문서 순서 우연에만 기대게 된다
+    // — 마운트 지점이 바뀌면 조용히 클론을 다시 클론한다. 순서로 스코프를 못 박아 둔다.
+    // 헤더를 항상 맨 위에. UID 가 여기에만 있어서 마스킹의 대상이기도 하다.
+    const header = document.querySelector('[data-share-header]');
+    const srcs = [];
+    if (header) srcs.push(header);
+    for (const id of ids) {
+      const el = document.querySelector('[data-share="' + id + '"]');
+      if (el) srcs.push(el);
+    }
+
     const box = document.createElement('div');
     box.className = 'page';
     box.setAttribute(BOX_ATTR, '');
@@ -205,15 +217,6 @@
     document.body.appendChild(box);
 
     try {
-      // 헤더를 항상 맨 위에. UID 가 여기에만 있어서 마스킹의 대상이기도 하다.
-      const header = document.querySelector('[data-share-header]');
-      const srcs = [];
-      if (header) srcs.push(header);
-      for (const id of ids) {
-        const el = document.querySelector('[data-share="' + id + '"]');
-        if (el) srcs.push(el);
-      }
-
       for (const src of srcs) {
         const clone = src.cloneNode(true);
         clone.style.marginTop = '18px';
