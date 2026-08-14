@@ -15,7 +15,7 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
   return (
     <div>
       {/* segmented banner picker */}
-      <div style={{ display: 'inline-flex', gap: 4, padding: 4, borderRadius: 'var(--r-pill)', background: 'var(--panel-2)', border: '1px solid var(--line)' }}>
+      <div data-share-omit style={{ display: 'inline-flex', gap: 4, padding: 4, borderRadius: 'var(--r-pill)', background: 'var(--panel-2)', border: '1px solid var(--line)' }}>
         {D.banners.map((x) => {
           const on = x.short === cur;
           return (
@@ -35,7 +35,7 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
 
       <div className="banner-detail" style={{ marginTop: 16 }}>
         {/* status */}
-        <Card accent={b.color} padding={22}>
+        <Card accent={b.color} padding={22} data-share="banner-status">
           <div className="lbl">{scoped ? t('banners.rangeStats', { name: bl(b.short) }) : t('banners.currentPity', { name: bl(b.short) })}</div>
           {!scoped && (
             <>
@@ -67,7 +67,7 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
         </Card>
 
         {/* pity histogram */}
-        <Card padding={18}>
+        <Card padding={18} data-share="banner-pity">
           <div className="lbl" style={{ marginBottom: 12 }}>{t('banners.pityDist')}</div>
           <BannerPityChart bins={pityBins(D.fives, cur)} cap={b.cap} theme={theme} sel={cur} />
           {b.kind === 'limited' && (
@@ -80,7 +80,7 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
         </Card>
       </div>
 
-      <section style={{ marginTop: 22 }}>
+      <section data-share="banner-fives" style={{ marginTop: 22 }}>
         <h2 className="h2">{t('banners.fiveList', { name: bl(b.short) })} <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 400 }}>{t('banners.count', { n: fives.length })}</span></h2>
         <FivesTable key={cur} rows={fives} onRowClick={onFiveClick} pageSize={20} />
       </section>

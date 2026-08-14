@@ -10,10 +10,10 @@ function OverviewView({ D, theme, lang, scoped, onSeeAll, onFiveClick }) {
       <BannerCards D={D} scoped={scoped} />
       <ChartsGrid D={D} theme={theme} lang={lang} />
       <MonthlyTable D={D} />
-      <section style={{ marginTop: 26 }}>
+      <section data-share="recent" style={{ marginTop: 26 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 className="h2" style={{ margin: 0 }}>{t('overview.recent5')}</h2>
-          <button className="linkbtn" onClick={onSeeAll}>{t('overview.seeAll')}</button>
+          <button className="linkbtn" data-share-omit onClick={onSeeAll}>{t('overview.seeAll')}</button>
         </div>
         <div style={{ marginTop: 14 }}>
           <FivesTable rows={recent} onRowClick={onFiveClick} />

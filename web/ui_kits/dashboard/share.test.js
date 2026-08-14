@@ -58,4 +58,38 @@ assert.strictEqual(shareFileName(new Date(2026, 7, 14, 15, 30)), 'hsr-warp-20260
 // 12) 한 자리 월·일·시·분은 0 으로 채운다.
 assert.strictEqual(shareFileName(new Date(2026, 0, 5, 9, 7)), 'hsr-warp-20260105-0907.png');
 
+// --- 마커 정합: SECTIONS 의 모든 id 가 실제 .jsx 에 data-share 로 존재하는가 ---
+// (.jsx 는 브라우저 babel 전용이라 require 할 수 없다 — 소스를 읽어 정적 검사한다.)
+const fs = require('fs');
+const path = require('path');
+
+const JSX_FILES = [
+  'HeroSummary.jsx', 'BannerCards.jsx', 'ChartsGrid.jsx', 'MonthlyTable.jsx',
+  'OverviewView.jsx', 'BannersView.jsx', 'HistoryView.jsx', 'VersionsView.jsx',
+  'Dashboard.jsx',
+];
+const src = JSX_FILES
+  .map((f) => fs.readFileSync(path.join(__dirname, f), 'utf8'))
+  .join('\n');
+
+// 13) 레지스트리의 모든 섹션 id 에 대응하는 data-share 마커가 있어야 한다.
+for (const s of SECTIONS) {
+  assert.ok(
+    src.includes('data-share="' + s.id + '"'),
+    'data-share="' + s.id + '" 마커가 .jsx 어디에도 없다 — 이 섹션은 공유 목록에 절대 나타나지 않는다',
+  );
+}
+
+// 14) 반대로, 소스에 있는 data-share 값은 전부 레지스트리에 있어야 한다(오타 방어).
+const marked = [...src.matchAll(/data-share="([^"]+)"/g)].map((m) => m[1]);
+for (const id of marked) {
+  assert.ok(ids.includes(id), 'data-share="' + id + '" 가 SECTIONS 레지스트리에 없다');
+}
+
+// 15) 헤더 마커는 정확히 하나여야 한다(합성 시 querySelector 로 잡는다).
+assert.strictEqual(
+  (src.match(/data-share-header/g) || []).length, 1,
+  'data-share-header 는 Dashboard.jsx 의 <header> 에 정확히 하나 있어야 한다',
+);
+
 console.log('share.test.js OK');

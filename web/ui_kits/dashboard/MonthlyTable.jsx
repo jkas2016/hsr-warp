@@ -17,7 +17,7 @@ function MonthlyTable({ D }) {
   };
 
   return (
-    <section style={{ marginTop: 26 }}>
+    <section data-share="monthly" style={{ marginTop: 26 }}>
       <h2 className="h2">{t('monthly.title')}</h2>
       <Card padding={6}>
         <table className="tbl">

@@ -78,7 +78,7 @@ function Dashboard() {
 
   return (
     <div className="page">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <header data-share-header style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <img src="../../assets/logo-train.svg" alt="" width="46" height="46" style={{ borderRadius: 12, boxShadow: 'var(--glow-gold)' }} />
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: '-.4px' }}>
@@ -89,7 +89,7 @@ function Dashboard() {
                     : t('header.subtitleEmpty')}
           </div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div data-share-omit style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
           {loaded && <RefreshBar runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
           <Select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">
             <option value="ko">한국어</option>

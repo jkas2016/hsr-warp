@@ -19,7 +19,7 @@ function HeroSummary({ D, scoped }) {
   React.useEffect(() => { const timer = setTimeout(() => setShowBar(true), 350); return () => clearTimeout(timer); }, []);
 
   return (
-    <div>
+    <div data-share="hero">
       <section className="hero-bento">
         {/* Featured luck card */}
         <Card interactive glow="var(--glow-gold)" accent="var(--gold)" padding={22}
