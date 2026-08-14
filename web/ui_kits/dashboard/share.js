@@ -108,9 +108,11 @@
         const clone = src.cloneNode(true);
         clone.style.marginTop = '18px';
         box.appendChild(clone);
+        // omit 제거보다 먼저 스왑해야 한다 — 나중에 지우면 클론 쪽 canvas 개수가
+        // 줄어들어 원본과의 인덱스 대응이 어긋난다.
+        swapCanvases(src, clone);
         // 인터랙티브 컨트롤은 공유 이미지에 있을 자리가 없다.
         clone.querySelectorAll('[data-share-omit]').forEach((e) => e.remove());
-        swapCanvases(src, clone);
       }
 
       if (mask && uid) maskUidIn(box, uid);
