@@ -49,6 +49,9 @@
 
   const SHARE_WIDTH = 720;
 
+  // 오프스크린 캡처 박스에만 붙는 표식. 주입 CSS 의 스코프이자 실화면 격리 수단이다.
+  const BOX_ATTR = 'data-share-box';
+
   // 현재 화면에 실재하는 섹션 id 를 DOM 순서로. 탭이 바뀌면 결과도 바뀐다.
   function presentSections() {
     return [...document.querySelectorAll('[data-share]')].map((el) => el.dataset.share);
@@ -101,6 +104,58 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  // 폭 미디어 쿼리는 오프스크린 박스의 폭(720px)이 아니라 뷰포트 폭을 본다.
+  // 그래서 모바일 뷰포트에서 내보내면 같은 데이터인데도 좁은 그리드가 캡처된다
+  // (측정: 뷰포트 1280 → 1440x4307, 뷰포트 390 → 1440x7108).
+  //
+  // index.html 의 grid 값을 여기에 베끼지 않는다. 대신 문서에 이미 있는
+  // "미디어 쿼리 밖" 선언(= 데스크톱 레이아웃)을 CSSOM 으로 그대로 읽어
+  // 박스 하위 한정으로 재선언한다. 값이 한 곳에만 있으므로 index.html 이 바뀌어도 따라간다.
+  //
+  // 재선언 셀렉터는 앞에 [data-share-box] 가 붙어 특이성이 정확히 한 단계 높다.
+  // → 폭 미디어 쿼리를 항상 이기고, 박스 밖 요소에는 아예 매치되지 않아 실화면은 그대로다.
+  // 폭 조건이 아닌 미디어 쿼리(prefers-reduced-motion 등)는 건드리지 않는다.
+  function widthMediaOverrideCss() {
+    const sheets = [];
+    for (let i = 0; i < document.styleSheets.length; i++) {
+      const sheet = document.styleSheets[i];
+      // 교차 출처 스타일시트는 cssRules 접근이 예외를 던진다. 조용히 건너뛴다.
+      try {
+        if (sheet.cssRules) sheets.push(sheet.cssRules);
+      } catch (e) { /* cross-origin */ }
+    }
+
+    // 1) 폭 미디어 쿼리가 덮어쓰는 셀렉터를 모은다(쉼표 목록은 낱개로 쪼갠다).
+    const overridden = new Set();
+    for (const rules of sheets) {
+      for (let i = 0; i < rules.length; i++) {
+        const rule = rules[i];
+        const cond = rule.media ? (rule.conditionText || rule.media.mediaText || '') : '';
+        if (!cond || !cond.includes('width')) continue;
+        for (let j = 0; j < rule.cssRules.length; j++) {
+          const inner = rule.cssRules[j];
+          if (!inner.selectorText) continue;
+          inner.selectorText.split(',').forEach((s) => overridden.add(s.trim()));
+        }
+      }
+    }
+    if (!overridden.size) return '';
+
+    // 2) 같은 셀렉터를 가진 최상위(미디어 쿼리 밖) 규칙을 박스 하위로 재선언한다.
+    const out = [];
+    for (const rules of sheets) {
+      for (let i = 0; i < rules.length; i++) {
+        const rule = rules[i];
+        if (!rule.selectorText || !rule.style) continue;
+        const parts = rule.selectorText.split(',').map((s) => s.trim());
+        if (!parts.some((s) => overridden.has(s))) continue;
+        const scoped = parts.map((s) => '[' + BOX_ATTR + '] ' + s).join(',');
+        out.push(scoped + '{' + rule.style.cssText + '}');
+      }
+    }
+    return out.join('\n');
+  }
+
   // 선택 섹션을 오프스크린 고정 폭 컨테이너에 쌓아 PNG blob 을 만든다.
   // 화면 폭·스크롤 위치와 무관한 결과물이 나온다.
   async function exportPng(opts) {
@@ -115,7 +170,17 @@
 
     const box = document.createElement('div');
     box.className = 'page';
+    box.setAttribute(BOX_ATTR, '');
     box.style.cssText = 'position:fixed;left:-99999px;top:0;width:' + SHARE_WIDTH + 'px;padding:24px;';
+
+    // 뷰포트가 좁아도 데스크톱 그리드로 캡처되도록. style 을 박스 안에 두면
+    // finally 의 box.remove() 로 함께 사라져 문서에 잔재가 남지 않는다.
+    const css = widthMediaOverrideCss();
+    if (css) {
+      const style = document.createElement('style');
+      style.textContent = css;
+      box.appendChild(style);
+    }
     document.body.appendChild(box);
 
     try {
