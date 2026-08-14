@@ -8,6 +8,8 @@
 ## [Unreleased]
 
 ### 추가됨
+- 젠레스 존 제로(ZZZ) 지원 — 단일 exe로 HSR·ZZZ 모두 추적. 헤더 게임 스위처, 게임별 데이터 저장(`data/hsr/`·`data/zzz/`), 게임별 배너 일정 채널(`/zzz/schedule.json`), 게임별 용어 i18n(신호 검색·에이전트·W-엔진 등). 기존 사용자의 데이터(`data/warp_*.json`)는 앱 시작 시 `data/hsr/`로 자동 이동(1회, 비파괴) (#51)
+- ZZZ 배너 일정 데이터 — `scripts/extract-zzz-schedule.mjs`가 [FuriaPaladins/Hoyoverse-Data](https://github.com/FuriaPaladins/Hoyoverse-Data)에서 추출해 repo에 벤더링, `npm run schedule:status`가 두 게임 모두 보고 (#51)
 - 가이드 사이트 다국어(en/zh/ja) 지원 — 언어별 프리렌더 4페이지(`/`, `/en/`, `/zh/`, `/ja/`), 루트 자동 언어 이동(?lang → localStorage → navigator → ko), 지구본 언어 전환 UI, 언어별 SEO 메타(og·hreflang) (#46)
 - 중국어·일본어 웹폰트(`Noto Sans SC`/`JP`) — 기존 `Noto Sans KR` 이 못 덮는 간체 한자·신자체가 OS 폴백으로 떨어지던 문제 해소 (#46)
 - README 영어 주 전환 + `README.ko.md` 분리, 저장소 description·topics 설정 (#46)
