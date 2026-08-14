@@ -50,7 +50,7 @@ function ShareModal({ open, onClose, uid, lang }) {
       // "Cannot read properties of undefined (reading 'domToBlob')" 같은 영문 기술 문자열이 노출되고,
       // 거의 모든 Error 가 message 를 가지므로 t('share.failed') 는 영영 렌더되지 않는다.
       // 원인은 개발자 콘솔에만 남긴다.
-      console.error('[share] PNG 내보내기 실패', e);
+      console.error('[share] PNG export failed', e);
       setErr(t('share.failed'));
     }
     setBusy(false);
