@@ -85,30 +85,20 @@
     }
   }
 
-  // useCountUp 등 숫자 애니메이션이 끝날 때까지 기다린다.
-  // 캡처 대상 텍스트가 연속 두 프레임 동일하면 안정된 것으로 본다(한 프레임 우연 일치 방어).
-  // 무한 대기를 막기 위해 최대 약 1500ms(useCountUp safety 1300ms 보다 여유 있게)에서 포기하고 진행한다.
-  function waitForTextStable(elements) {
-    // 구분자는 인접 요소의 텍스트가 붙어서 우연히 같은 문자열로 보이는 것을 막는 용도일 뿐이다.
-    const snapshot = () => elements.map((el) => el.textContent).join('|');
-    return new Promise((resolve) => {
-      let prev = snapshot();
-      let same = 0;
-      const start = Date.now();
-      function tick() {
-        const cur = snapshot();
-        if (cur === prev) {
-          same++;
-          if (same >= 2) { resolve(); return; }
-        } else {
-          same = 0;
-          prev = cur;
-        }
-        if (Date.now() - start >= 1500) { resolve(); return; }
-        requestAnimationFrame(tick);
-      }
-      requestAnimationFrame(tick);
-    });
+  // 캡처 전에 무조건 기다리는 시간(ms). 화면에서 가장 늦게 끝나는 애니메이션을 덮어야 한다.
+  //  - util.js 의 useCountUp: duration 900ms + safety setTimeout 400ms = 1300ms 에 최종값 확정
+  //  - LuckBar 마커: HeroSummary 의 showBar 타이머 350ms + left 트랜지션 600ms = 950ms
+  //  - Chart.js 기본 애니메이션 약 1000ms (이쪽은 swapCanvases 의 update('none') 가 별도로 확정한다)
+  // 모듈 시스템이 없어 util.js 의 상수를 가져올 방법이 없다. 900/400 을 그대로 복제하면
+  // 한쪽만 바뀌었을 때 조용히 깨지므로, 복제 대신 넉넉한 상한 하나만 둔다.
+  const SETTLE_MS = 1800;
+
+  // rAF 기반 "변화 없음" 감지는 쓰지 않는다. useCountUp 은 0 에서 시작하므로
+  // 애니메이션이 시작되기 전에도 "연속 동일" 이 성립해 0 이 박힌 PNG 가 나온다.
+  // 게다가 rAF 는 비가시/헤드리스 상태에서 throttle 되거나 멈춘다.
+  // setTimeout 은 useCountUp 의 safety 타이머와 같은 시계를 쓰므로 시간 보장이 성립한다.
+  function settle(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // 선택 섹션을 오프스크린 고정 폭 컨테이너에 쌓아 PNG blob 을 만든다.
@@ -117,6 +107,11 @@
     const ids = (opts && opts.ids) || [];
     const uid = opts && opts.uid;
     const mask = !!(opts && opts.mask);
+
+    // 클론을 뜨기 전에 애니메이션이 끝나길 기다린다 — 안 그러면 진행 중 값(0 이나 중간 숫자,
+    // 가운데에 멈춘 LuckBar 마커)이 그대로 클론에 찍혀 실제 기록과 다른 PNG 가 나간다.
+    // 호출부는 이 동안 '만드는 중…' 을 표시한다.
+    await settle(SETTLE_MS);
 
     const box = document.createElement('div');
     box.className = 'page';
@@ -132,10 +127,6 @@
         const el = document.querySelector('[data-share="' + id + '"]');
         if (el) srcs.push(el);
       }
-
-      // 클론을 뜨기 전에 숫자 애니메이션이 끝나길 기다린다 — 안 그러면
-      // 진행 중 값(중간 숫자)이 그대로 클론에 찍혀 실제 화면과 다른 PNG 가 나온다.
-      await waitForTextStable(srcs);
 
       for (const src of srcs) {
         const clone = src.cloneNode(true);
