@@ -5,7 +5,8 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
   const { Card, ProgressBar, Badge, StatCard } = window.HSRWarpDesignSystem_4a0d44;
   const { num, pityColor, pityBins, pickBanner } = window.WarpUtil;
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
-  const [sel, setSel] = React.useState('캐릭터');
+  // 기본 선택은 한정 캐릭터 배너. short 는 게임마다 다르므로 역할로 얻는다.
+  const [sel, setSel] = React.useState(() => window.WarpData.roleShort('limited-char'));
   // 버전 스코프에서 선택 배너가 빠질 수 있다(구간 내 뽑기 0) — 첫 배너로 폴백.
   const b = pickBanner(D.banners, sel);
   if (!b) return null;

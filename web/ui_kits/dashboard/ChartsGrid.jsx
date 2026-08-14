@@ -18,7 +18,8 @@ function ChartsGrid({ D, theme, lang }) {
     const base = { responsive: true, maintainAspectRatio: false, animation: { duration: 700 } };
     const noLeg = { plugins: { legend: { display: false } } };
     const made = [];
-    const pityBins = window.WarpUtil.pityBins(D.fives, '캐릭터');
+    // 천장 분포는 한정 캐릭터 배너 기준. short 는 게임마다 다르므로 역할로 얻는다.
+    const pityBins = window.WarpUtil.pityBins(D.fives, window.WarpData.roleShort('limited-char'));
 
     made.push(new Chart(refs.rarity.current, { type: 'doughnut',
       data: { labels: ['5★', '4★', '3★'], datasets: [{ data: [D.rarity.c5, D.rarity.c4, D.rarity.c3],
