@@ -134,22 +134,41 @@ const SECTIONS = [
 
 ```
 [내보내기 클릭]
+  0. 애니메이션 안정화 대기: await settle(SETTLE_MS = 1800ms)
+  0-1. 원본 조회를 먼저 끝낸다 (헤더 + 선택 섹션, DOM 순서)
   1. 오프스크린 컨테이너 생성
-     position:fixed; left:-99999px; top:0; width:720px; className="page"
+     position:fixed; left:-99999px; top:0; width:720px; className="page"; [data-share-box]
+  1-1. 폭 미디어 쿼리 무력화 CSS 를 CSSOM 에서 만들어 <style> 로 컨테이너 안에 주입
      → document.body에 append (:root CSS 변수·data-theme 그대로 상속)
   2. 헤더 클론 → append
   3. 선택 섹션을 DOM 순서대로 클론 → append
-  3-1. 클론 트리에서 [data-share-omit] 전부 제거 (컨트롤류)
-  4. canvas 치환: 원본 canvas마다 Chart.getChart(el).toBase64Image()
-                  → 클론 쪽 대응 canvas를 같은 w/h의 <img>로 교체
-  5. 마스킹 ON이면 클론 트리 텍스트 노드에서 UID 치환 (원본 DOM 무손상)
-  6. await document.fonts.ready
-  7. modernScreenshot.domToBlob(container, { width:720, scale:2, backgroundColor:<--bg 실측값> })
-  8. finally: 컨테이너 제거
-  9. 저장 (§7)
+  3-1. canvas 치환: 원본 canvas마다 Chart.getChart(el).update('none') → toBase64Image()
+                    → 클론 쪽 대응 canvas를 <img>(width/height 100% + object-fit:contain)로 교체
+  3-2. 클론 트리에서 [data-share-omit] 전부 제거 (컨트롤류)
+  4. 마스킹 ON이면 클론 트리 텍스트 노드에서 UID 치환 (원본 DOM 무손상)
+  5. await document.fonts.ready
+  6. modernScreenshot.domToBlob(container, { width:720, scale:2, backgroundColor:<--bg 실측값> })
+  7. finally: 컨테이너 제거
+  8. 저장 (§7)
 ```
 
+**canvas 치환이 omit 제거보다 먼저다(3-1 → 3-2).** 치환은 원본과 클론의 `querySelectorAll('canvas')`
+결과를 인덱스로 짝짓는데, omit 제거를 먼저 하면 클론 쪽에서만 canvas 가 사라져 짝이 어긋난다.
+초안(§4.3 v1)은 순서가 반대였으나 구현에서 의도적으로 뒤집었다.
+
+**0번 `SETTLE_MS` 대기**가 없으면 `useCountUp`(900ms + safety 400ms)과 LuckBar 마커 트랜지션(최대 950ms)의
+중간 프레임이 클론에 그대로 찍혀 실제 기록과 다른 숫자가 나간다. rAF 기반 "변화 없음" 감지는 쓰지 않는다 —
+`useCountUp` 이 0에서 시작해 애니메이션 시작 전에도 "연속 동일" 이 성립하고, rAF 는 비가시 상태에서 throttle 된다.
+`3-1` 의 `update('none')` 은 대기 중 창 크기 변경이 Chart.js 애니메이션을 재트리거하는 경우까지 덮는 중복 방어다.
+
+**1-1번 CSSOM override 주입**이 없으면 폭 미디어 쿼리가 컨테이너 폭(720px)이 아니라 **뷰포트 폭**을 보기 때문에
+모바일에서 좁은 그리드가 캡처된다. index.html 의 값을 베끼지 않고, 미디어 쿼리 밖 선언을 CSSOM 에서 읽어
+`[data-share-box]` 접두사로 재선언한다(특이성 한 단계 위 → 미디어 쿼리를 이기고 실화면에는 매치되지 않음).
+
 **고정 폭 720px**이 "모바일에서도 데스크톱과 동일한 결과물" AC를 담보한다. 화면 폭·스크롤 위치와 무관하다.
+
+> **재검증 함정:** `main.go` 가 `//go:embed all:web` 로 웹 자산을 exe 에 굽는다. `web/` 파일만 고치고
+> 예전 exe 로 서빙하면 브라우저는 구버전을 받는다. 브라우저 검증 전에 반드시 `npm run build:debug` + 앱 재시작.
 
 **Chart 인스턴스 접근:** `ChartsGrid.jsx:22`는 차트 인스턴스를 `useEffect` 로컬 배열에만 담고 외부에 노출하지 않는다. 그러나 Chart.js 4의 정적 메서드 **`Chart.getChart(canvasEl)`**로 DOM canvas에서 인스턴스를 역참조할 수 있고 `window.Chart`는 UMD로 이미 전역에 있다(`index.html:73`). 따라서 **`ChartsGrid`·`BannerPityChart`·`VersionPityChart`를 전혀 수정하지 않고** 캡처가 가능하다. 전역 차트 레지스트리를 새로 만드는 안은 불필요하므로 기각.
 
