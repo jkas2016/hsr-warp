@@ -1,18 +1,27 @@
 // 원본 데이터에 실재하는 함정들을 픽스처로 고정한다. 소스가 갱신되며
 // 스키마가 흔들려도 조용히 잘못된 일정을 만들지 않게 한다.
 import assert from 'assert';
-import { buildSchedule } from './extract-zzz-schedule.mjs';
+import { buildSchedule, ORDER, RANKS, BANNERS } from './extract-zzz-schedule.mjs';
 
 // 함정 1: top-level 키를 믿으면 안 된다 — 키 "3" 배열에 banner_type 2 가 섞여 있다.
 // 함정 2: rank / rarity 필드명 혼재, id 가 string / number 혼재.
 // 함정 3: uprate_5 에 빈 객체가 들어 있는 항목이 있다.
 // 함정 4: 타임존이 +08:00 / +01:00 혼재, is_server_time 플래그가 따로 있다.
 // 함정 5: banner_type 12/13 은 특별 채널로 각각 독점 / 음의 엔진에 대응한다.
+// 함정 6(실데이터에서만 드러남): 소스의 banner_type 표기 자체가 틀린 항목이
+// 있다 — 실제로는 W-엔진(5자리 id) 배너인데 banner_type 이 2(독점)로 잘못
+// 찍혀 있다. banner_type 만 믿으면 c 에 5자리 id 가 섞여 들어가고, 정작
+// 진짜 l(무기 픽업)이 비어 wasPickup 이 그 기간의 실제 픽업 당첨을
+// 'loss'+'guaranteed' 로 오분류한다. id 자릿수(캐릭터=4자리/무기=5자리)로
+// 교정해야 한다.
 const RAW = {
   '2': [
     {
       name: 'Mellow Waveride', banner_type: 2,
-      uprate_5: [{ id: '1191', name: 'Ellen', rank: 5, item_type: 'character' }],
+      uprate_5: [
+        { id: '1191', name: 'Ellen', rank: 5, item_type: 'character' },
+        { id: '14119', name: 'Miscategorized Engine', rank: 5, item_type: 'weapon' },
+      ],
       start_time: { time: '2024-07-04 02:00:00+08:00', is_server_time: false },
       end_time: { time: '2024-07-24 11:59:59+01:00', is_server_time: true },
     },
@@ -54,7 +63,7 @@ const RAW = {
   }],
 };
 
-const { schedule, skipped } = buildSchedule(RAW);
+const { schedule, skipped, warnings } = buildSchedule(RAW);
 
 // ---- 같은 기간은 한 항목으로 병합된다 ----
 {
@@ -91,6 +100,36 @@ for (const p of schedule) {
   const first = schedule.find((p) => p.s === '2024-07-04');
   assert.ok(first, '타임존 혼재 항목이 날짜로 정규화됐다');
   assert.match(first.e, /^\d{4}-\d{2}-\d{2}$/, '종료일 형식');
+}
+
+// ---- 함정 6: banner_type 오표기는 id 자릿수로 교정되고, 교정 사실이 보고된다 ----
+{
+  const first = schedule.find((p) => p.s === '2024-07-04');
+  assert.deepStrictEqual(first.c, ['1191'], '5자리 id 는 c 에서 빠진다');
+  assert.deepStrictEqual(first.l, ['14119'], 'banner_type 오표기라도 5자리 id 는 l 로 교정된다');
+  assert.strictEqual(warnings.length, 1, '교정 건수');
+  assert.strictEqual(warnings[0].id, '14119');
+  assert.strictEqual(warnings[0].name, 'Mellow Waveride');
+}
+
+// ---- order/ranks/banners 확률 값은 회귀 방지를 위해 고정한다 ----
+// (analyze.js 의 resolveConfig 가 order 없으면 Object.keys() 로 폴백해
+//  정수 유사 키를 숫자순 재정렬 — 배너 표시 순서가 조용히 뒤집힌다)
+{
+  assert.deepStrictEqual(ORDER, ['2', '3', '1', '5'], '배너 표시 순서');
+  assert.deepStrictEqual(RANKS, { top: '4', mid: '3' }, 'B/A/S 랭크 매핑');
+  assert.strictEqual(BANNERS['2'].cap, 90);
+  assert.strictEqual(BANNERS['2'].rateUp, 0.5);
+  assert.strictEqual(BANNERS['2'].expAvg, 62.5);
+  assert.strictEqual(BANNERS['3'].cap, 80);
+  assert.strictEqual(BANNERS['3'].rateUp, 0.75);
+  assert.strictEqual(BANNERS['3'].expAvg, 50.0);
+  assert.strictEqual(BANNERS['1'].cap, 90);
+  assert.strictEqual(BANNERS['1'].rateUp, null);
+  assert.strictEqual(BANNERS['1'].expAvg, 62.5);
+  assert.strictEqual(BANNERS['5'].cap, 80);
+  assert.strictEqual(BANNERS['5'].rateUp, null);
+  assert.strictEqual(BANNERS['5'].expAvg, 50.0);
 }
 
 // ---- 시작일 오름차순 ----

@@ -18,6 +18,11 @@ const SRC = 'https://raw.githubusercontent.com/FuriaPaladins/Hoyoverse-Data/main
 // 확률 파라미터가 같다(공시 원문 확인).
 const POOL_OF = { 2: 'c', 3: 'l', 12: 'c', 13: 'l' };
 
+// 대시보드가 배너 표시 순서를 이 배열로 강제한다(analyze.js 의 resolveConfig
+// 가 order 없으면 Object.keys() 로 폴백하는데, 정수 유사 키를 숫자순 재정렬해
+// 순서가 뒤집힌다). resolveConfig(schedule.json) 로 직접 확인된 값.
+export const ORDER = ['2', '3', '1', '5'];
+
 // 게임 버전 목록은 소스에 없어 별도 관리한다. 신규 패치마다 한 줄 추가한다.
 //
 // 확인된 값만 넣는다 — 잘못된 버전 경계는 버전별 통계를 조용히 왜곡한다.
@@ -30,7 +35,7 @@ const VERSIONS = [
 ];
 
 // 공시 원문(general_prob_star5) 기준. 값은 32개 배너 표본에서 채널별로 일정했다.
-const BANNERS = {
+export const BANNERS = {
   '2': { role: 'limited-char',   name: '독점 채널',   short: '독점',   color: '#ff5a6e', cap: 90, rateUp: 0.5,  expAvg: 62.5 },
   '3': { role: 'limited-weapon', name: 'W-엔진 채널', short: 'W-엔진', color: '#f5a524', cap: 80, rateUp: 0.75, expAvg: 50.0 },
   '1': { role: 'standard',       name: '상시 채널',   short: '상시',   color: '#52d39a', cap: 90, rateUp: null, expAvg: 62.5 },
@@ -38,7 +43,7 @@ const BANNERS = {
 };
 
 // ZZZ 는 B급=2 / A급=3 / S급=4 다(실측). HSR 의 3/4/5 와 다르다.
-const RANKS = { top: '4', mid: '3' };
+export const RANKS = { top: '4', mid: '3' };
 
 // utcDate 는 시각 문자열에서 날짜만 취한다. 소스는 +08:00/+01:00 오프셋이
 // 섞여 있고 is_server_time 플래그가 따로 붙지만, 오프셋을 반영해 UTC로 완전
@@ -51,11 +56,23 @@ function utcDate(t) {
   return m ? m[1] : null;
 }
 
+// ZZZ id 자릿수 규칙: 에이전트(캐릭터)=4자리, W-엔진(무기)=5자리(HSR 도 같은
+// 패턴 — 캐릭터 4자리/광추 5자리 — web/ui_kits/dashboard/items.test.js:11-12
+// 가 그 규칙을 고정한다). banner_type 표기가 틀려도 id 자릿수는 어긋나지
+// 않으므로, 소스의 banner_type 오표기(실측: 음의 엔진 배너 1건이 2로 오표기)
+// 를 자릿수로 교정한다.
+function poolFor(pool, id) {
+  if (pool === 'c' && id.length === 5) return 'l';
+  if (pool === 'l' && id.length === 4) return 'c';
+  return pool;
+}
+
 // buildSchedule 은 원본을 schedule 배열로 변환한다. 순수 함수라 테스트가
 // 네트워크 없이 돈다.
 export function buildSchedule(raw) {
   const byStart = new Map();
   const skipped = [];
+  const warnings = [];
 
   // top-level 키는 신뢰하지 않는다 — 키 "3" 배열에 banner_type 2 가 섞여 있다.
   const all = [];
@@ -85,26 +102,38 @@ export function buildSchedule(raw) {
     const slot = byStart.get(s);
     // 같은 기간 안에서 종료일이 다르면 늦은 쪽을 취한다(동시 병행 배너).
     if (e > slot.e) slot.e = e;
-    for (const id of ids) if (!slot[pool].includes(id)) slot[pool].push(id);
+    for (const id of ids) {
+      const actual = poolFor(pool, id);
+      if (actual !== pool) {
+        warnings.push({
+          name: b.name, id,
+          reason: `banner_type 기준 pool='${pool}' 이지만 id 자릿수(${id.length})로 pool='${actual}' 로 교정`,
+        });
+      }
+      if (!slot[actual].includes(id)) slot[actual].push(id);
+    }
   }
 
   const schedule = [...byStart.values()].sort((a, b) => (a.s < b.s ? -1 : a.s > b.s ? 1 : 0));
-  return { schedule, skipped };
+  return { schedule, skipped, warnings };
 }
 
 async function main() {
   const res = await fetch(SRC, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`소스 응답 ${res.status}`);
-  const { schedule, skipped } = buildSchedule(await res.json());
+  const { schedule, skipped, warnings } = buildSchedule(await res.json());
 
   for (const s of skipped) console.warn(`건너뜀: ${s.name} — ${s.reason}`);
+  // 교정은 조용히 삼키지 않는다 — 소스가 매일 갱신되는 외부 데이터라 같은
+  // banner_type 오표기가 재발할 수 있다. 다음에 사람이 알아챌 수 있게 표면화한다.
+  for (const w of warnings) console.warn(`교정: ${w.name} (id ${w.id}) — ${w.reason}`);
   if (schedule.length === 0) throw new Error('일정이 비었다 — 소스 스키마가 바뀐 것 같다');
 
-  const out = { version: 1, order: ['2', '3', '1', '5'], ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
+  const out = { version: 1, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
   const dst = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'zzz', 'schedule.json');
   mkdirSync(dirname(dst), { recursive: true });
   writeFileSync(dst, JSON.stringify(out), 'utf8');
-  console.log(`${dst} 기록 — 일정 ${schedule.length}건, 건너뜀 ${skipped.length}건`);
+  console.log(`${dst} 기록 — 일정 ${schedule.length}건, 건너뜀 ${skipped.length}건, 교정 ${warnings.length}건`);
 }
 
 // 테스트에서 import 할 때는 실행하지 않는다.
