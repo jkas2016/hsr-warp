@@ -439,7 +439,7 @@ git commit -m "chore(dashboard): modern-screenshot@4.7.0 CDN+SRI 추가"
 
 **Interfaces:**
 - Consumes: Task 1 의 `SECTIONS[].labelKey`
-- Produces: `share.*` i18n 키 18개 — Task 6의 `ShareModal.jsx` 가 `t()` 로 소비한다
+- Produces: `share.*` i18n 키 19개(모달 문구 8 + 섹션 라벨 11) — Task 6의 `ShareModal.jsx` 가 `t()` 로 소비한다
 
 - [ ] **Step 1: 실패하는 정합성 테스트를 추가한다**
 
