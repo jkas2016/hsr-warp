@@ -43,7 +43,9 @@
       list: schedule.schedule || [],
       ranks: Object.assign({}, DEFAULT_RANKS, schedule.ranks),
       banners,
-      order: Object.keys(banners),
+      // Object.keys() 는 정수 유사 문자열 키를 오름차순 숫자로 재정렬한다(예: '11'이 '2' 앞으로 안 감).
+      // 이는 배너 표시 순서를 조용히 뒤집으므로, schedule.order 가 있으면 반드시 그걸 쓴다.
+      order: schedule.order || Object.keys(banners),
     };
   }
 
@@ -90,14 +92,15 @@
     };
   }
 
-  // 캐릭터(11)+광추(12) 합산 지표 — 평균·기준선은 5★ 개수 가중(버전 비교 'all'과 동일 산식),
+  // limited-char + limited-weapon 역할 배너 합산 지표 — 평균·기준선은 5★ 개수 가중(버전 비교 'all'과 동일 산식),
   // 승/패/확정은 단순 합. 입력은 aggregateFives 산출물(없으면 null 허용).
   // cfg 는 선택 — 생략하면 HSR 기본 테이블로 폴백(하위 호환).
   function combineLimited(charStats, lcStats, cfg) {
     cfg = cfg || resolveConfig(null);
     const charCode = codesByRole(cfg, 'limited-char')[0];
     const lcCode = codesByRole(cfg, 'limited-weapon')[0];
-    const charExp = cfg.banners[charCode].expAvg, lcExp = cfg.banners[lcCode].expAvg;
+    const charExp = charCode ? cfg.banners[charCode].expAvg : null;
+    const lcExp = lcCode ? cfg.banners[lcCode].expAvg : null;
     const c = charStats || {}, l = lcStats || {};
     const n1 = c.count5 || 0, n2 = l.count5 || 0, tot = n1 + n2;
     const avg = tot ? ((c.avgPity5 || 0) * n1 + (l.avgPity5 || 0) * n2) / tot : 0;
@@ -181,8 +184,11 @@
 
   // 전체 분석 결과(full)를 한 윈도우 {s,e}(ms)로 필터해 analyze()와 같은 모양으로 반환.
   // 분류된 fives는 시각 필터만(천장·result 재계산 금지), 뽑기 횟수는 원본 레코드를 시각 버킷.
+  // cfg 생략 시 full._cfg(analyze() 가 실어 보낸 설정) → HSR 기본값 순으로 폴백한다.
+  // 이렇게 해야 analyze() 결과(full)를 그대로 재사용하는 호출부가 cfg 를 깜빡해도
+  // 조용히 다른 게임 테이블로 계산되는 사고를 막을 수 있다.
   function filterAnalysis(full, data, win, cfg) {
-    cfg = cfg || resolveConfig(null);
+    cfg = cfg || (full && full._cfg) || resolveConfig(null);
     const inWin = t => { const ms = dms(t); return ms >= win.s && ms < win.e; };
     const list = (Array.isArray(data.list) ? data.list : []).filter(r => inWin(r.time));
 
@@ -235,9 +241,10 @@
   }
 
   // 각 버전 윈도우의 요약을 비교표 행으로. 뽑기 0 버전 제외.
-  // 캐릭(11)·광추(12)를 각각, 그리고 all=둘 합산(픽승/픽뚫 합, 평균뽑기·기준선은 5★ 개수 가중)으로.
+  // limited-char·limited-weapon 역할 배너를 각각, 그리고 all=둘 합산(픽승/픽뚫 합, 평균뽑기·기준선은 5★ 개수 가중)으로.
+  // cfg 생략 시 full._cfg(analyze() 가 실어 보낸 설정) → HSR 기본값 순으로 폴백한다.
   function analyzeVersions(full, data, versions, cfg) {
-    cfg = cfg || resolveConfig(null);
+    cfg = cfg || (full && full._cfg) || resolveConfig(null);
     const charCode = codesByRole(cfg, 'limited-char')[0];
     const lcCode = codesByRole(cfg, 'limited-weapon')[0];
     const fmt = ms => ms === Infinity ? '' : new Date(ms).toISOString().slice(0, 10);
@@ -250,8 +257,8 @@
       if (!a.total) return null;
       const charBanner = a.banners.find(b => b.type === charCode);
       const lcBanner = a.banners.find(b => b.type === lcCode);
-      const char = metric(charBanner, cfg.banners[charCode].expAvg);
-      const lc = metric(lcBanner, cfg.banners[lcCode].expAvg);
+      const char = metric(charBanner, charCode ? cfg.banners[charCode].expAvg : null);
+      const lc = metric(lcBanner, lcCode ? cfg.banners[lcCode].expAvg : null);
       const combined = combineLimited(charBanner ? charBanner.stats : null, lcBanner ? lcBanner.stats : null, cfg);
       const all = {
         avgPity: combined.avgPity5, cWins: combined.cWins, cLoss: combined.cLoss,
@@ -293,6 +300,9 @@
         lcBanner: lc ? lc.stats : null,
         limited: combineLimited(lim ? lim.stats : null, lc ? lc.stats : null, cfg),
       },
+      // filterAnalysis/analyzeVersions 가 cfg 인자 없이 이 결과를 재사용할 때 쓰는 폴백.
+      // 열거는 되지만(테스트 편의) 대시보드 렌더 로직은 이 필드를 소비하지 않는다.
+      _cfg: cfg,
     };
   }
 
