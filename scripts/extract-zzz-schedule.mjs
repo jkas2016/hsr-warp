@@ -26,12 +26,40 @@ export const ORDER = ['2', '3', '1', '5'];
 // 게임 버전 목록은 소스에 없어 별도 관리한다. 신규 패치마다 한 줄 추가한다.
 //
 // 확인된 값만 넣는다 — 잘못된 버전 경계는 버전별 통계를 조용히 왜곡한다.
-// 1.0 시작일만 zzz_formatted.json 의 최초 배너 시작일로 확정돼 있다.
-// 나머지는 공식 출처(패치 노트·업데이트 공지)로 확인한 뒤 추가한다.
 // 비어 있어도 앱은 동작한다: analyzeVersions 가 빈 배열을 반환해 버전 비교
 // 탭이 빈 상태가 될 뿐이고, 다른 지표는 전부 정상이다.
+//
+// 아래 값의 근거(2026-08 조사)
+//  1. 각 버전 1페이즈 시작일을 GamingOnPhone "The Complete Banner History"(1.0~2.8)
+//     에서 표로 확보하고, 1.3·2.0·2.6·2.7·2.8·3.0·3.1 은 별도 기사로 교차 확인했다.
+//  2. 그 표를 zzz_formatted.json 의 실제 배너 시작일과 대조했다 — 19건 중 17건이
+//     정확히 일치했고, 2.2(09-03 vs 09-04)·2.5(12-29 vs 12-30) 두 건만 하루 달랐다.
+//  3. 하루 차이는 타임존·점검 시작 기준 차이다. 여기서는 **배너 데이터 쪽 날짜**를
+//     채택한다 — analyze.js 는 레코드의 게임 로컬 시각을 이 경계와 비교하므로
+//     schedule 과 같은 기준이어야 버전 구간과 배너 구간이 어긋나지 않는다.
+//
+// 버전당 배너 페이즈 수는 일정하지 않다(1.5·2.5 등 연말 구간은 페이즈가 길거나
+// 수가 다르다). 그래서 "N페이즈마다 한 버전" 식으로 유도하지 말고 위 표를 갱신한다.
 const VERSIONS = [
   { v: '1.0', s: '2024-07-04' },
+  { v: '1.1', s: '2024-08-14' },
+  { v: '1.2', s: '2024-09-25' },
+  { v: '1.3', s: '2024-11-06' },
+  { v: '1.4', s: '2024-12-18' },
+  { v: '1.5', s: '2025-01-22' },
+  { v: '1.6', s: '2025-03-12' },
+  { v: '1.7', s: '2025-04-23' },
+  { v: '2.0', s: '2025-06-06' },
+  { v: '2.1', s: '2025-07-16' },
+  { v: '2.2', s: '2025-09-04' },
+  { v: '2.3', s: '2025-10-15' },
+  { v: '2.4', s: '2025-11-26' },
+  { v: '2.5', s: '2025-12-30' },
+  { v: '2.6', s: '2026-02-06' },
+  { v: '2.7', s: '2026-03-24' },
+  { v: '2.8', s: '2026-05-06' },
+  { v: '3.0', s: '2026-06-17' },
+  { v: '3.1', s: '2026-07-29' },
 ];
 
 // 공시 원문(general_prob_star5) 기준. 값은 32개 배너 표본에서 채널별로 일정했다.
@@ -152,7 +180,9 @@ async function main() {
   for (const w of warnings) console.warn(`교정: ${w.name} (id ${w.id}) — ${w.reason}`);
   if (schedule.length === 0) throw new Error('일정이 비었다 — 소스 스키마가 바뀐 것 같다');
 
-  const out = { version: 1, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
+  // 배포 버전. 업데이터가 이 정수를 비교해 갱신을 내려보내므로 산출물이 바뀌면 올린다.
+  // 2: VERSIONS 를 1.0~3.1 전 구간으로 채움(버전 비교 탭 활성화).
+  const out = { version: 2, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
   const dst = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'zzz', 'schedule.json');
   mkdirSync(dirname(dst), { recursive: true });
   writeFileSync(dst, JSON.stringify(out), 'utf8');

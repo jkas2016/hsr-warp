@@ -1,7 +1,12 @@
 // 원본 데이터에 실재하는 함정들을 픽스처로 고정한다. 소스가 갱신되며
 // 스키마가 흔들려도 조용히 잘못된 일정을 만들지 않게 한다.
 import assert from 'assert';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { buildSchedule, ORDER, RANKS, BANNERS } from './extract-zzz-schedule.mjs';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // 함정 1: top-level 키를 믿으면 안 된다 — 키 "3" 배열에 banner_type 2 가 섞여 있다.
 // 함정 2: rank / rarity 필드명 혼재, id 가 string / number 혼재.
@@ -166,6 +171,43 @@ for (let i = 1; i < schedule.length; i++) {
 for (const p of schedule) {
   assert.ok(Array.isArray(p.c), 'c 키 필수');
   assert.ok(Array.isArray(p.l), 'l 키 필수');
+}
+
+// ---- 게임 버전 목록 ----
+// 버전 경계가 틀리면 버전별 통계가 조용히 왜곡된다(에러가 안 난다). 그래서
+// 손으로 관리하는 VERSIONS 를 실제 배너 일정과 대조해 드리프트를 막는다.
+// 위 검사들과 달리 픽스처가 아니라 **커밋된 산출물**을 본다 — 실제 배포되는 값이
+// 맞는지가 관심사이기 때문이다.
+{
+  const real = JSON.parse(readFileSync(join(ROOT, 'web', 'zzz', 'schedule.json'), 'utf8'));
+  const versions = real.versions;
+  const realSchedule = real.schedule;
+
+  assert.ok(versions.length > 0, 'versions 가 비어 있다');
+
+  // 1) 오름차순 + 중복 없음.
+  for (let i = 1; i < versions.length; i++) {
+    assert.ok(versions[i - 1].s < versions[i].s,
+      `versions 시작일 오름차순 위반: ${versions[i - 1].v} → ${versions[i].v}`);
+  }
+  const vs = versions.map((x) => x.v);
+  assert.strictEqual(new Set(vs).size, vs.length, '버전 번호 중복');
+
+  // 2) 모든 버전 시작일은 실제 배너 페이즈 시작일과 일치해야 한다.
+  //    새 버전은 항상 새 배너와 함께 열리므로, 여기서 어긋나면 날짜가 틀린 것이다.
+  const bannerStarts = new Set(realSchedule.map((p) => p.s));
+  for (const v of versions) {
+    assert.ok(bannerStarts.has(v.s),
+      `버전 ${v.v} 시작일 ${v.s} 이 배너 일정에 없다 — 날짜 확인 필요`);
+  }
+
+  // 3) 첫 버전은 서비스 시작일과 같아야 한다(그 이전 기록은 존재할 수 없다).
+  assert.strictEqual(versions[0].s, realSchedule[0].s, '첫 버전 시작일 ≠ 최초 배너 시작일');
+
+  // 4) 마지막 버전이 일정의 마지막 구간을 덮어야 한다 — 신규 패치 미반영 조기 경보.
+  const lastPhase = realSchedule[realSchedule.length - 1];
+  assert.ok(versions[versions.length - 1].s >= lastPhase.s,
+    `최신 배너(${lastPhase.s})를 덮는 버전이 없다 — VERSIONS 갱신 필요`);
 }
 
 console.log('OK  extract-zzz-schedule tests passed');
