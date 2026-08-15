@@ -93,8 +93,8 @@ function HeroSummary({ D, scoped }) {
         <div className="stat-row">
           <StatCard label={t('hero.totalPulls')} value={num(useCountUp(D.total))} unit={t('common.times')} />
           <StatCard label={t('hero.jade')} value={num(useCountUp(D.jade))} unit={t('hero.jadeUnit', { n: num(D.jade / 160) })} />
-          <StatCard label="5★" value={useCountUp(D.count5)} unit={t('common.count')} accent="var(--gold)" valueColor="var(--gold-ink)" />
-          <StatCard label="4★" value={useCountUp(D.count4)} unit={t('common.count')} accent="var(--purple)" valueColor="var(--purple)" />
+          <StatCard label={t('rank.r5')} value={useCountUp(D.count5)} unit={t('common.count')} accent="var(--gold)" valueColor="var(--gold-ink)" />
+          <StatCard label={t('rank.r4')} value={useCountUp(D.count4)} unit={t('common.count')} accent="var(--purple)" valueColor="var(--purple)" />
           <StatCard label={t('hero.rate5')} value={useCountUp(D.rate5, { decimals: 2 })} unit="%" />
         </div>
       </section>

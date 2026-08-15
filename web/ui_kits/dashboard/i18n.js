@@ -5,6 +5,20 @@
   var DICTS = window.I18N_DICTS || (window.I18N_DICTS = {});
   var SUPPORTED = ['ko', 'en', 'zh', 'ja'];
 
+  // 현재 게임. data.js 보다 먼저 로드될 수 있어 호출 시점에 평가한다(itemName 과 같은 이유).
+  function curGame() {
+    return (window.WarpData && window.WarpData.game()) || 'hsr';
+  }
+  // 게임별 용어 오버레이(i18n/game.js). 해당 언어에 없으면 en 으로, 그것도 없으면
+  // 기본 사전으로 넘긴다 — 오버레이는 "다른 어휘를 쓰는 키"만 담는 얇은 층이다.
+  function overlay(key) {
+    var g = (window.I18N_GAME_DICTS || {})[curGame()];
+    if (!g) return null;
+    var v = (g[I18N.lang] || {})[key];
+    if (v == null && I18N.lang !== 'en') v = (g.en || {})[key];
+    return v == null ? null : v;
+  }
+
   function langOf(str) {
     var s = String(str || '').toLowerCase();
     if (s.indexOf('zh') === 0) return 'zh';
@@ -50,6 +64,8 @@
       return n;
     },
     t: function (key, vars) {
+      var o = overlay(key);
+      if (o != null) return interpolate(o, vars);
       var d = DICTS[I18N.lang] || {};
       var v = d[key];
       if (v == null) v = (DICTS.ko || {})[key];     // ko 폴백

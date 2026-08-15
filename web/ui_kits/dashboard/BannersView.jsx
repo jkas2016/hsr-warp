@@ -116,13 +116,15 @@ function BannerPityChart({ bins, cap, theme, sel }) {
     if (!window.Chart) return;
     const cs = getComputedStyle(document.documentElement);
     const muted = cs.getPropertyValue('--muted').trim(), grid = cs.getPropertyValue('--line').trim();
+    // 게임 팔레트(tokens/game.css)를 따른다 — 폴백은 colors.css 기본값.
+    const green = cs.getPropertyValue('--green').trim() || '#52d39a', orange = cs.getPropertyValue('--orange').trim() || '#ff9e45';
     const n = Math.ceil(cap / 10);
     const labels = Array.from({ length: n }, (_, i) => `${i * 10 + 1}-${(i + 1) * 10}`);
     const data = bins.slice(0, n);
     const soft = cap === 80 ? 6 : 7;
     const c = new Chart(ref.current, {
       type: 'bar',
-      data: { labels, datasets: [{ data, backgroundColor: data.map((_, i) => (i < soft ? '#52d39a' : '#ff9e45')), borderRadius: 6 }] },
+      data: { labels, datasets: [{ data, backgroundColor: data.map((_, i) => (i < soft ? green : orange)), borderRadius: 6 }] },
       options: { responsive: true, maintainAspectRatio: false, animation: { duration: 600 },
         plugins: { legend: { display: false } },
         scales: { y: { grid: { color: grid }, ticks: { precision: 0, color: muted } }, x: { grid: { display: false }, ticks: { color: muted } } } },

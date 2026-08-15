@@ -7,6 +7,8 @@ window.WarpData = (function () {
   // 지원 게임 목록(표시 순서). 서버 internal/game 의 목록과 같아야 한다 — 알 수 없는 id 는
   // /api/* 가 400 을 주므로 여기서 걸러 저장된 값이 오염돼도 hsr 로 되돌아간다.
   const GAMES = ['hsr', 'zzz'];
+  // 게임 로고(대시보드 기준 상대 경로). 헤더·게임 스위처·빈 상태 글리프가 함께 쓴다.
+  const LOGOS = { hsr: '../../assets/logo-train.svg', zzz: '../../assets/logo-zzz.svg' };
   // 현재 게임. localStorage 에 저장해 새로고침에도 유지한다.
   let gameID = 'hsr';
   try { const s = localStorage.getItem('hsrwarp-game'); if (GAMES.includes(s)) gameID = s; } catch (e) {}
@@ -35,6 +37,7 @@ window.WarpData = (function () {
   }
   function game() { return gameID; }
   function games() { return GAMES.slice(); }
+  function logo(id) { return LOGOS[id || gameID] || LOGOS.hsr; }
 
   // 역할 → 배너 코드. 게임마다 코드가 다르므로 '11'/'12' 같은 리터럴을 쓰지 않는다.
   function byRole(role) {
@@ -256,5 +259,5 @@ window.WarpData = (function () {
     try { return await fetch('/api/updates').then((r) => r.json()); } catch (e) { return null; }
   }
 
-  return { loadStored, runFetch, configPath, checkUpdates, scopeTo, setGame, game, games, roleShort, banners, roleOfProgress };
+  return { loadStored, runFetch, configPath, checkUpdates, scopeTo, setGame, game, games, logo, roleShort, banners, roleOfProgress };
 })();

@@ -10,6 +10,7 @@ require('./i18n/ko.js');
 require('./i18n/en.js');
 require('./i18n/zh.js');
 require('./i18n/ja.js');
+require('./i18n/game.js');
 require('./i18n.js');
 
 const I = window.I18N;
@@ -102,5 +103,48 @@ window.WarpData = { game: () => 'zzz' };
 assert.strictEqual(I.itemName('1221', '청작'), '청작', 'zzz: raw(API 현지화 이름)가 이긴다 — HSR 사전 충돌 무시');
 delete window.WarpData;
 assert.strictEqual(I.itemName('1221', '운리'), '운리', 'WarpData 없으면 hsr로 가정(기존 단일 게임 동작 보존)');
+
+// 10) 게임별 용어 오버레이(i18n/game.js).
+{
+  const OVR = window.I18N_GAME_DICTS;
+  assert.ok(OVR && OVR.zzz, 'I18N_GAME_DICTS.zzz 가 없다');
+
+  // 10-1) 오버레이 키는 전부 기본 사전에 존재해야 한다 — 오타난 키는 조용히 무시되므로
+  //       화면엔 HSR 어휘가 그대로 남는다. 여기서 잡지 않으면 발견이 불가능하다.
+  // 10-2) 오버레이 언어들끼리 키 집합이 같아야 한다(한 언어만 번역돼 절반만 바뀌는 것 방지).
+  for (const [gameID, byLang] of Object.entries(OVR)) {
+    const langKeys = Object.keys(byLang).map((l) => Object.keys(byLang[l]).sort());
+    for (const l of Object.keys(byLang)) {
+      assert.ok(DICTS[l], `${gameID} 오버레이가 미지원 언어 ${l} 를 담고 있다`);
+      for (const k of Object.keys(byLang[l])) {
+        assert.ok(k in DICTS.ko, `${gameID}/${l} 오버레이 키가 기본 사전에 없다: ${k}`);
+      }
+    }
+    for (const ks of langKeys) {
+      assert.deepStrictEqual(ks, langKeys[0], `${gameID} 오버레이 언어별 키 집합 불일치`);
+    }
+  }
+
+  // 10-3) 조회 우선순위: 오버레이[lang] → 오버레이.en → 기본 사전.
+  window.WarpData = { game: () => 'zzz' };
+  I.setLang('ko');
+  assert.strictEqual(I.t('rank.r5'), 'S급', 'zzz/ko 오버레이');
+  assert.strictEqual(I.t('result.win'), '픽승', '오버레이에 없는 키는 기본 사전');
+  I.setLang('en');
+  assert.strictEqual(I.t('rank.r5'), 'S-Rank', 'zzz/en 오버레이');
+  I.setLang('ja');
+  assert.strictEqual(I.t('rank.r5'), 'S-Rank', 'ja 번역 부재 → en 폴백');
+  assert.strictEqual(I.t('result.win'), DICTS.ja['result.win'], '오버레이 미대상 키는 ja 그대로');
+
+  // 10-4) 보간은 오버레이 값에도 적용된다.
+  I.setLang('ko');
+  assert.strictEqual(I.t('bannercards.nextOdds', { odds: '50/50' }), '다음 S급 50/50');
+
+  // 10-5) HSR 은 오버레이가 없으므로 기본 사전이 그대로 보인다.
+  window.WarpData = { game: () => 'hsr' };
+  assert.strictEqual(I.t('rank.r5'), '5★', 'hsr 은 기본 사전');
+  assert.strictEqual(I.t('header.title2'), DICTS.ko['header.title2']);
+  delete window.WarpData;
+}
 
 console.log('i18n.test.js OK');

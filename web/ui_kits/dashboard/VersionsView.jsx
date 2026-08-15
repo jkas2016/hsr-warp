@@ -87,9 +87,11 @@ function VersionPityChart({ rows, banner, baseLine, sel, theme, lang }) {
     const mOf = (v) => v[banner] || v.all;
     const cs = getComputedStyle(document.documentElement);
     const muted = cs.getPropertyValue('--muted').trim(), grid = cs.getPropertyValue('--line').trim();
+    // 게임 팔레트(tokens/game.css)를 따른다 — 폴백은 colors.css 기본값.
+    const green = cs.getPropertyValue('--green').trim() || '#52d39a', red = cs.getPropertyValue('--red').trim() || '#ff6b6b';
     const colors = rows.map((v) => {
       const avg = mOf(v).avgPity;
-      const base = (avg != null && avg < baseLine) ? '#52d39a' : '#ff6b6b';
+      const base = (avg != null && avg < baseLine) ? green : red;
       return sel && sel !== v.v ? base + '66' : base;
     });
     const c = new Chart(ref.current, {

@@ -11,7 +11,10 @@ function ChartsGrid({ D, theme, lang }) {
     const cs = getComputedStyle(document.documentElement);
     const v = (n) => cs.getPropertyValue(n).trim();
     const muted = v('--muted'), grid = v('--line'), panel = v('--panel');
-    const GOLD = '#f5c542', PURPLE = '#a474ff', BLUE = '#5aa9ff', GREEN = '#52d39a', RED = '#ff6b6b', ORANGE = '#ff9e45';
+    // 게임 팔레트(tokens/game.css)를 따라야 하므로 하드코딩 대신 CSS 변수에서 읽는다.
+    // 폴백은 colors.css 의 기본값 — 변수 조회가 빈 문자열이면 Chart.js 가 검게 그린다.
+    const GOLD = v('--gold') || '#f5c542', PURPLE = v('--purple') || '#a474ff', BLUE = v('--blue') || '#5aa9ff',
+      GREEN = v('--green') || '#52d39a', RED = v('--red') || '#ff6b6b', ORANGE = v('--orange') || '#ff9e45';
 
     Chart.defaults.color = muted;
     Chart.defaults.font.family = 'Space Grotesk, Noto Sans KR, sans-serif';
@@ -22,7 +25,7 @@ function ChartsGrid({ D, theme, lang }) {
     const pityBins = window.WarpUtil.pityBins(D.fives, window.WarpData.roleShort('limited-char'));
 
     made.push(new Chart(refs.rarity.current, { type: 'doughnut',
-      data: { labels: ['5★', '4★', '3★'], datasets: [{ data: [D.rarity.c5, D.rarity.c4, D.rarity.c3],
+      data: { labels: [t('rank.r5'), t('rank.r4'), t('rank.r3')], datasets: [{ data: [D.rarity.c5, D.rarity.c4, D.rarity.c3],
         backgroundColor: [GOLD, PURPLE, BLUE], borderColor: panel, borderWidth: 4, hoverOffset: 6 }] },
       options: { ...base, plugins: { legend: { position: 'bottom' } }, cutout: '64%' } }));
 
@@ -33,7 +36,7 @@ function ChartsGrid({ D, theme, lang }) {
 
     const lim = Object.keys(D.fiveFiveBins);
     made.push(new Chart(refs.ff.current, { type: 'bar',
-      data: { labels: lim, datasets: [
+      data: { labels: lim.map((k) => window.I18N.bannerLabel(k)), datasets: [
         { label: t('result.win'), data: lim.map((k) => D.fiveFiveBins[k].win), backgroundColor: GOLD, borderRadius: 4 },
         { label: t('result.loss'), data: lim.map((k) => D.fiveFiveBins[k].loss), backgroundColor: RED, borderRadius: 4 },
         { label: t('result.guaranteed'), data: lim.map((k) => D.fiveFiveBins[k].guar), backgroundColor: GREEN, borderRadius: 4 }] },
@@ -43,14 +46,15 @@ function ChartsGrid({ D, theme, lang }) {
     const M = D.monthly;
     made.push(new Chart(refs.month.current, { type: 'bar',
       data: { labels: M.map((m) => m.month.slice(2)), datasets: [
-        { label: '3★', data: M.map((m) => m.c3), backgroundColor: BLUE, borderRadius: 4 },
-        { label: '4★', data: M.map((m) => m.c4), backgroundColor: PURPLE, borderRadius: 4 },
-        { label: '5★', data: M.map((m) => m.c5), backgroundColor: GOLD, borderRadius: 4 }] },
+        { label: t('rank.r3'), data: M.map((m) => m.c3), backgroundColor: BLUE, borderRadius: 4 },
+        { label: t('rank.r4'), data: M.map((m) => m.c4), backgroundColor: PURPLE, borderRadius: 4 },
+        { label: t('rank.r5'), data: M.map((m) => m.c5), backgroundColor: GOLD, borderRadius: 4 }] },
       options: { ...base, plugins: { legend: { position: 'bottom' } },
         scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, grid: { color: grid } } } } }));
 
     return () => made.forEach((c) => c.destroy());
-  }, [theme, lang]);
+    // D: 게임 데이터 도착·버전 구간 변경 시 재빌드(게임 팔레트가 data-game 으로 바뀐 뒤 시점).
+  }, [theme, lang, D]);
 
   const wrap = { position: 'relative', height: 230 };
   const h3 = { fontSize: 13, marginBottom: 12, color: 'var(--muted)', fontWeight: 600, marginTop: 0, fontFamily: 'var(--font-display)' };
