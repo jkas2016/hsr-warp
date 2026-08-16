@@ -132,9 +132,21 @@ assert.strictEqual(I.itemName('1221', '운리'), '운리', 'WarpData 없으면 h
   assert.strictEqual(I.t('result.win'), '픽승', '오버레이에 없는 키는 기본 사전');
   I.setLang('en');
   assert.strictEqual(I.t('rank.r5'), 'S-Rank', 'zzz/en 오버레이');
+  I.setLang('zh');
+  assert.strictEqual(I.t('rank.r5'), 'S级', 'zzz/zh 오버레이');
   I.setLang('ja');
-  assert.strictEqual(I.t('rank.r5'), 'S-Rank', 'ja 번역 부재 → en 폴백');
+  assert.strictEqual(I.t('rank.r5'), 'S級', 'zzz/ja 오버레이');
   assert.strictEqual(I.t('result.win'), DICTS.ja['result.win'], '오버레이 미대상 키는 ja 그대로');
+
+  // 오버레이에 없는 언어는 en 으로 폴백한다 — 지원 언어를 늘렸을 때 번역이
+  // 채워지기 전까지 화면에 HSR 어휘가 새어나오지 않게 하는 안전망이다.
+  {
+    const saved = OVR.zzz.ja;
+    delete OVR.zzz.ja;
+    I.setLang('ja');
+    assert.strictEqual(I.t('rank.r5'), 'S-Rank', '오버레이 언어 부재 → en 폴백');
+    OVR.zzz.ja = saved;
+  }
 
   // 10-4) 보간은 오버레이 값에도 적용된다.
   I.setLang('ko');

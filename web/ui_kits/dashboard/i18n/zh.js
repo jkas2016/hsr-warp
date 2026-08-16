@@ -157,7 +157,7 @@ window.I18N_DICTS.zh = {
   'scope.label': '版本区间',
   'scope.allPeriod': '全部时间',
   'foot.line1Hsr': '1抽 = 160星琼 · 非官方工具，与米哈游无关 · 数据格式SRGF v1.0',
-  'foot.line1Zzz': '1抽 = 160复色菲林 · 非官方工具，与米哈游无关 · 数据格式UIGF v4.0',
+  'foot.line1Zzz': '1抽 = 160菲林 · 非官方工具，与米哈游无关 · 数据格式UIGF v4.0',
   'foot.line2': '50/50判定：获得5★时，若为当期卡池概率UP对象则为「没歪」，否则为「歪了」。',
   'warn.unknown5': '⚠ {n}个未识别5★ — 获取时间不在已知卡池日程中（新版本未反映）。最新卡池启动时自动更新（如未更新，稍后重试）。',
   'update.newVersion': '新版本{v}已发布 —',
