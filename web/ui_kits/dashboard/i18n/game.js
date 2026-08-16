@@ -9,13 +9,18 @@
 //    ZZZ 용어의 zh/ja 번역은 아직 없어 그 두 언어는 en 값으로 폴백한다.
 window.I18N_GAME_DICTS = window.I18N_GAME_DICTS || {};
 
-// ZZZ — '워프/배너/5★/성옥/전언 기록' → '신호 탐색/채널/S급/폴리크롬/신호 탐색 기록'
+// ZZZ — '워프/배너/5★/성옥/전언 기록' → '변조/채널/S급/폴리크롬/변조 기록'
+//
+// 한국어 표기는 한국어 클라이언트 기준이다(영문 명칭을 직역하지 않는다).
+// 가챠 시스템은 EN "Signal Search" / CN "调频" 이지만 KR 은 '변조'이고,
+// 기록 화면은 '변조 기록'이다. 채널은 독점 / W-엔진 / 상시 / 본디 네 가지이며
+// 상시 채널의 배너 이름은 「인기 출연진」이다. 재화는 폴리크롬(무료)·모노크롬(유료).
 window.I18N_GAME_DICTS.zzz = {
   ko: {
     'rank.r5': 'S급',
     'rank.r4': 'A급',
     'rank.r3': 'B급',
-    'header.title2': '신호 탐색 대시보드',
+    'header.title2': '변조 대시보드',
     'tabs.banners': '채널별',
     'table.banner': '채널',
     'table.empty5': '해당 조건의 S급 기록이 없습니다.',
@@ -58,10 +63,10 @@ window.I18N_GAME_DICTS.zzz = {
     'detail.loss50': ' 50/50에서 픽업이 아닌 S급이 나와 다음 한정은 확정입니다.',
     'detail.win50': ' 50/50 승부에서 픽업을 뽑았습니다.',
     'detail.guaranteed50': ' 직전 픽뚫로 인한 확정 획득입니다.',
-    'detail.standardOnly': '상설 채널 획득으로 50/50 판정 대상이 아닙니다.',
+    'detail.standardOnly': '상시 채널 획득으로 50/50 판정 대상이 아닙니다.',
     'query.placeholder': '게임 경로 (…\\ZenlessZoneZero Game)',
-    'query.recordScreen': '신호 탐색 기록',
-    'empty.recordScreen': '신호 탐색 → 기록',
+    'query.recordScreen': '변조 기록',
+    'empty.recordScreen': '변조 → 기록',
     'warn.unknown5': '⚠ 미확인 S급 {n}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). 최신 채널은 시작 시 자동 반영됩니다(미반영 시 잠시 후 재실행).',
     'foot.line2': "50/50 판정: S급 획득 시점의 채널 픽업(rate-up) 대상이면 '픽승', 아니면 '픽뚫'.",
   },

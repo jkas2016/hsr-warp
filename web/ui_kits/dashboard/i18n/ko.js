@@ -6,7 +6,7 @@ window.I18N_DICTS.ko = {
   'banner.departure': '출발',
   'banner.exclusive': '독점',
   'banner.wengine': 'W-엔진',
-  'banner.standard': '상설',
+  'banner.standard': '상시',
   'banner.bangboo': '본디',
   'game.hsr': '붕괴: 스타레일',
   'game.zzz': '젠레스 존 제로',
