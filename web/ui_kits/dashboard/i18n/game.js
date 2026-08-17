@@ -18,10 +18,12 @@ window.I18N_GAME_DICTS = window.I18N_GAME_DICTS || {};
 // 「인기 출연진」이다. 재화는 폴리크롬(CN 菲林)·모노크롬, 캐릭터 단위는
 // 에이전트(CN 代理人 · JA エージェント)다.
 //
-// empty.recordScreen 은 HSR 처럼 '화면 → 버튼' 경로로 적지 않고 기록 화면
-// 이름만 쓴다. ZZZ 는 변조 화면에서 기록까지 중간 단계(상세)를 거치는데 그
-// 버튼의 각 언어 정식 라벨을 공식 자료로 확정하지 못했다 — 틀린 경로를 적느니
-// 화면 이름만 적는다(기본 사전의 en 이 이미 같은 방식이다).
+// empty.recordScreen 은 인게임 진입 경로다. ZZZ 는 HSR('전언 → 기록')과 달리
+// 변조 화면과 기록 사이에 「상세」 버튼이 한 단계 더 있어 3단계로 적는다 —
+// KR 변조 → 상세 → 변조 기록 / EN Signal Search → Details → Signal Search
+// History / CN 调频 → 详情 → 调频记录 / JA 変調 → 詳細 → 変調履歴.
+// 반면 query.recordScreen 은 문장이 "… 화면을 최근 24시간 내" 로 이어지므로
+// 경로가 아니라 기록 화면 이름만 쓴다.
 window.I18N_GAME_DICTS.zzz = {
   ko: {
     'rank.r5': 'S급',
@@ -73,7 +75,7 @@ window.I18N_GAME_DICTS.zzz = {
     'detail.standardOnly': '상시 채널 획득으로 50/50 판정 대상이 아닙니다.',
     'query.placeholder': '게임 경로 (…\\ZenlessZoneZero Game)',
     'query.recordScreen': '변조 기록',
-    'empty.recordScreen': '변조 기록',
+    'empty.recordScreen': '변조 → 상세 → 변조 기록',
     'warn.unknown5': '⚠ 미확인 S급 {n}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). 최신 채널은 시작 시 자동 반영됩니다(미반영 시 잠시 후 재실행).',
     'foot.line2': "50/50 판정: S급 획득 시점의 채널 픽업(rate-up) 대상이면 '픽승', 아니면 '픽뚫'.",
   },
@@ -127,7 +129,7 @@ window.I18N_GAME_DICTS.zzz = {
     'detail.standardOnly': 'Obtained from the Stable Channel, so the 50/50 rule does not apply.',
     'query.placeholder': 'Game path (…\\ZenlessZoneZero Game)',
     'query.recordScreen': 'Signal Search History',
-    'empty.recordScreen': 'Signal Search History',
+    'empty.recordScreen': 'Signal Search → Details → Signal Search History',
     'warn.unknown5': '⚠ {n} unidentified S-Rank(s) — obtained outside the known rate-up schedule (new patch not yet applied). The latest channels are fetched at start-up; retry shortly if missing.',
     'foot.line2': 'The 50/50 call: an S-Rank that was a rate-up unit at the time counts as a win, otherwise a loss.',
   },
@@ -181,7 +183,7 @@ window.I18N_GAME_DICTS.zzz = {
     'detail.standardOnly': '在常驻频段获得，无50/50判定。',
     'query.placeholder': '游戏路径 (…\\ZenlessZoneZero Game)',
     'query.recordScreen': '调频记录',
-    'empty.recordScreen': '调频记录',
+    'empty.recordScreen': '调频 → 详情 → 调频记录',
     'warn.unknown5': '⚠ {n}个未识别S级 — 获取时间不在已知频段日程中（新版本未反映）。最新频段启动时自动更新（如未更新，稍后重试）。',
     'foot.line2': '50/50判定：获得S级时，若为当期频段概率UP对象则为「没歪」，否则为「歪了」。',
   },
@@ -235,7 +237,7 @@ window.I18N_GAME_DICTS.zzz = {
     'detail.standardOnly': '常設チャンネルで取得、50/50の対象外です。',
     'query.placeholder': 'ゲームパス (…\\ZenlessZoneZero Game)',
     'query.recordScreen': '変調履歴',
-    'empty.recordScreen': '変調履歴',
+    'empty.recordScreen': '変調 → 詳細 → 変調履歴',
     'warn.unknown5': '⚠ 未確認のS級 {n}個 — 取得時点が既知のチャンネル日程にありません（新パッチ未反映）。最新チャンネルは起動時に自動反映されます（未反映の場合はしばらくしてから再実行してください）。',
     'foot.line2': '50/50判定：S級取得時点のチャンネルのピックアップ対象なら「すり抜けなし」、そうでなければ「すり抜け」。',
   },

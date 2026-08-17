@@ -152,6 +152,24 @@ assert.strictEqual(I.itemName('1221', '운리'), '운리', 'WarpData 없으면 h
   I.setLang('ko');
   assert.strictEqual(I.t('bannercards.nextOdds', { odds: '50/50' }), '다음 S급 50/50');
 
+  // 10-6) empty.recordScreen 은 인게임 진입 경로다. ZZZ 는 변조 화면에서 기록까지
+  //       중간 단계(상세)를 거치므로 3단계여야 하고, 마지막 조각은 그 게임의 기록
+  //       화면 이름(query.recordScreen)과 같아야 한다. 화면 이름만 적혀 있으면
+  //       사용자가 기록 화면을 찾지 못한다.
+  {
+    const midButton = { ko: '상세', en: 'Details', zh: '详情', ja: '詳細' };
+    for (const l of langs) {
+      const path = OVR.zzz[l]['empty.recordScreen'].split(' → ');
+      assert.strictEqual(path.length, 3, `zzz/${l} empty.recordScreen 이 3단계 경로가 아니다`);
+      assert.strictEqual(path[1], midButton[l], `zzz/${l} 중간 버튼 라벨 불일치`);
+      assert.strictEqual(
+        path[2],
+        OVR.zzz[l]['query.recordScreen'],
+        `zzz/${l} 경로의 도착점이 기록 화면 이름과 다르다`,
+      );
+    }
+  }
+
   // 10-5) HSR 은 오버레이가 없으므로 기본 사전이 그대로 보인다.
   window.WarpData = { game: () => 'hsr' };
   assert.strictEqual(I.t('rank.r5'), '5★', 'hsr 은 기본 사전');
