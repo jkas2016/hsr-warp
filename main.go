@@ -165,7 +165,7 @@ func main() {
 	}
 	url := fmt.Sprintf("http://127.0.0.1:%d/ui_kits/dashboard/", port)
 	slog.Info("대시보드 시작", "version", version, "url", url)
-	fmt.Printf("HSR 워프 대시보드 %s: %s\n(종료하려면 이 창에서 Ctrl+C)\n", version, url)
+	fmt.Printf("가챠 기록 대시보드 %s: %s\n(종료하려면 이 창에서 Ctrl+C)\n", version, url)
 	openBrowser(url)
 	// ReadHeaderTimeout: 로컬 slowloris 스톨 방지(헤더 읽기 단계만 제한 — SSE 장수명 응답엔 무영향).
 	httpSrv := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}

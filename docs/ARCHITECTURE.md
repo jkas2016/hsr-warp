@@ -68,6 +68,31 @@ Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천�
 - **코드 채널**: `releases/latest`(프리릴리스·드래프트 자동 제외)의 `tag_name`을 `main.version`과 semver 비교. 새 버전이면 대시보드가 설치본 다운로드 배너만 표시(셀프 업데이트 없음). `version=="dev"`면 스킵.
 - 설치본은 **per-user `{localappdata}` 설치**(Inno Setup) — 앱이 exe 옆에 쓰기 때문에 쓰기 가능 위치여야 한다.
 
+## 릴리스 (태그 push → GitHub Actions)
+
+**버전의 단일 소스는 git 태그다.** 코드에는 버전이 없다 — `main.go`의 `var version = "dev"` 에 빌드 시 `-X main.version=` 으로 주입한다(`package.json` 의 `version` 은 아무도 읽지 않는 잔재). 따라서 버전을 올리는 행위 = 태그를 미는 행위다.
+
+`v*` 태그를 push 하면 `.github/workflows/release.yml` 이 두 잡을 순서대로 돌린다.
+
+1. **goreleaser** (ubuntu) — windows/amd64 단일 exe 를 zip + `checksums.txt` 로 묶어 GitHub Release 를 만든다. 릴리스 노트는 커밋 메시지에서 자동 생성하되 `docs:`·`test:`·`chore:` 는 제외한다(`.goreleaser.yaml` 의 `changelog.filters`).
+2. **installer** (windows, goreleaser 성공 후) — `go build` → `ISCC /DMyAppVersion=<ver>` → `gh release upload` 로 `hsr-warp-setup-<ver>.exe` 를 같은 릴리스에 첨부한다.
+
+`prerelease: auto` 라 태그에 `-rc1` 같은 식별자가 붙으면 자동으로 프리릴리스가 되고, 업데이트의 코드 채널(`releases/latest`)에서 제외된다.
+
+내는 순서:
+
+```powershell
+# 1. CHANGELOG 의 [Unreleased] 를 [X.Y.Z] - YYYY-MM-DD 로 확정하고 하단 링크 목록에 추가
+# 2. 확정 커밋 (릴리스 노트에서 제외되도록 chore 프리픽스)
+git commit -am "chore(release): vX.Y.Z 준비 — CHANGELOG 확정"
+git push origin main
+# 3. 태그 push — 여기서 릴리스가 실제로 발행된다
+git tag vX.Y.Z && git push origin vX.Y.Z
+gh run watch   # 두 잡 모두 통과하는지 확인
+```
+
+installer 잡은 `.iss` 를 고친 릴리스에서 처음 검증된다(로컬에 `ISCC` 가 없으면 사전 확인 불가). 여기서 실패하면 goreleaser 릴리스는 이미 발행된 채 설치본만 빠지므로, `.iss` 를 고쳐 패치 버전을 새로 내는 편이 태그를 지우는 것보다 안전하다.
+
 ## 외부 명세 의존 (상수 변경 시 출처 준수)
 
 데이터 형식·`gacha_type` 코드·표준 풀·확률은 외부 명세에 묶여 있다: SRGF v1.0(uigf.org), Prydwen(50/50·확률), StarRailRes(item_id 검증). 출처는 README 를 따른다.

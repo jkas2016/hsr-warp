@@ -13,6 +13,8 @@ npm run build:debug                             # 개발용: 로그 debug 박은
 .\hsr-warp.exe                                  # 실행 (런타임 HSRWARP_LOG=debug 로도 override)
 npm test   # 전체 테스트(go + analyze + 대시보드 util/i18n/items/nohardcode + 사이트 copy)
 npm run schedule:status   # 배너 데이터가 몇 버전(패치)까지 대응됐는지 즉시 확인
+
+git tag vX.Y.Z && git push origin vX.Y.Z   # 릴리스 발행 — 버전의 단일 소스는 태그다(상세는 ARCHITECTURE.md)
 ```
 
 포맷·정적검사는 `gofmt -w .` 와 `go vet ./...` 가 권위 — 컨벤션을 글로 적지 않는다.

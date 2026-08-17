@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-18
+
+단일 exe가 두 게임을 추적하게 된 첫 안정 릴리스. HSR 전용 도구에서 벗어나 게임 어댑터 구조를 갖췄고, 안내 문서·설치 마법사까지 멀티게임 기준으로 정리했다.
+
 ### 추가됨
 - 젠레스 존 제로(ZZZ) 지원 — 단일 exe로 HSR·ZZZ 모두 추적. 헤더 게임 스위처, 게임별 데이터 저장(`data/hsr/`·`data/zzz/`), 게임별 배너 일정 채널(`/zzz/schedule.json`), 게임별 팔레트·용어 i18n(변조·채널·S급·에이전트·W-엔진 등, ko/en/zh/ja 모두 각 언어 클라이언트 표기 기준). 기존 사용자의 데이터(`data/warp_*.json`)는 앱 시작 시 `data/hsr/`로 자동 이동(1회, 비파괴) (#51)
 - ZZZ 배너 일정 데이터 — `scripts/extract-zzz-schedule.mjs`가 [FuriaPaladins/Hoyoverse-Data](https://github.com/FuriaPaladins/Hoyoverse-Data)에서 추출해 repo에 벤더링, `npm run schedule:status`가 두 게임 모두 보고 (#51)
@@ -101,6 +105,8 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[1.0.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.0
+[0.5.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.5.0
 [0.4.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.4.1
 [0.4.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.4.0
 [0.3.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.3.0
