@@ -57,6 +57,12 @@ img{display:block}
 .nav-in{display:flex;align-items:center;gap:18px;height:64px}
 .brand{display:flex;align-items:center;gap:11px;font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:-.2px;white-space:nowrap;flex:none}
 .brand img{width:34px;height:34px;border-radius:9px;box-shadow:var(--glow-gold)}
+/* 두 게임(HSR·ZZZ) 로고를 살짝 겹쳐 한 덩어리로 보이게 한다. 뒤 로고는 앞 로고의
+   골드 글로우 대신 배경색 링을 둘러 경계를 만든다 — ZZZ 는 라임 계열이라
+   골드 글로우가 겹치면 색이 탁해진다. */
+.logos{display:flex;align-items:center;flex:none}
+.logos img+img{margin-left:-11px;box-shadow:0 0 0 2px var(--bg)}
+.mock-h .logos img+img{margin-left:-8px}
 .nav-links{display:flex;gap:4px;margin-left:14px}
 .nav-links a{
   padding:8px 13px;border-radius:var(--r-md);font-size:13.5px;font-weight:600;color:var(--muted);
@@ -232,6 +238,7 @@ img{display:block}
 .foot{border-top:1px solid var(--card-border);padding:42px 0 56px}
 .foot-grid{display:flex;flex-direction:column;gap:18px}
 .foot .brand{margin-bottom:14px}
+.foot .brand img{width:30px;height:30px;border-radius:8px}
 .foot .disc{color:var(--muted);font-size:13px;line-height:1.7;word-break:keep-all}
 .foot .links{display:flex;flex-wrap:wrap;gap:18px;font-size:13.5px}
 .foot .links a{color:var(--gold-ink);font-weight:500}
