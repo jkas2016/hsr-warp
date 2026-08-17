@@ -8,11 +8,13 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"hsr-warp/internal/collector"
+	"hsr-warp/internal/game"
 	"hsr-warp/internal/store"
 	"hsr-warp/internal/updater"
 )
@@ -69,7 +71,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/config", s.handleConfig)
 	mux.HandleFunc("/api/detect", s.handleDetect)
 	mux.HandleFunc("/api/fetch", s.handleFetch)
-	mux.HandleFunc("/schedule.json", s.handleSchedule)
+	mux.HandleFunc("/schedule.json", s.scheduleHandler(game.Default()))
+	for _, g := range game.All() {
+		if g.ID == game.Default().ID {
+			continue
+		}
+		gg := g
+		mux.HandleFunc("/"+gg.ID+"/schedule.json", s.scheduleHandler(gg))
+	}
 	mux.HandleFunc("/api/updates", s.handleUpdates)
 	if s.assets != nil {
 		mux.Handle("/", http.FileServer(http.FS(s.assets)))
@@ -92,8 +101,28 @@ func recoverMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+// gameOf 는 ?game= 쿼리로 게임을 고른다. 미지정이면 hsr 로 폴백해 기존
+// 클라이언트 동작을 보존하고, 알 수 없는 값은 ok=false 로 400 을 유도한다.
+func (s *Server) gameOf(r *http.Request) (game.Game, bool) {
+	id := r.URL.Query().Get("game")
+	if id == "" {
+		return game.Default(), true
+	}
+	return game.ByID(id)
+}
+
+// dataDirFor 는 게임의 저장 디렉터리다.
+func (s *Server) dataDirFor(g game.Game) string {
+	return filepath.Join(s.paths.DataDir, g.ID)
+}
+
 func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
-	recs, info, err := store.LoadAll(s.paths.DataDir)
+	g, ok := s.gameOf(r)
+	if !ok {
+		http.Error(w, "알 수 없는 게임입니다", http.StatusBadRequest)
+		return
+	}
+	recs, info, err := store.LoadAll(s.dataDirFor(g))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -126,7 +155,12 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, map[string]string{"path": detectGamePath(defaultCandidates())})
+	g, ok := s.gameOf(r)
+	if !ok {
+		http.Error(w, "알 수 없는 게임입니다", http.StatusBadRequest)
+		return
+	}
+	writeJSON(w, map[string]string{"path": detectGamePath(g)})
 }
 
 // handleFetch 는 증분 조회를 SSE 로 스트리밍한다.
@@ -152,6 +186,12 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		send("error", map[string]string{"message": msg})
 	}
 
+	g, ok := s.gameOf(r)
+	if !ok {
+		fail("알 수 없는 게임입니다")
+		return
+	}
+
 	gamePath := r.URL.Query().Get("path")
 	if gamePath == "" {
 		fail("게임 경로가 비어 있습니다.")
@@ -162,9 +202,9 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer s.fetching.Store(false)
-	slog.Info("조회 시작", "path", gamePath)
+	slog.Info("조회 시작", "path", gamePath, "game", g.ID)
 
-	ac, err := collector.FindAuthContext(gamePath)
+	ac, err := collector.FindAuthContext(gamePath, g)
 	if err != nil {
 		fail(err.Error())
 		return
@@ -176,17 +216,20 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 			"issued", ac.IssuedAt.Format("2006-01-02 15:04"),
 			"hours_ago", int(time.Since(ac.IssuedAt).Hours()))
 	}
-	// config 에 경로 저장(다음 실행 자동 채움).
-	_ = SaveConfig(s.paths.ConfigFile, Config{GamePath: gamePath})
+	// config 에 경로 저장(다음 실행 자동 채움). 게임별로 병합해 다른 게임 경로를 지우지 않는다.
+	cfg := LoadConfig(s.paths.ConfigFile)
+	cfg.SetPath(g.ID, gamePath)
+	_ = SaveConfig(s.paths.ConfigFile, cfg)
 
-	existing, prevInfo, err := store.LoadAll(s.paths.DataDir)
+	dataDir := s.dataDirFor(g)
+	existing, prevInfo, err := store.LoadAll(dataDir)
 	if err != nil {
 		fail(err.Error())
 		return
 	}
-	lastID := store.MaxIDByBanner(existing)
+	lastID := store.MaxIDByBanner(existing, g)
 
-	newRecs, uid, err := collector.FetchIncremental(r.Context(), ac, lastID, 400*time.Millisecond,
+	newRecs, uid, err := collector.FetchIncremental(r.Context(), ac, g, lastID, 400*time.Millisecond,
 		func(banner string, added int) {
 			send("progress", map[string]any{"banner": banner, "added": added})
 		})
@@ -206,21 +249,26 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		UID: uid, Lang: ac.Lang, Region: ac.Region,
 		RegionTimeZone:  store.TZForRegion(ac.Region),
 		ExportTimestamp: time.Now().Unix(),
-		ExportApp:       "DIY-HSR-Warp", ExportAppVersion: "0.1.0", SRGFVersion: "v1.0",
+		ExportApp:       "DIY-HSR-Warp", ExportAppVersion: "0.1.0",
+	}
+	if g.InfoFormat == "uigf-v4.0" {
+		info.UIGFVersion = "v4.0"
+	} else {
+		info.SRGFVersion = "v1.0"
 	}
 
 	if err := r.Context().Err(); err != nil {
 		slog.Info("클라이언트 연결 종료로 저장 생략")
 		return
 	}
-	updatedMonths, err := store.WriteAffectedMonths(s.paths.DataDir, info, newRecs)
+	updatedMonths, err := store.WriteAffectedMonths(dataDir, info, newRecs)
 	if err != nil {
 		fail(err.Error())
 		return
 	}
 
 	// 갱신 후 전체 합본 재구성.
-	all, finalInfo, err := store.LoadAll(s.paths.DataDir)
+	all, finalInfo, err := store.LoadAll(dataDir)
 	if err != nil {
 		fail(err.Error())
 		return
@@ -248,15 +296,21 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleSchedule 은 배너 일정 데이터를 서빙한다. data/schedule.json 이 유효하고 내장본보다
-// version 이 높으면 그걸, 아니면 내장본을 준다(updater.EffectiveSchedule).
-func (s *Server) handleSchedule(w http.ResponseWriter, r *http.Request) {
-	var emb []byte
-	if s.assets != nil {
-		emb, _ = fs.ReadFile(s.assets, "schedule.json")
+// scheduleHandler 는 게임의 스케줄을 서빙한다. 내장본과 data 디렉터리의
+// override 중 버전이 높은 쪽이 나간다.
+func (s *Server) scheduleHandler(g game.Game) http.HandlerFunc {
+	name := "schedule.json"
+	if g.ID != game.Default().ID {
+		name = g.ID + "/schedule.json"
 	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, _ = w.Write(updater.EffectiveSchedule(s.paths.DataDir, emb))
+	return func(w http.ResponseWriter, r *http.Request) {
+		var emb []byte
+		if s.assets != nil {
+			emb, _ = fs.ReadFile(s.assets, name)
+		}
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write(updater.EffectiveSchedule(s.paths.DataDir, emb, g.ID))
+	}
 }
 
 // handleUpdates 는 첫 호출 시 두 업데이트 체크를 베스트에포트로 수행하고 프로세스 수명 동안 캐시한다.
@@ -267,7 +321,7 @@ func (s *Server) handleUpdates(w http.ResponseWriter, r *http.Request) {
 		if s.assets != nil {
 			emb, _ = fs.ReadFile(s.assets, "schedule.json")
 		}
-		sch, err := updater.CheckSchedule(s.client, s.scheduleURL, s.paths.DataDir, emb)
+		sch, err := updater.CheckSchedule(s.client, s.scheduleURL, s.paths.DataDir, emb, game.Default().ID)
 		if err != nil {
 			slog.Warn("배너 데이터 업데이트 확인 실패", "err", err)
 		}

@@ -12,12 +12,28 @@ import (
 	"strings"
 	"time"
 
+	"hsr-warp/internal/game"
 	"hsr-warp/internal/store"
 )
 
-// bannerOrder 는 조회 순서다(기존 PS 동일).
-var bannerOrder = []string{"1", "2", "11", "12"}
-var bannerName = map[string]string{"1": "일반", "2": "출발", "11": "캐릭터", "12": "광추"}
+// 배너 표시명은 로그·SSE progress 용이다. 게임마다 채널 코드가 다르므로
+// 코드가 아니라 역할에서 유도한다.
+var roleName = map[string]string{
+	game.RoleLimitedChar:   "캐릭터",
+	game.RoleLimitedWeapon: "무기",
+	game.RoleStandard:      "일반",
+	game.RoleBeginner:      "출발",
+	game.RoleBangboo:       "본디",
+}
+
+// BannerLabel 은 배너 코드의 사람이 읽는 이름을 반환한다.
+// 알 수 없는 코드는 코드 자체로 폴백해 로그가 비지 않게 한다.
+func BannerLabel(g game.Game, code string) string {
+	if n, ok := roleName[g.RoleOf(code)]; ok {
+		return n
+	}
+	return code
+}
 
 // maxPagesPerBanner 는 배너당 페이지 백스톱이다. 정상 조회는 수십 페이지 이내라
 // 이 상한에 닿을 일이 없고, 서버가 end_id 를 무시해 진전이 없을 때의 안전장치다.
@@ -84,11 +100,11 @@ func bodySnippet(b []byte) string {
 
 // FetchIncremental 은 배너별로 lastID 보다 최신인 기록만 수집한다.
 // onProgress(배너이름, 누적신규건수) 는 페이지마다 호출된다. uid 도 반환한다.
-func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]string, delay time.Duration, onProgress func(banner string, added int)) ([]store.Record, string, error) {
+func FetchIncremental(ctx context.Context, ac *AuthContext, g game.Game, lastID map[string]string, delay time.Duration, onProgress func(banner string, added int)) ([]store.Record, string, error) {
 	client := &http.Client{Timeout: 20 * time.Second}
 	var out []store.Record
 	uid := ""
-	for _, gt := range bannerOrder {
+	for _, gt := range g.Codes() {
 		endID := "0"
 		page := 1
 		added := 0
@@ -98,10 +114,11 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]st
 				return out, uid, err
 			}
 			if page > maxPagesPerBanner {
-				slog.Warn("배너 최대 페이지 초과 — 루프 중단", "banner", bannerName[gt], "max", maxPagesPerBanner)
+				slog.Warn("배너 최대 페이지 초과 — 루프 중단", "banner", BannerLabel(g, gt), "max", maxPagesPerBanner)
 				break
 			}
-			u := fmt.Sprintf("%s?%s&size=20&gacha_type=%s&page=%d&end_id=%s", ac.APIBase, ac.BaseQuery, gt, page, endID)
+			u := fmt.Sprintf("%s?%s&size=20&%s=%s&page=%d&end_id=%s",
+				ac.APIBase, ac.BaseQuery, g.BannerParam, gt, page, endID)
 			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 			if err != nil {
 				return out, uid, fmt.Errorf("요청 생성 실패: %w", err)
@@ -139,7 +156,7 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]st
 				le, ok := idLessEq(it.ID, lastID[gt])
 				if !ok {
 					slog.Warn("ID 비교 실패(비숫자) — 신규로 간주해 계속",
-						"id", it.ID, "last_id", lastID[gt], "banner", bannerName[gt])
+						"id", it.ID, "last_id", lastID[gt], "banner", BannerLabel(g, gt))
 				} else if le {
 					stop = true
 					break
@@ -154,21 +171,21 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, lastID map[string]st
 				})
 				added++
 			}
-			slog.Debug("페이지 수집", "banner", bannerName[gt], "gacha_type", gt,
+			slog.Debug("페이지 수집", "banner", BannerLabel(g, gt), "gacha_type", gt,
 				"page", page, "received", len(ar.Data.List), "added", added)
 			newEndID := ar.Data.List[len(ar.Data.List)-1].ID
 			if newEndID == endID {
-				slog.Warn("페이지 진전 없음(end_id 불변) — 루프 중단", "banner", bannerName[gt], "end_id", endID)
+				slog.Warn("페이지 진전 없음(end_id 불변) — 루프 중단", "banner", BannerLabel(g, gt), "end_id", endID)
 				break
 			}
 			endID = newEndID
 			page++
-			onProgress(bannerName[gt], added)
+			onProgress(BannerLabel(g, gt), added)
 			if delay > 0 {
 				time.Sleep(delay)
 			}
 		}
-		slog.Debug("배너 수집 완료", "banner", bannerName[gt], "gacha_type", gt, "added", added)
+		slog.Debug("배너 수집 완료", "banner", BannerLabel(g, gt), "gacha_type", gt, "added", added)
 	}
 	return out, uid, nil
 }

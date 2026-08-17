@@ -7,8 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"hsr-warp/internal/game"
 )
 
 // 만료 메시지는 사용자의 혼란("방금 게임 켰는데 왜 만료냐")을 직접 풀어줘야 한다:
@@ -57,7 +60,7 @@ func TestFetchIncremental_StopsAtStoredID(t *testing.T) {
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr", Region: "asia"}
 	lastID := map[string]string{"1": "0", "2": "0", "11": "20", "12": "0"}
 
-	recs, uid, err := FetchIncremental(context.Background(), ac, lastID, 0, func(string, int) {})
+	recs, uid, err := FetchIncremental(context.Background(), ac, game.Default(), lastID, 0, func(string, int) {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +89,7 @@ func TestFetchIncremental_EmitsPerPageDebug(t *testing.T) {
 	defer srv.Close()
 
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	if _, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {}); err != nil {
+	if _, _, err := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {}); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
@@ -103,7 +106,7 @@ func TestFetchIncremental_RateLimited(t *testing.T) {
 	}))
 	defer srv.Close()
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	_, _, err := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 	if err == nil || !contains(err.Error(), "기다") {
 		t.Fatalf("expected a rate-limit wait message, got %v", err)
 	}
@@ -122,7 +125,7 @@ func TestFetchIncremental_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		_, _, err := FetchIncremental(ctx, ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+		_, _, err := FetchIncremental(ctx, ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 		done <- err
 	}()
 	<-started
@@ -143,7 +146,7 @@ func TestFetchIncremental_AuthkeyExpired(t *testing.T) {
 	}))
 	defer srv.Close()
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	_, _, err := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 	if err == nil || !contains(err.Error(), "authkey") {
 		t.Fatalf("expected authkey error, got %v", err)
 	}
@@ -157,7 +160,7 @@ func TestFetchIncremental_Non2xxStatusIsError(t *testing.T) {
 	}))
 	defer srv.Close()
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	_, _, err := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 	if err == nil || !contains(err.Error(), "502") {
 		t.Fatalf("non-2xx 는 HTTP 상태 에러여야 함, got %v", err)
 	}
@@ -184,7 +187,7 @@ func TestFetchIncremental_TerminatesOnNoPageProgress(t *testing.T) {
 	var count int
 	var ferr error
 	go func() {
-		r, _, e := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+		r, _, e := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 		count, ferr = len(r), e
 		close(done)
 	}()
@@ -235,5 +238,89 @@ func TestExpiredMessage_FutureIssuedAtClampsToZero(t *testing.T) {
 	}
 	if !contains(msg, "0일") {
 		t.Fatalf("미래 issuedAt 은 0일로 clamp 되어야 함: %s", msg)
+	}
+}
+
+// ZZZ 는 real_gacha_type 으로 채널을 지정한다. 조립된 요청 URL 에 이 파라미터가
+// 정확히 한 번만, 우리가 지정한 값으로 나타나야 한다. 중복되면 서버가 앞의 값을
+// 채택해 모든 채널이 같은 데이터를 반환하는 조용한 버그가 된다.
+func TestFetchIncremental_ZZZUsesRealGachaTypeExactlyOnce(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.RawQuery)
+		_, _ = w.Write([]byte(`{"retcode":0,"message":"OK","data":{"list":[]}}`))
+	}))
+	defer srv.Close()
+
+	zzz, _ := game.ByID("zzz")
+	ac := &AuthContext{
+		APIBase:   srv.URL,
+		BaseQuery: "authkey=AAA&lang=ko", // pageKeys 가 real_gacha_type 을 이미 제거한 상태
+		Region:    "prod_gf_jp",
+		Lang:      "ko",
+	}
+	if _, _, err := FetchIncremental(context.Background(), ac, zzz, nil, 0, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got) != len(zzz.Banners) {
+		t.Fatalf("요청 수 = %d, want %d", len(got), len(zzz.Banners))
+	}
+	wantCodes := zzz.Codes()
+	for i, q := range got {
+		if strings.Count(q, "real_gacha_type=") != 1 {
+			t.Errorf("요청 %d: real_gacha_type 이 %d번 나타났다: %q", i, strings.Count(q, "real_gacha_type="), q)
+		}
+		if strings.Contains(q, "gacha_type=") && !strings.Contains(q, "real_gacha_type=") {
+			t.Errorf("요청 %d: ZZZ 인데 gacha_type 을 썼다: %q", i, q)
+		}
+		if !strings.Contains(q, "real_gacha_type="+wantCodes[i]) {
+			t.Errorf("요청 %d: 채널 %q 를 기대했으나 %q", i, wantCodes[i], q)
+		}
+	}
+}
+
+// HSR 은 기존대로 gacha_type 을 쓰고 채널 순서도 그대로여야 한다(회귀 방지).
+func TestFetchIncremental_HSRKeepsGachaType(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.RawQuery)
+		_, _ = w.Write([]byte(`{"retcode":0,"message":"OK","data":{"list":[]}}`))
+	}))
+	defer srv.Close()
+
+	hsr, _ := game.ByID("hsr")
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "authkey=AAA", Region: "asia", Lang: "ko"}
+	if _, _, err := FetchIncremental(context.Background(), ac, hsr, nil, 0, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{"11", "12", "1", "2"}
+	if len(got) != len(want) {
+		t.Fatalf("요청 수 = %d, want %d", len(got), len(want))
+	}
+	for i, q := range got {
+		if strings.Contains(q, "real_gacha_type=") {
+			t.Errorf("요청 %d: HSR 인데 real_gacha_type 을 썼다: %q", i, q)
+		}
+		if !strings.Contains(q, "gacha_type="+want[i]) {
+			t.Errorf("요청 %d: gacha_type=%s 를 기대했으나 %q", i, want[i], q)
+		}
+	}
+}
+
+// 배너 표시명은 역할에서 유도한다. 게임마다 코드가 달라도 진행 로그가 읽혀야 한다.
+func TestBannerLabel_DerivesFromRole(t *testing.T) {
+	zzz, _ := game.ByID("zzz")
+	if got := BannerLabel(zzz, "2"); got == "" || got == "2" {
+		t.Errorf("ZZZ 코드 2 의 표시명이 유도되지 않았다: %q", got)
+	}
+	hsr, _ := game.ByID("hsr")
+	if got := BannerLabel(hsr, "11"); got == "" || got == "11" {
+		t.Errorf("HSR 코드 11 의 표시명이 유도되지 않았다: %q", got)
+	}
+	// 모르는 코드는 코드 자체로 폴백한다(로그가 비지 않게).
+	if got := BannerLabel(hsr, "99"); got != "99" {
+		t.Errorf("알 수 없는 코드 폴백 = %q, want 99", got)
 	}
 }

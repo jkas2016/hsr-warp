@@ -41,6 +41,23 @@ function Dashboard() {
   // 데이터가 새로 로드/조회되면 버전 구간을 전체로 초기화.
   React.useEffect(() => { setScopeVer('전체'); }, [data]);
 
+  // 현재 게임. WarpData 싱글턴이 localStorage 로 유지하고, 여기선 prop/렌더용 상태로만 둔다.
+  const [gameID, setGameID] = React.useState(() => window.WarpData.game());
+  // 게임 전환은 데이터 재로드를 동반한다. setGame 이 일정·분석 캐시를 비우므로 곧바로 다시 읽는다.
+  // 새 게임에 기록이 없을 수 있어 결과가 없으면 빈 화면(QueryPanel)으로 돌아간다.
+  // 연속 전환 시 늦게 도착한 이전 게임의 응답이 화면을 덮지 않도록 도착 시점 게임을 확인한다.
+  const reload = (id) => {
+    setData(null);
+    window.WarpData.loadStored().then((d) => { if (window.WarpData.game() === id) setData(d || null); });
+  };
+  const changeGame = (id) => { window.WarpData.setGame(id); setGameID(id); reload(id); };
+
+  // 게임 팔레트 전환(tokens/game.css). 첫 페인트 전엔 index.html 의 인라인 스크립트가
+  // 같은 값을 심어 두므로 여기선 전환만 반영한다.
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-game', gameID);
+  }, [gameID]);
+
   // 시작 시: 저장된 기록 표시 + 업데이트 확인(베스트에포트).
   React.useEffect(() => {
     window.WarpData.loadStored().then((d) => { if (d) setData(d); });
@@ -79,18 +96,20 @@ function Dashboard() {
   return (
     <div className="page">
       <header style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-        <img src="../../assets/logo-train.svg" alt="" width="46" height="46" style={{ borderRadius: 12, boxShadow: 'var(--glow-gold)' }} />
+        <img src={window.WarpData.logo(gameID)} alt="" width="46" height="46" style={{ borderRadius: 12, boxShadow: 'var(--glow-gold)' }} />
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: '-.4px' }}>
-            Honkai: Star Rail <span style={{ color: 'var(--gold-ink)' }}>{t('header.title2')}</span>
+            {t('game.' + gameID)} <span style={{ color: 'var(--gold-ink)' }}>{t('header.title2')}</span>
           </h1>
           <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 3 }}>
             {loaded ? t('header.subtitleLoaded', { uid: uid ? 'UID ' + uid + ' · ' : '' })
                     : t('header.subtitleEmpty')}
           </div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          {loaded && <RefreshBar runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {/* 게임 전환. key 로 RefreshBar/QueryPanel 을 다시 마운트해 경로 자동 채움을 새 게임 기준으로 돌린다. */}
+          <GameSwitcher game={gameID} onChange={changeGame} />
+          {loaded && <RefreshBar key={gameID} runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
           <Select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">
             <option value="ko">한국어</option>
             <option value="en">English</option>
@@ -105,9 +124,9 @@ function Dashboard() {
 
       {!loaded ? (
         <>
-          <QueryPanel runFetch={runFetch} onLoaded={setData} />
+          <QueryPanel key={gameID} runFetch={runFetch} onLoaded={setData} />
           <div className="empty">
-            <div className="empty-glyph"><img src="../../assets/logo-train.svg" alt="" width="64" height="64" style={{ borderRadius: 16 }} /></div>
+            <div className="empty-glyph"><img src={window.WarpData.logo(gameID)} alt="" width="64" height="64" style={{ borderRadius: 16 }} /></div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, marginTop: 18 }}>{t('empty.noData')}</div>
             <div style={{ color: 'var(--muted)', fontSize: 13.5, marginTop: 6, maxWidth: 380, lineHeight: 1.6 }}>
               {(() => {
@@ -141,20 +160,46 @@ function Dashboard() {
               </span>
             )}
           </div>
-          <div key={view} className="view" style={{ marginTop: 22 }}>
+          {/* key 에 게임을 섞어 전환 시 뷰 내부 필터 상태(배너 칩 등)를 초기화한다. */}
+          <div key={view + gameID} className="view" style={{ marginTop: 22 }}>
             {view === 'overview' && <OverviewView D={D} theme={theme} lang={lang} scoped={scoped} onSeeAll={() => setView('history')} onFiveClick={setFive} />}
             {view === 'banners' && <BannersView D={D} theme={theme} scoped={scoped} onFiveClick={setFive} />}
             {view === 'history' && <HistoryView D={D} onFiveClick={setFive} />}
             {view === 'versions' && <VersionsView D={D} theme={theme} lang={lang} />}
           </div>
           <div className="foot">
-            {t('foot.line1')}<br />
+            {t(gameID === 'zzz' ? 'foot.line1Zzz' : 'foot.line1Hsr')}<br />
             {t('foot.line2')}
           </div>
         </>
       )}
 
       <FiveDetail five={five} onClose={() => setFive(null)} />
+    </div>
+  );
+}
+
+// 게임 전환 세그먼티드 컨트롤 — 로고 + 짧은 게임명. 선택된 쪽만 카드 표면으로 떠오른다.
+function GameSwitcher({ game, onChange }) {
+  const t = window.I18N.t;
+  return (
+    <div role="group" aria-label="Game"
+      style={{ display: 'inline-flex', gap: 4, padding: 4, borderRadius: 'var(--r-pill)', background: 'var(--panel-2)', border: '1px solid var(--line)' }}>
+      {window.WarpData.games().map((id) => {
+        const on = id === game;
+        return (
+          <button key={id} onClick={() => onChange(id)} aria-pressed={on} style={{
+            appearance: 'none', border: 'none', cursor: 'pointer', borderRadius: 'var(--r-pill)',
+            padding: '6px 14px 6px 8px', fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 600,
+            display: 'inline-flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap',
+            background: on ? 'var(--card-bg)' : 'transparent', boxShadow: on ? 'var(--shadow-card)' : 'none',
+            color: on ? 'var(--txt)' : 'var(--muted)', transition: 'all .18s ease',
+          }}>
+            <img src={window.WarpData.logo(id)} alt="" width="20" height="20" style={{ borderRadius: 6, opacity: on ? 1 : .55 }} />
+            {t('game.' + id + '.short')}
+          </button>
+        );
+      })}
     </div>
   );
 }

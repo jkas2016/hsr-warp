@@ -63,7 +63,13 @@ assert.ok(DICTS.ko, 'ko 사전 없음');
 assert.ok(DICTS.en, 'en 사전 없음');
 
 const koShape = shape(DICTS.ko);
-const INVARIANT = ['hsr-warp-setup-', '/ui_kits/dashboard/', '%LOCALAPPDATA%', 'schedule.json', 'SRGF'];
+// 로케일 불변 문자열 — 번역해서는 안 되는 파일명·경로·규격명. 한 언어만 갱신이
+// 빠지는 사고를 잡는다. UIGF/ZenlessZoneZero 는 ZZZ 안내가 네 언어 모두에
+// 실제로 들어갔는지를 강제한다(SRGF/Star Rail 은 HSR 쪽 대응).
+const INVARIANT = [
+  'hsr-warp-setup-', '/ui_kits/dashboard/', '%LOCALAPPDATA%', 'schedule.json',
+  'SRGF', 'UIGF', 'Star Rail Games', 'ZenlessZoneZero',
+];
 for (const [code, dict] of Object.entries(DICTS)) {
   assert.deepStrictEqual(shape(dict), koShape, `${code} 사전의 키 구조가 ko와 다름`);
   const text = textOf(dict).join('\n');

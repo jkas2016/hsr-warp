@@ -40,7 +40,8 @@ func TestRecoverMiddleware_PanicYields500AndLogs(t *testing.T) {
 
 func TestHandleData_ReturnsStored(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := store.WriteAffectedMonths(dir, store.Info{UID: "555"},
+	// handleData 는 게임별 디렉터리(data/hsr/)를 읽는다(?game= 미지정은 hsr 폴백).
+	if _, err := store.WriteAffectedMonths(filepath.Join(dir, "hsr"), store.Info{UID: "555"},
 		[]store.Record{{ID: "1", GachaType: "11", Time: "2026-06-01 00:00:00", RankType: "5", Name: "Z"}}); err != nil {
 		t.Fatal(err)
 	}
@@ -75,8 +76,10 @@ func TestHandleConfig_PostThenGet(t *testing.T) {
 	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/config", nil))
 	var c Config
 	_ = json.Unmarshal(rr.Body.Bytes(), &c)
-	if c.GamePath != `D:\Game\Star Rail Games` {
-		t.Fatalf("config not persisted: %q", c.GamePath)
+	// 구 스키마({"game_path":...})는 LoadConfig 가 games.hsr 로 승격하고 최상위
+	// GamePath 는 비운다(config.go 참고) — PathFor 로 조회한다.
+	if c.PathFor("hsr") != `D:\Game\Star Rail Games` {
+		t.Fatalf("config not persisted: %q", c.PathFor("hsr"))
 	}
 }
 
@@ -158,5 +161,97 @@ func TestHandleUpdates_ReturnsBothChannels(t *testing.T) {
 	}
 	if !got.Code.Newer || got.Code.Version != "1.2.0" {
 		t.Fatalf("code: %+v", got.Code)
+	}
+}
+
+// ?game= 미지정은 hsr 로 폴백한다(기존 클라이언트 동작 보존).
+func TestGameOf_DefaultsToHSR(t *testing.T) {
+	s := New(Paths{})
+	g, ok := s.gameOf(httptest.NewRequest("GET", "/api/data", nil))
+	if !ok || g.ID != "hsr" {
+		t.Errorf("gameOf = %q ok=%v, want hsr true", g.ID, ok)
+	}
+}
+
+// 알 수 없는 game 값은 조용히 폴백하지 않고 거절돼야 한다 — 오타가 엉뚱한
+// 게임의 데이터를 보여주면 사용자가 알아채기 어렵다.
+func TestHandleData_RejectsUnknownGame(t *testing.T) {
+	s := New(Paths{DataDir: t.TempDir()})
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/data?game=genshin", nil))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+// 게임별 데이터가 격리돼 서빙돼야 한다.
+func TestHandleData_ScopesByGame(t *testing.T) {
+	root := t.TempDir()
+	s := New(Paths{DataDir: root})
+	hsrRec := []store.Record{{ID: "100", GachaType: "11", Time: "2026-08-01 10:00:00"}}
+	zzzRec := []store.Record{{ID: "200", GachaType: "2", Time: "2026-08-01 10:00:00"}}
+	if _, err := store.WriteAffectedMonths(filepath.Join(root, "hsr"), store.Info{UID: "1"}, hsrRec); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.WriteAffectedMonths(filepath.Join(root, "zzz"), store.Info{UID: "2"}, zzzRec); err != nil {
+		t.Fatal(err)
+	}
+
+	for q, wantID := range map[string]string{"": "100", "?game=hsr": "100", "?game=zzz": "200"} {
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/data"+q, nil))
+		if w.Code != http.StatusOK {
+			t.Errorf("%q: status = %d, want 200", q, w.Code)
+			continue
+		}
+		var out store.SRGF
+		if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+			t.Errorf("%q: %v", q, err)
+			continue
+		}
+		if len(out.List) != 1 || out.List[0].ID != wantID {
+			t.Errorf("%q: 레코드 = %+v, want ID %s", q, out.List, wantID)
+		}
+	}
+}
+
+// ZZZ 스케줄은 별도 경로로 서빙된다. HSR 경로는 구버전 호환을 위해 그대로다.
+func TestHandleSchedule_ServesPerGamePaths(t *testing.T) {
+	hsrBody := `{"version":1,"schedule":[{"s":"2024-01-01","e":"2024-02-01","c":[],"l":[]}]}`
+	zzzBody := `{"version":1,"schedule":[{"s":"2025-01-01","e":"2025-02-01","c":[],"l":[]}]}`
+	s := NewWithAssets(Paths{DataDir: t.TempDir()}, fstest.MapFS{
+		"schedule.json":     {Data: []byte(hsrBody)},
+		"zzz/schedule.json": {Data: []byte(zzzBody)},
+	}, "test")
+
+	for path, want := range map[string]string{"/schedule.json": hsrBody, "/zzz/schedule.json": zzzBody} {
+		w := httptest.NewRecorder()
+		s.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Body.String() != want {
+			t.Errorf("%s = %s, want %s", path, w.Body.String(), want)
+		}
+	}
+}
+
+// 자동탐지도 게임별이어야 한다.
+func TestHandleDetect_ScopesByGame(t *testing.T) {
+	s := New(Paths{})
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/detect?game=zzz", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	var out map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := out["path"]; !ok {
+		t.Errorf("path 키가 없다: %v", out)
+	}
+
+	w = httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "/api/detect?game=nope", nil))
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("알 수 없는 게임 status = %d, want 400", w.Code)
 	}
 }

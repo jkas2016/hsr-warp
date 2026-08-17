@@ -18,7 +18,8 @@ function stripLineComment(line) {
 const HANGUL = /[가-힣]/;
 // 허용: 정규 키로 유지되는 배너 short/스코프/결과 한국어 리터럴(로직 값).
 // 이들은 표시 시 bannerLabel()/t()로 감싸므로 "비교/키" 맥락에서만 등장해야 한다.
-const ALLOW = /['"](캐릭터|광추|일반|출발|전체)['"]/g;
+// ZZZ 배너 short(독점/W-엔진/상시/본디)와 SSE progress 의 역할 이름('무기')도 로직 값이다.
+const ALLOW = /['"](캐릭터|광추|일반|출발|전체|독점|W-엔진|상시|본디|무기)['"]/g;
 
 let bad = [];
 for (const f of FILES) {

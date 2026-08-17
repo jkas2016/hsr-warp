@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"hsr-warp/internal/game"
 )
 
 // AuthContext 는 getGachaLog 호출에 필요한 베이스 정보다.
@@ -27,9 +29,11 @@ type AuthContext struct {
 var authURLRe = regexp.MustCompile(`https://[^\x00-\x1f"\\]+?authkey=[^\x00-\x1f"\\]+`)
 
 // 페이지네이션 시 우리가 직접 지정하므로 베이스 쿼리에서 제거할 키.
+// real_gacha_type(ZZZ)은 authkey URL 에 이미 들어 있어, 제거하지 않으면 조립 시
+// 중복되고 서버가 앞의 값을 채택해 모든 채널이 같은 데이터를 반환한다(실측).
 var pageKeys = map[string]bool{
-	"page": true, "size": true, "gacha_type": true, "end_id": true,
-	"begin_id": true, "default_gacha_type": true, "gacha_id": true,
+	"page": true, "size": true, "gacha_type": true, "real_gacha_type": true,
+	"end_id": true, "begin_id": true, "default_gacha_type": true, "gacha_id": true,
 }
 
 // parseAuthURL 은 캐시 바이트에서 최신 authkey URL 을 찾아 AuthContext 로 만든다.
@@ -164,8 +168,8 @@ func latestVersion(names []string) string {
 }
 
 // FindAuthContext 는 gamePath 의 최신 webCaches data_2 를 읽어 AuthContext 를 만든다.
-func FindAuthContext(gamePath string) (*AuthContext, error) {
-	webCaches := filepath.Join(gamePath, "StarRail_Data", "webCaches")
+func FindAuthContext(gamePath string, g game.Game) (*AuthContext, error) {
+	webCaches := filepath.Join(gamePath, g.DataDirName, "webCaches")
 	entries, err := os.ReadDir(webCaches)
 	if err != nil {
 		return nil, errors.New("webCaches 폴더를 찾을 수 없습니다: " + webCaches)

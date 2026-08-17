@@ -80,14 +80,23 @@
 <body>
 <div id="root"></div>
 <script>
-  // apply persisted theme + lang before paint to avoid a flash
+  // apply persisted theme + game palette before paint to avoid a flash.
+  // 게임 id 검증은 WarpData 가 하고(Dashboard 의 effect 가 곧바로 덮어쓴다), 여기선
+  // 속성 주입만 막는다 — 모르는 값이면 tokens/game.css 에 매칭되는 규칙이 없어 기본 팔레트다.
   try { document.documentElement.setAttribute('data-theme', localStorage.getItem('hsrwarp-theme') || 'dark'); } catch (e) {}
+  try {
+    var g = localStorage.getItem('hsrwarp-game') || 'hsr';
+    document.documentElement.setAttribute('data-game', /^[a-z0-9]+$/.test(g) ? g : 'hsr');
+  } catch (e) { document.documentElement.setAttribute('data-game', 'hsr'); }
+  // ZZZ 어반 텍스처(사선 스캔라인). HSR 팔레트엔 대응 규칙이 없어 무해하다.
+  document.documentElement.setAttribute('data-texture', 'on');
 </script>
 <script src="i18n/ko.js"></script>
 <script src="i18n/en.js"></script>
 <script src="i18n/zh.js"></script>
 <script src="i18n/ja.js"></script>
 <script src="i18n/items.js"></script>
+<script src="i18n/game.js"></script>
 <script src="i18n.js"></script>
 <script>
   try { document.documentElement.setAttribute('lang', window.I18N.lang); } catch (e) {}

@@ -6,6 +6,9 @@ function HeroSummary({ D, scoped }) {
   const { num, useCountUp } = window.WarpUtil;
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
   const lim = D.limited;
+  // 한정 배너 이름은 게임마다 다르다 — 코드가 아니라 역할로 현재 게임의 short 를 얻는다.
+  const charShort = window.WarpData.roleShort('limited-char');
+  const lcShort = window.WarpData.roleShort('limited-weapon');
 
   // 운 지표 = 5★당 평균 뽑기 수의 기준선 대비 차이(회). 기준보다 빨리 뽑았으면 행운.
   const diff = lim.count5 ? lim.avgPity5 - lim.base : 0;
@@ -35,8 +38,8 @@ function HeroSummary({ D, scoped }) {
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 10, whiteSpace: 'pre-line' }}>
             {lucky
-              ? t('hero.luckDescLucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5, c: lim.charCount5, l: lim.lcCount5 })
-              : t('hero.luckDescUnlucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5, c: lim.charCount5, l: lim.lcCount5 })}
+              ? t('hero.luckDescLucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5, c: lim.charCount5, l: lim.lcCount5, cName: bl(charShort), lName: bl(lcShort) })
+              : t('hero.luckDescUnlucky', { avg: lim.base.toFixed(1), diff: Math.abs(diff).toFixed(1), n: lim.count5, c: lim.charCount5, l: lim.lcCount5, cName: bl(charShort), lName: bl(lcShort) })}
           </div>
           <div style={{ marginTop: 'auto', paddingTop: 22 }}>
             <LuckBar markerPct={showBar ? D.luck.markerPct : 50} />
@@ -60,10 +63,10 @@ function HeroSummary({ D, scoped }) {
               ? <Badge variant="neutral">{t('hero.rangeStats')}</Badge>
               : <>
                   <Badge variant={lim.charGuaranteed ? 'red' : 'green'}>
-                    {lim.charGuaranteed ? t('hero.nextBadgeGuar', { name: bl('캐릭터') }) : t('hero.nextBadge', { name: bl('캐릭터'), odds: lim.charOdds })}
+                    {lim.charGuaranteed ? t('hero.nextBadgeGuar', { name: bl(charShort) }) : t('hero.nextBadge', { name: bl(charShort), odds: lim.charOdds })}
                   </Badge>
                   <Badge variant={lim.lcGuaranteed ? 'red' : 'green'}>
-                    {lim.lcGuaranteed ? t('hero.nextBadgeGuar', { name: bl('광추') }) : t('hero.nextBadge', { name: bl('광추'), odds: lim.lcOdds })}
+                    {lim.lcGuaranteed ? t('hero.nextBadgeGuar', { name: bl(lcShort) }) : t('hero.nextBadge', { name: bl(lcShort), odds: lim.lcOdds })}
                   </Badge>
                 </>}
           </div>
@@ -90,8 +93,8 @@ function HeroSummary({ D, scoped }) {
         <div className="stat-row">
           <StatCard label={t('hero.totalPulls')} value={num(useCountUp(D.total))} unit={t('common.times')} />
           <StatCard label={t('hero.jade')} value={num(useCountUp(D.jade))} unit={t('hero.jadeUnit', { n: num(D.jade / 160) })} />
-          <StatCard label="5★" value={useCountUp(D.count5)} unit={t('common.count')} accent="var(--gold)" valueColor="var(--gold-ink)" />
-          <StatCard label="4★" value={useCountUp(D.count4)} unit={t('common.count')} accent="var(--purple)" valueColor="var(--purple)" />
+          <StatCard label={t('rank.r5')} value={useCountUp(D.count5)} unit={t('common.count')} accent="var(--gold)" valueColor="var(--gold-ink)" />
+          <StatCard label={t('rank.r4')} value={useCountUp(D.count4)} unit={t('common.count')} accent="var(--purple)" valueColor="var(--purple)" />
           <StatCard label={t('hero.rate5')} value={useCountUp(D.rate5, { decimals: 2 })} unit="%" />
         </div>
       </section>
