@@ -7,14 +7,18 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-19
+
+1.0.0 의 남은 자국을 지우는 릴리스. 설치 마법사 체크박스 잘림을 근본 원인까지 잡았고, 스타레일에만 묶여 있던 아이콘을 두 게임 공용으로 바꿨다.
+
 ### 추가됨
-- 조회 가능 기간 안내 — 두 README와 가이드 사이트 FAQ(ko/en/zh/ja)에 "얼마나 예전 기록까지 가져오나요?" 항목 추가. ZZZ는 게임 서버가 최근 약 6개월치만 반환하는 반면 HSR은 실측상 그보다 오래된 기록도 반환된다는 차이를 명시한다.
+- 조회 가능 기간 안내 — 두 README와 가이드 사이트 FAQ(ko/en/zh/ja)에 "얼마나 예전 기록까지 가져오나요?" 항목 추가. ZZZ는 게임 서버가 최근 약 6개월치만 반환하는 반면 HSR은 실측상 그보다 오래된 기록도 반환된다는 차이를 명시한다 (#55)
 
 ### 변경됨
-- 앱 아이콘을 '워프 티켓'(양옆이 파인 티켓 + 4점 별 음각)으로 교체 — 기존 아이콘은 스타레일의 개척 열차를 형상화한 것이라 ZZZ까지 지원하는 지금은 한쪽 게임에만 묶였다. exe 아이콘·웹 파비콘(`icon.ico`·`web/favicon.ico`·`web/favicon.svg`)이 모두 바뀐다.
+- 앱 아이콘을 '워프 티켓'(양옆이 파인 티켓 + 4점 별 음각)으로 교체 — 기존 아이콘은 스타레일의 개척 열차를 형상화한 것이라 ZZZ까지 지원하는 지금은 한쪽 게임에만 묶였다. exe 아이콘·웹 파비콘(`icon.ico`·`web/favicon.ico`·`web/favicon.svg`)이 모두 바뀐다 (#56)
 
 ### 수정됨
-- 설치 마법사 체크박스가 고DPI에서 좌우로 잘리던 문제 — 1.0.0 의 `WizardStyle=modern windows11` 회피는 불완전했고, 선택·해제 어느 상태든 200% 스케일에서 테두리가 깎였다. 원인은 Inno Setup 의 `TNewCheckListBox` 가 `GetThemePartSize` 로 얻은 사각형을 `DrawThemeBackground` 의 클립으로 그대로 넘기는 것. 작업 목록·실행 목록을 숨기고 네이티브 `TNewCheckBox` 로 대체했다.
+- 설치 마법사 체크박스가 고DPI에서 좌우로 잘리던 문제 — 1.0.0 의 `WizardStyle=modern windows11` 회피는 불완전했고, 선택·해제 어느 상태든 200% 스케일에서 테두리가 깎였다. 원인은 Inno Setup 의 `TNewCheckListBox` 가 `GetThemePartSize` 로 얻은 사각형을 `DrawThemeBackground` 의 클립으로 그대로 넘기는 것. 작업 목록·실행 목록을 숨기고 네이티브 `TNewCheckBox` 로 대체했다 (#56)
 
 ## [1.0.0] - 2026-08-18
 
@@ -114,6 +118,7 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[1.0.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.1
 [1.0.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.0
 [0.5.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.5.0
 [0.4.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.4.1
