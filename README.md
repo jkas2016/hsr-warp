@@ -8,6 +8,8 @@ A small program that imports your **Honkai: Star Rail Warp** and **Zenless Zone 
 - **Fully local** — Everything runs on your PC only. Records are never sent anywhere, and no account login is required.
 - **Safe accumulation** — Fetching again preserves your past records and only appends new ones. Records are kept per game in a standard format (SRGF v1.0 for HSR, UIGF v4.0 for ZZZ).
 
+> ⚠️ **How far back you can fetch** — Only as far back as the game server returns. **Zenless Zone Zero returns roughly the last 6 months only**, so Signal Search records older than that are already out of reach the first time you fetch. Honkai: Star Rail, in our testing, returned Warp records older than 6 months as well (this is a server-side policy HoYoverse can change at any time). Once fetched, records are kept here forever — the earlier you start, the longer your history.
+
 ## Quick start
 
 1. **Open your pull records in the game** ⚠️ (most important) — In the game, open the records screen yourself so the pull list is visible on screen: **[Warp] → [Records]** in Star Rail, **[Signal Search] → [Details] → [Signal Search History]** in Zenless Zone Zero. That is when an auth token (authkey) is written to the PC cache, and it must be refreshed this way right before you fetch. Each game has its own token.
