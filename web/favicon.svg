@@ -1,23 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="HSR 워프 열차 아이콘">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="워프 티켓 아이콘">
   <!-- 짙은 라운드 패널 -->
   <rect x="0" y="0" width="64" height="64" rx="13" fill="#121622"/>
-  <!-- 골드 기관차: 차체 + 앞쪽 캡 지붕 + 바퀴 + 레일 -->
-  <g fill="#f5c542">
-    <rect x="9.6" y="21.8" width="44.8" height="16.6" rx="3.2"/>
-    <rect x="35.2" y="16.6" width="19.2" height="6.4" rx="2.6"/>
-    <circle cx="17.9" cy="39.7" r="3.5"/>
-    <circle cx="32" cy="39.7" r="3.5"/>
-    <circle cx="46.1" cy="39.7" r="3.5"/>
-    <rect x="6.4" y="44.8" width="51.2" height="2.3" rx="1.1"/>
-  </g>
-  <!-- 음각(패널색): 창문 3개 + 운전실 전면창 + 바퀴 허브 -->
+  <!-- 골드 티켓 몸통 -->
+  <rect x="8.3" y="16.6" width="47.4" height="30.7" rx="3.8" fill="#f5c542"/>
+  <!-- 음각(패널색): 양옆 반원 노치 + 중앙 4점 별 -->
   <g fill="#121622">
-    <rect x="13.4" y="25.6" width="5.1" height="5.8" rx="0.8"/>
-    <rect x="20.5" y="25.6" width="5.1" height="5.8" rx="0.8"/>
-    <rect x="27.5" y="25.6" width="5.1" height="5.8" rx="0.8"/>
-    <rect x="40.3" y="25.0" width="11.5" height="6.4" rx="1"/>
-    <circle cx="17.9" cy="39.7" r="1.3"/>
-    <circle cx="32" cy="39.7" r="1.3"/>
-    <circle cx="46.1" cy="39.7" r="1.3"/>
+    <circle cx="8.3" cy="32" r="5.8"/>
+    <circle cx="55.7" cy="32" r="5.8"/>
+    <path d="M32 20.8 Q32 32 43.2 32 Q32 32 32 43.2 Q32 32 20.8 32 Q32 32 32 20.8 Z"/>
   </g>
 </svg>
