@@ -48,12 +48,16 @@ var pageKeys = map[string]bool{
 func parseAuthURL(blob []byte) (*AuthContext, error) {
 	cands := candidatesFrom(map[int][]byte{2: blob})
 	if len(cands) == 0 {
-		return nil, errNoGachaURL
+		return nil, noGachaURLError(game.Default())
 	}
 	return cands[0], nil
 }
 
-var errNoGachaURL = errors.New("캐시에서 전언 기록 API URL을 찾지 못했습니다. 게임 내에서 전언 기록 화면을 한 번 연 뒤 다시 시도하세요")
+// noGachaURLError 는 캐시에 authkey 가 없을 때의 안내다. 진입 경로는 게임마다 다르다.
+func noGachaURLError(g game.Game) error {
+	return errors.New("캐시에서 기록 API URL을 찾지 못했습니다. 게임 내에서 " +
+		g.RecordPath + " 화면을 한 번 연 뒤 다시 시도하세요")
+}
 
 // candidatesFrom 은 캐시 파일들에서 authkey 후보를 최신 추정 순으로 만든다.
 // 1순위는 캐시 엔트리의 기록 시각, 파싱이 안 되면 URL 의 timestamp 쿼리다
@@ -241,7 +245,7 @@ func FindAuthContexts(gamePath string, g game.Game) ([]*AuthContext, error) {
 		}
 	}
 	if len(verDirs) == 0 {
-		return nil, errors.New("캐시 데이터(data_2)가 없습니다. 게임에서 전언 기록을 한 번 열었나요?")
+		return nil, errors.New("캐시 데이터(data_2)가 없습니다. 게임에서 " + g.RecordPath + " 화면을 한 번 열었나요?")
 	}
 	chosen := latestVersion(verDirs)
 	dir := filepath.Join(webCaches, chosen, "Cache", "Cache_Data")
@@ -260,7 +264,7 @@ func FindAuthContexts(gamePath string, g game.Game) ([]*AuthContext, error) {
 	}
 	cands := candidatesFrom(files)
 	if len(cands) == 0 {
-		return nil, errNoGachaURL
+		return nil, noGachaURLError(g)
 	}
 	slog.Debug("authkey 후보 추출", "cache_version", chosen, "candidates", len(cands))
 	return cands, nil

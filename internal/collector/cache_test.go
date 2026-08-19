@@ -287,3 +287,24 @@ func TestFindAuthContexts_DedupesSameAuthkey(t *testing.T) {
 		t.Fatalf("같은 authkey 는 후보 1개로 합쳐야 함, got %d", len(cands))
 	}
 }
+
+// 캐시에서 authkey 를 못 찾았을 때의 안내도 게임별 화면 이름을 써야 한다.
+func TestFindAuthContexts_NotFoundMessageUsesGameScreen(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "ZenlessZoneZero_Data", "webCaches", "2.51.0.0", "Cache", "Cache_Data")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "data_2"), []byte("no authkey here"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	zzz, _ := game.ByID("zzz")
+	_, err := FindAuthContexts(root, zzz)
+	if err == nil {
+		t.Fatal("authkey 가 없으면 에러여야 함")
+	}
+	if !strings.Contains(err.Error(), "변조") || strings.Contains(err.Error(), "전언") {
+		t.Fatalf("ZZZ 안내는 변조 기록 화면을 가리켜야 함: %v", err)
+	}
+}

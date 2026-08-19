@@ -73,12 +73,14 @@ func isAuthkeyExpired(retcode int, message string) bool {
 }
 
 // expiredMessage 는 authkey 만료 시 사용자에게 보일 메시지를 만든다.
-// 핵심: 게임을 "켜는 것"만으로는 authkey 가 갱신되지 않는다 — 게임 안에서 전언
-// 기록 화면을 실제로 열어야 캐시에 새 authkey 가 기록된다. issuedAt(캐시의 authkey
-// 생성 시각)을 알면 경과 일수를 함께 보여 "방금 켰는데 왜 만료냐"는 혼란을 푼다.
-func expiredMessage(issuedAt, now time.Time) string {
-	const guide = "게임을 켜는 것만으로는 authkey 가 갱신되지 않습니다. " +
-		"게임 안에서 [전언] → [기록] 화면을 직접 연 뒤(목록이 보이게) 다시 조회하세요."
+// 핵심: 게임을 "켜는 것"만으로는 authkey 가 갱신되지 않는다 — 게임 안에서 기록
+// 화면을 실제로 열어야 캐시에 새 authkey 가 기록된다. issuedAt(캐시에 그 authkey 가
+// 기록된 시각)을 알면 경과 일수를 함께 보여 "방금 켰는데 왜 만료냐"는 혼란을 푼다.
+// 진입 경로는 게임마다 다르므로 값 테이블에서 가져온다(HSR 용어를 ZZZ 사용자에게
+// 들이밀면 없는 메뉴를 찾게 된다).
+func expiredMessage(g game.Game, issuedAt, now time.Time) string {
+	guide := "게임을 켜는 것만으로는 authkey 가 갱신되지 않습니다. " +
+		"게임 안에서 " + g.RecordPath + " 화면을 직접 연 뒤(목록이 보이게) 다시 조회하세요."
 	if issuedAt.IsZero() {
 		return "authkey 만료. " + guide
 	}
@@ -137,9 +139,9 @@ func callGachaLog(ctx context.Context, client *http.Client, url string) (*apiRes
 }
 
 // apiError 는 retcode != 0 응답을 사용자용 에러로 바꾼다.
-func apiError(ac *AuthContext, ar *apiResp) error {
+func apiError(g game.Game, ac *AuthContext, ar *apiResp) error {
 	if isAuthkeyExpired(ar.Retcode, ar.Message) {
-		return errors.New(expiredMessage(ac.IssuedAt, time.Now()))
+		return errors.New(expiredMessage(g, ac.IssuedAt, time.Now()))
 	}
 	if ar.Retcode == -110 { // visit too frequently (레이트 리밋)
 		return errors.New("조회가 너무 잦습니다(서버 호출 제한). 1~2분 기다린 뒤 다시 시도하세요.")
@@ -173,12 +175,12 @@ func SelectValidAuthContext(ctx context.Context, cands []*AuthContext, g game.Ga
 			return ac, nil
 		}
 		if !isAuthkeyExpired(ar.Retcode, ar.Message) {
-			return nil, apiError(ac, ar)
+			return nil, apiError(g, ac, ar)
 		}
 		slog.Debug("authkey 후보 만료", "index", i, "issued", ac.IssuedAt)
 	}
 	// 전부 만료 — 경과 일수는 가장 최신 후보 기준으로 알린다.
-	return nil, errors.New(expiredMessage(cands[0].IssuedAt, time.Now()))
+	return nil, errors.New(expiredMessage(g, cands[0].IssuedAt, time.Now()))
 }
 
 // FetchIncremental 은 배너별로 lastID 보다 최신인 기록만 수집한다.
@@ -207,7 +209,7 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, g game.Game, lastID 
 				return out, uid, err
 			}
 			if ar.Retcode != 0 {
-				return out, uid, apiError(ac, ar)
+				return out, uid, apiError(g, ac, ar)
 			}
 			if len(ar.Data.List) == 0 {
 				break

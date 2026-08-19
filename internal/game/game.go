@@ -1,7 +1,10 @@
 // Package game 은 지원 게임 간의 차이를 값 테이블 하나로 격리한다.
 // 수집 계층이 필요로 하는 것(캐시 디렉터리명, 배너 쿼리 파라미터, 채널 코드와
-// 순서)만 담는다. 천장·픽업 확률·표시 이름 같은 분석용 값은 여기 두지 않고
-// web/schedule.json 의 banners 블록에 둔다(분석 로직 단일 소스 원칙).
+// 순서, 진단 메시지에 쓸 인게임 화면 경로)만 담는다. 사용자에게 보이는 다국어
+// 문구는 대시보드 i18n(web/ui_kits/dashboard/i18n/game.js)이 소유하고, 여기 값은
+// 서버 로그·SSE 에러의 한국어 안내에만 쓴다. 천장·픽업 확률·표시 이름 같은
+// 분석용 값은 여기 두지 않고 web/schedule.json 의 banners 블록에 둔다
+// (분석 로직 단일 소스 원칙).
 package game
 
 // 배너 역할. 게임마다 채널 코드는 다르지만 역할은 공통이라, 분석·표시 계층은
@@ -23,6 +26,7 @@ type Banner struct {
 // Game 은 게임 하나의 수집 파라미터다.
 type Game struct {
 	ID          string   // "hsr" | "zzz"
+	RecordPath  string   // 인게임 기록 화면 진입 경로(진단 메시지용, 한국어)
 	DataDirName string   // 게임 설치 폴더 아래 캐시 루트 디렉터리명
 	BannerParam string   // 채널을 지정하는 쿼리 파라미터 이름
 	InfoFormat  string   // 저장 파일 info 블록 규격
@@ -52,6 +56,7 @@ func (g Game) RoleOf(code string) string {
 var games = []Game{
 	{
 		ID:          "hsr",
+		RecordPath:  "[전언] → [기록]",
 		DataDirName: "StarRail_Data",
 		BannerParam: "gacha_type",
 		InfoFormat:  "srgf-v1.0",
@@ -71,6 +76,7 @@ var games = []Game{
 	},
 	{
 		ID:          "zzz",
+		RecordPath:  "[변조] → [상세] → [변조 기록]",
 		DataDirName: "ZenlessZoneZero_Data",
 		BannerParam: "real_gacha_type",
 		InfoFormat:  "uigf-v4.0",

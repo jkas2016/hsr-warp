@@ -19,7 +19,7 @@ import (
 func TestExpiredMessage_ShowsAgeAndGuidance(t *testing.T) {
 	issued := time.Date(2026, 4, 21, 8, 57, 0, 0, time.Local)
 	now := time.Date(2026, 6, 3, 19, 0, 0, 0, time.Local)
-	msg := expiredMessage(issued, now)
+	msg := expiredMessage(game.Default(), issued, now)
 	if !contains(msg, "43일") {
 		t.Fatalf("message should state the 43-day age, got: %s", msg)
 	}
@@ -33,7 +33,7 @@ func TestExpiredMessage_ShowsAgeAndGuidance(t *testing.T) {
 
 // 생성 시각을 모를 때(timestamp 없는 캐시)는 경과 표기 없이 안내만 한다.
 func TestExpiredMessage_UnknownIssuedAt(t *testing.T) {
-	msg := expiredMessage(time.Time{}, time.Now())
+	msg := expiredMessage(game.Default(), time.Time{}, time.Now())
 	if !contains(msg, "전언") || !contains(msg, "기록") {
 		t.Fatalf("message should still guide the user, got: %s", msg)
 	}
@@ -230,7 +230,7 @@ func TestIDLessEq_BigIntNotLexicographic(t *testing.T) {
 func TestExpiredMessage_FutureIssuedAtClampsToZero(t *testing.T) {
 	now := time.Date(2026, 6, 3, 12, 0, 0, 0, time.Local)
 	future := now.Add(48 * time.Hour)
-	msg := expiredMessage(future, now)
+	msg := expiredMessage(game.Default(), future, now)
 	// clamp 없이는 -2일(48h/24h)이 노출된다 — 날짜 표기(2026-06-05)의 하이픈과
 	// 헷갈리지 않도록 "-<숫자>일" 패턴으로만 검사한다.
 	if contains(msg, "-2일") {
@@ -342,8 +342,8 @@ func TestFetchIncremental_AuthkeyExpired_ZZZMessageForm(t *testing.T) {
 	if err == nil {
 		t.Fatal("만료 에러를 기대")
 	}
-	if !contains(err.Error(), "전언") {
-		t.Fatalf("만료 안내(기록 화면을 열라는 가이드)를 기대, got %v", err)
+	if !contains(err.Error(), "변조") {
+		t.Fatalf("ZZZ 만료 안내(변조 기록 화면)를 기대, got %v", err)
 	}
 	if contains(err.Error(), "retcode") {
 		t.Fatalf("원문 API 오류가 아니라 만료 안내여야 함, got %v", err)
@@ -442,5 +442,27 @@ func TestSelectValidAuthContext_NonExpiredErrorStopsImmediately(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("첫 실패에서 멈춰야 함, calls=%d", calls)
+	}
+}
+
+// 만료 안내의 인게임 경로는 게임마다 다르다. HSR 은 [전언] → [기록], ZZZ 는
+// [변조] → [상세] → [변조 기록] 이다 — HSR 용어를 ZZZ 사용자에게 들이밀면
+// 사용자는 없는 메뉴를 찾게 된다.
+func TestExpiredMessage_UsesGameRecordScreen(t *testing.T) {
+	issued := time.Date(2026, 8, 18, 2, 43, 0, 0, time.Local)
+	now := time.Date(2026, 8, 20, 0, 32, 0, 0, time.Local)
+
+	hsr := expiredMessage(game.Default(), issued, now)
+	if !contains(hsr, "전언") {
+		t.Fatalf("HSR 안내는 [전언] 경로여야 함: %s", hsr)
+	}
+
+	zzz, _ := game.ByID("zzz")
+	msg := expiredMessage(zzz, issued, now)
+	if !contains(msg, "변조") {
+		t.Fatalf("ZZZ 안내는 [변조] 경로여야 함: %s", msg)
+	}
+	if contains(msg, "전언") {
+		t.Fatalf("ZZZ 안내에 HSR 용어가 남으면 안 됨: %s", msg)
 	}
 }
