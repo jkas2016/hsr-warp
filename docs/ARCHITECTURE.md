@@ -79,17 +79,19 @@ Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천�
 
 `prerelease: auto` 라 태그에 `-rc1` 같은 식별자가 붙으면 자동으로 프리릴리스가 되고, 업데이트의 코드 채널(`releases/latest`)에서 제외된다.
 
-내는 순서:
+내는 순서 — 사람이 할 일은 **PR 머지 · 버전 번호 결정 · `[Unreleased]` 본문 작성** 셋뿐이고, 나머지 기계적인 단계는 `scripts/release.mjs` 가 묶는다.
 
 ```powershell
-# 1. CHANGELOG 의 [Unreleased] 를 [X.Y.Z] - YYYY-MM-DD 로 확정하고 하단 링크 목록에 추가
-# 2. 확정 커밋 (릴리스 노트에서 제외되도록 chore 프리픽스)
-git commit -am "chore(release): vX.Y.Z 준비 — CHANGELOG 확정"
-git push origin main
-# 3. 태그 push — 여기서 릴리스가 실제로 발행된다
-git tag vX.Y.Z && git push origin vX.Y.Z
-gh run watch   # 두 잡 모두 통과하는지 확인
+gh pr merge <번호> --squash --delete-branch   # 릴리스에 담을 PR 을 모두 머지
+git switch main; git pull                     # main 최신화
+#  CHANGELOG 의 [Unreleased] 본문을 손으로 작성 (커밋 메시지로 대체 불가한 서술)
+npm run release -- X.Y.Z --dry-run            # 확정될 CHANGELOG 미리보기
+npm run release -- X.Y.Z                      # 확정 커밋 → push → 태그 push → Actions 관찰
 ```
+
+`release.mjs` 는 ① `[Unreleased]` 를 `[X.Y.Z] - <오늘>` 로 승격하고 하단 링크를 추가 → ② 워킹트리·브랜치(main)·`origin/main` 동기·태그 중복을 점검 → ③ `npm test` → ④ `chore(release):` 커밋 + push → ⑤ 태그 push → ⑥ `gh run watch` 순으로 돈다. **⑤ 만 비가역**이고 그 앞 단계에서 하나라도 걸리면 아무것도 밀지 않는다. 승격 로직의 불변식(빈 `[Unreleased]` 거부, 중복 버전 거부, 링크 정렬, 개행 보존)은 `scripts/release.test.mjs` 가 강제한다.
+
+CHANGELOG 자동 생성은 **일부러 하지 않는다.** goreleaser 가 커밋 기반 릴리스 노트를 이미 만들고(`changelog.use: git`), `CHANGELOG.md` 는 커밋 제목에서 나올 수 없는 인과 서술을 담는 별도 층위다. 같은 이유로 PR 머지가 릴리스를 트리거하지도 않는다 — 릴리스 하나가 PR 여러 개를 묶는 게 이 저장소의 실제 이력이고(v1.0.1=#55·#56, v1.0.0=#46·#51·#53), 오발행은 `releases/latest` 를 보는 업데이터를 통해 전 사용자에게 즉시 노출된다.
 
 installer 잡은 `.iss` 를 고친 릴리스에서 처음 검증된다(로컬에 `ISCC` 가 없으면 사전 확인 불가). 여기서 실패하면 goreleaser 릴리스는 이미 발행된 채 설치본만 빠지므로, `.iss` 를 고쳐 패치 버전을 새로 내는 편이 태그를 지우는 것보다 안전하다.
 
