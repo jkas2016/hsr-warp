@@ -204,17 +204,25 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 	defer s.fetching.Store(false)
 	slog.Info("조회 시작", "path", gamePath, "game", g.ID)
 
-	ac, err := collector.FindAuthContext(gamePath, g)
+	// 캐시에는 여러 세션의 authkey 가 쌓여 있고 순서 추정이 어긋날 수 있어,
+	// 후보를 모아 살아있는 것을 골라 쓴다(ZZZ 는 URL 의 timestamp 가 재사용된다).
+	cands, err := collector.FindAuthContexts(gamePath, g)
+	if err != nil {
+		fail(err.Error())
+		return
+	}
+	ac, err := collector.SelectValidAuthContext(r.Context(), cands, g)
 	if err != nil {
 		fail(err.Error())
 		return
 	}
 	if ac.IssuedAt.IsZero() {
-		slog.Warn("authkey 발급 시각 알 수 없음", "reason", "캐시에 timestamp 없음")
+		slog.Warn("authkey 기록 시각 알 수 없음", "reason", "캐시 엔트리·timestamp 모두 없음")
 	} else {
-		slog.Info("authkey 발급 시각",
+		slog.Info("authkey 채택",
 			"issued", ac.IssuedAt.Format("2006-01-02 15:04"),
-			"hours_ago", int(time.Since(ac.IssuedAt).Hours()))
+			"hours_ago", int(time.Since(ac.IssuedAt).Hours()),
+			"candidates", len(cands))
 	}
 	// config 에 경로 저장(다음 실행 자동 채움). 게임별로 병합해 다른 게임 경로를 지우지 않는다.
 	cfg := LoadConfig(s.paths.ConfigFile)

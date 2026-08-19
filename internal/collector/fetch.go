@@ -110,6 +110,77 @@ func bodySnippet(b []byte) string {
 	return s
 }
 
+// callGachaLog 는 getGachaLog 를 한 번 호출해 응답을 파싱한다.
+func callGachaLog(ctx context.Context, client *http.Client, url string) (*apiResp, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("요청 생성 실패: %w", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0")
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("API 호출 실패: %w", err)
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if readErr != nil {
+		return nil, fmt.Errorf("응답 읽기 실패: %w", readErr)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("API HTTP 오류 (HTTP %d, 응답: %q)", resp.StatusCode, bodySnippet(body))
+	}
+	var ar apiResp
+	if err := json.Unmarshal(body, &ar); err != nil {
+		return nil, fmt.Errorf("응답 파싱 실패: %w (HTTP %d, 응답: %q)", err, resp.StatusCode, bodySnippet(body))
+	}
+	return &ar, nil
+}
+
+// apiError 는 retcode != 0 응답을 사용자용 에러로 바꾼다.
+func apiError(ac *AuthContext, ar *apiResp) error {
+	if isAuthkeyExpired(ar.Retcode, ar.Message) {
+		return errors.New(expiredMessage(ac.IssuedAt, time.Now()))
+	}
+	if ar.Retcode == -110 { // visit too frequently (레이트 리밋)
+		return errors.New("조회가 너무 잦습니다(서버 호출 제한). 1~2분 기다린 뒤 다시 시도하세요.")
+	}
+	return fmt.Errorf("API 오류 (retcode=%d): %s", ar.Retcode, ar.Message)
+}
+
+// SelectValidAuthContext 는 후보를 순서대로 가볍게 두드려 만료되지 않은 첫 authkey 를
+// 고른다. 캐시에는 여러 세션의 authkey 가 쌓여 있고, 순서 추정(캐시 기록 시각)이
+// 틀릴 수 있는 이상 실제 호출만이 유효성의 근거다. 만료가 아닌 오류는 다음 후보로
+// 넘기지 않고 즉시 표면화한다 — 레이트 리밋을 더 깊게 만들 뿐이다.
+func SelectValidAuthContext(ctx context.Context, cands []*AuthContext, g game.Game) (*AuthContext, error) {
+	if len(cands) == 0 {
+		return nil, errors.New("authkey 후보가 없습니다")
+	}
+	if len(cands) == 1 {
+		return cands[0], nil // 대안이 없으면 검증은 헛호출일 뿐이다.
+	}
+	client := &http.Client{Timeout: 20 * time.Second}
+	for i, ac := range cands {
+		u := fmt.Sprintf("%s?%s&size=1&%s=%s&page=1&end_id=0",
+			ac.APIBase, ac.BaseQuery, g.BannerParam, g.Codes()[0])
+		ar, err := callGachaLog(ctx, client, u)
+		if err != nil {
+			return nil, err
+		}
+		if ar.Retcode == 0 {
+			if i > 0 {
+				slog.Info("만료된 authkey 후보를 건너뜀", "skipped", i, "candidates", len(cands))
+			}
+			return ac, nil
+		}
+		if !isAuthkeyExpired(ar.Retcode, ar.Message) {
+			return nil, apiError(ac, ar)
+		}
+		slog.Debug("authkey 후보 만료", "index", i, "issued", ac.IssuedAt)
+	}
+	// 전부 만료 — 경과 일수는 가장 최신 후보 기준으로 알린다.
+	return nil, errors.New(expiredMessage(cands[0].IssuedAt, time.Now()))
+}
+
 // FetchIncremental 은 배너별로 lastID 보다 최신인 기록만 수집한다.
 // onProgress(배너이름, 누적신규건수) 는 페이지마다 호출된다. uid 도 반환한다.
 func FetchIncremental(ctx context.Context, ac *AuthContext, g game.Game, lastID map[string]string, delay time.Duration, onProgress func(banner string, added int)) ([]store.Record, string, error) {
@@ -131,36 +202,12 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, g game.Game, lastID 
 			}
 			u := fmt.Sprintf("%s?%s&size=20&%s=%s&page=%d&end_id=%s",
 				ac.APIBase, ac.BaseQuery, g.BannerParam, gt, page, endID)
-			req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+			ar, err := callGachaLog(ctx, client, u)
 			if err != nil {
-				return out, uid, fmt.Errorf("요청 생성 실패: %w", err)
-			}
-			req.Header.Set("User-Agent", "Mozilla/5.0")
-			resp, err := client.Do(req)
-			if err != nil {
-				return out, uid, fmt.Errorf("API 호출 실패: %w", err)
-			}
-			body, readErr := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if readErr != nil {
-				return out, uid, fmt.Errorf("응답 읽기 실패: %w", readErr)
-			}
-			if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-				return out, uid, fmt.Errorf("API HTTP 오류 (HTTP %d, 응답: %q)", resp.StatusCode, bodySnippet(body))
-			}
-			var ar apiResp
-			if err := json.Unmarshal(body, &ar); err != nil {
-				return out, uid, fmt.Errorf("응답 파싱 실패: %w (HTTP %d, 응답: %q)", err, resp.StatusCode, bodySnippet(body))
+				return out, uid, err
 			}
 			if ar.Retcode != 0 {
-				if isAuthkeyExpired(ar.Retcode, ar.Message) {
-					return out, uid, errors.New(expiredMessage(ac.IssuedAt, time.Now()))
-				}
-				switch ar.Retcode {
-				case -110: // visit too frequently (레이트 리밋)
-					return out, uid, errors.New("조회가 너무 잦습니다(서버 호출 제한). 1~2분 기다린 뒤 다시 시도하세요.")
-				}
-				return out, uid, fmt.Errorf("API 오류 (retcode=%d): %s", ar.Retcode, ar.Message)
+				return out, uid, apiError(ac, ar)
 			}
 			if len(ar.Data.List) == 0 {
 				break

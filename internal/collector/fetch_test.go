@@ -349,3 +349,98 @@ func TestFetchIncremental_AuthkeyExpired_ZZZMessageForm(t *testing.T) {
 		t.Fatalf("원문 API 오류가 아니라 만료 안내여야 함, got %v", err)
 	}
 }
+
+// 후보 authkey 중 살아있는 것을 실제 호출로 골라내야 한다. 캐시 엔트리 순서가
+// 항상 옳다고 보장할 수 없으므로(포맷 변경 시 regex 폴백), 만료된 후보는 건너뛴다.
+func TestSelectValidAuthContext_SkipsExpiredCandidates(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if contains(r.URL.RawQuery, "authkey=LIVE") {
+			_ = json.NewEncoder(w).Encode(map[string]any{"retcode": 0, "data": map[string]any{"list": []any{}}})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -1, "message": "auth key time out"})
+	}))
+	defer srv.Close()
+	zzz, _ := game.ByID("zzz")
+	cands := []*AuthContext{
+		{APIBase: srv.URL, BaseQuery: "authkey=DEAD1&lang=ko"},
+		{APIBase: srv.URL, BaseQuery: "authkey=DEAD2&lang=ko"},
+		{APIBase: srv.URL, BaseQuery: "authkey=LIVE&lang=ko"},
+	}
+	got, err := SelectValidAuthContext(context.Background(), cands, zzz)
+	if err != nil {
+		t.Fatalf("살아있는 후보가 있는데 실패: %v", err)
+	}
+	if !contains(got.BaseQuery, "authkey=LIVE") {
+		t.Fatalf("살아있는 authkey 를 골라야 함: %s", got.BaseQuery)
+	}
+	if calls != 3 {
+		t.Fatalf("후보마다 1회씩 검증해야 함, calls=%d", calls)
+	}
+}
+
+// 후보가 하나뿐이면 검증 호출 없이 그대로 쓴다 — 헛호출은 레이트 리밋만 부른다.
+// (만료라면 본 조회에서 만료 안내가 나온다.)
+func TestSelectValidAuthContext_SingleCandidateSkipsProbe(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+	}))
+	defer srv.Close()
+	cands := []*AuthContext{{APIBase: srv.URL, BaseQuery: "authkey=ONLY&lang=ko"}}
+	got, err := SelectValidAuthContext(context.Background(), cands, game.Default())
+	if err != nil || got != cands[0] {
+		t.Fatalf("단일 후보는 그대로 반환해야 함: %v %v", got, err)
+	}
+	if calls != 0 {
+		t.Fatalf("검증 호출이 없어야 함, calls=%d", calls)
+	}
+}
+
+// 모든 후보가 만료면 원문 API 오류가 아니라 만료 안내를 준다. 이때 경과 일수는
+// 가장 최신 후보(첫 번째) 기준이어야 한다.
+func TestSelectValidAuthContext_AllExpired(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -1, "message": "auth key time out"})
+	}))
+	defer srv.Close()
+	newest := time.Now().Add(-72 * time.Hour)
+	cands := []*AuthContext{
+		{APIBase: srv.URL, BaseQuery: "authkey=D1", IssuedAt: newest},
+		{APIBase: srv.URL, BaseQuery: "authkey=D2", IssuedAt: newest.Add(-48 * time.Hour)},
+	}
+	_, err := SelectValidAuthContext(context.Background(), cands, game.Default())
+	if err == nil {
+		t.Fatal("만료 에러를 기대")
+	}
+	if !contains(err.Error(), "전언") {
+		t.Fatalf("만료 안내여야 함: %v", err)
+	}
+	if !contains(err.Error(), newest.Format("2006-01-02")) {
+		t.Fatalf("가장 최신 후보의 발급 시각을 써야 함: %v", err)
+	}
+}
+
+// 만료가 아닌 오류(레이트 리밋·서버 장애)는 다음 후보로 넘기지 않고 즉시 표면화한다.
+// 계속 시도하면 -110 을 더 깊게 만들 뿐이다.
+func TestSelectValidAuthContext_NonExpiredErrorStopsImmediately(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -110, "message": "visit too frequently"})
+	}))
+	defer srv.Close()
+	cands := []*AuthContext{
+		{APIBase: srv.URL, BaseQuery: "authkey=A"},
+		{APIBase: srv.URL, BaseQuery: "authkey=B"},
+	}
+	_, err := SelectValidAuthContext(context.Background(), cands, game.Default())
+	if err == nil {
+		t.Fatal("에러를 기대")
+	}
+	if calls != 1 {
+		t.Fatalf("첫 실패에서 멈춰야 함, calls=%d", calls)
+	}
+}
