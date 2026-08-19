@@ -324,3 +324,28 @@ func TestBannerLabel_DerivesFromRole(t *testing.T) {
 		t.Errorf("알 수 없는 코드 폴백 = %q, want 99", got)
 	}
 }
+
+// ZZZ 엔드포인트(public-operation-*)는 authkey 만료를 -101 이 아니라
+// retcode=-1 + message "auth key time out" 으로 알린다(2026-08-20 실측).
+// 코드 값만 보면 만료 안내를 놓치고 원문 API 오류가 그대로 노출된다.
+func TestFetchIncremental_AuthkeyExpired_ZZZMessageForm(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -1, "message": "auth key time out"})
+	}))
+	defer srv.Close()
+	zzz, ok := game.ByID("zzz")
+	if !ok {
+		t.Fatal("zzz 게임 정의를 찾지 못함")
+	}
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
+	_, _, err := FetchIncremental(context.Background(), ac, zzz, map[string]string{}, 0, func(string, int) {})
+	if err == nil {
+		t.Fatal("만료 에러를 기대")
+	}
+	if !contains(err.Error(), "전언") {
+		t.Fatalf("만료 안내(기록 화면을 열라는 가이드)를 기대, got %v", err)
+	}
+	if contains(err.Error(), "retcode") {
+		t.Fatalf("원문 API 오류가 아니라 만료 안내여야 함, got %v", err)
+	}
+}

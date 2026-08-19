@@ -60,7 +60,19 @@ type apiResp struct {
 	} `json:"data"`
 }
 
-// expiredMessage 는 authkey 만료(-101) 시 사용자에게 보일 메시지를 만든다.
+// isAuthkeyExpired 는 응답이 authkey 만료인지 판정한다.
+// 만료 코드는 엔드포인트마다 다르다 — HSR(public-operation-hkrpg)은 retcode=-101,
+// ZZZ(public-operation-common)는 retcode=-1 + message "auth key time out"(2026-08-20 실측).
+// 코드 값에 기대면 게임이 늘 때마다 만료 안내를 놓치므로 메시지도 함께 본다.
+func isAuthkeyExpired(retcode int, message string) bool {
+	if retcode == -101 {
+		return true
+	}
+	norm := strings.ToLower(strings.ReplaceAll(message, " ", ""))
+	return strings.Contains(norm, "authkeytimeout")
+}
+
+// expiredMessage 는 authkey 만료 시 사용자에게 보일 메시지를 만든다.
 // 핵심: 게임을 "켜는 것"만으로는 authkey 가 갱신되지 않는다 — 게임 안에서 전언
 // 기록 화면을 실제로 열어야 캐시에 새 authkey 가 기록된다. issuedAt(캐시의 authkey
 // 생성 시각)을 알면 경과 일수를 함께 보여 "방금 켰는데 왜 만료냐"는 혼란을 푼다.
@@ -141,9 +153,10 @@ func FetchIncremental(ctx context.Context, ac *AuthContext, g game.Game, lastID 
 				return out, uid, fmt.Errorf("응답 파싱 실패: %w (HTTP %d, 응답: %q)", err, resp.StatusCode, bodySnippet(body))
 			}
 			if ar.Retcode != 0 {
-				switch ar.Retcode {
-				case -101: // authkey timeout
+				if isAuthkeyExpired(ar.Retcode, ar.Message) {
 					return out, uid, errors.New(expiredMessage(ac.IssuedAt, time.Now()))
+				}
+				switch ar.Retcode {
 				case -110: // visit too frequently (레이트 리밋)
 					return out, uid, errors.New("조회가 너무 잦습니다(서버 호출 제한). 1~2분 기다린 뒤 다시 시도하세요.")
 				}
