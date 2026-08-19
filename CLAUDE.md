@@ -14,7 +14,9 @@ npm run build:debug                             # 개발용: 로그 debug 박은
 npm test   # 전체 테스트(go + analyze + 대시보드 util/i18n/items/nohardcode + 사이트 copy)
 npm run schedule:status   # 배너 데이터가 몇 버전(패치)까지 대응됐는지 즉시 확인
 
-git tag vX.Y.Z && git push origin vX.Y.Z   # 릴리스 발행 — 버전의 단일 소스는 태그다(상세는 ARCHITECTURE.md)
+npm run release -- X.Y.Z --dry-run   # 확정될 CHANGELOG 미리보기
+npm run release -- X.Y.Z             # 릴리스 발행 — CHANGELOG 확정 → push → 태그 → Actions 관찰
+                                     # 버전의 단일 소스는 태그다. [Unreleased] 본문은 손으로 쓴다(상세는 ARCHITECTURE.md)
 ```
 
 포맷·정적검사는 `gofmt -w .` 와 `go vet ./...` 가 권위 — 컨벤션을 글로 적지 않는다.
