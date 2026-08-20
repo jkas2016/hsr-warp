@@ -1,6 +1,11 @@
-// Per-banner status cards: colored dot + big pity number + ProgressBar,
-// then total / 5★ / avg-pity / 50/50 rows. Hover-lifting glass cards with a
-// banner-colored top accent.
+/**
+ * 배너별 상태 카드: 색 점 + 큰 천장 숫자 + ProgressBar, 그 아래 총 뽑기 / 5★ /
+ * 평균 뽑기 / 50/50 행. 배너 색 상단 액센트가 붙은 hover 부상 글래스 카드다.
+ * @param {Object} props
+ * @param {{banners: Object[]}} props.D WARP_DATA.
+ * @param {boolean} props.scoped 버전 스코프 상태. true 면 '현재 천장'은 의미가 없어 통계 행만 보인다.
+ * @returns {JSX.Element}
+ */
 function BannerCards({ D, scoped }) {
   const t = window.I18N.t;
   const bl = window.I18N.bannerLabel;
@@ -54,6 +59,13 @@ function BannerCards({ D, scoped }) {
     </section>
   );
 }
+/**
+ * 카드 안의 라벨 ↔ 값 한 줄.
+ * @param {Object} props
+ * @param {string} props.k 라벨.
+ * @param {React.ReactNode} props.v 값.
+ * @returns {JSX.Element}
+ */
 function Row({ k, v }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', color: 'var(--muted)', borderTop: '1px solid var(--line)' }}>

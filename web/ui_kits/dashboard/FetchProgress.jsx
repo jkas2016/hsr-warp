@@ -1,12 +1,16 @@
-// 조회 진행 표시 — 최초 조회(QueryPanel)와 새로고침(RefreshBar)이 공유한다.
-// 증분 조회는 남은 페이지 수를 미리 알 수 없어 퍼센트가 나오지 않는다. 그래서
-// 정직하게 (a) 배너별 누적 신규 건수, (b) 무한 진행 애니메이션, (c) 경과 시간
-// 세 가지로 "살아 있음"을 보인다 — 오래 걸릴 때 멈춘 것처럼 보이던 문제(#1)의 해법.
-//
-// prog: { 서버progress키: 누적건수 } | null, busy: 조회 중 여부.
-// popover: 헤더의 새로고침 칩에 매달아 띄우는 모드. 켜면 흐름에서 빠져(absolute)
-//   칩 아래에 겹쳐 뜬다 — 문서 흐름에 끼면 헤더가 늘어나며 본문 전체를 아래로
-//   밀어내기 때문이다. 부모가 position:relative 여야 한다.
+/**
+ * 조회 진행 표시 — 최초 조회(QueryPanel)와 새로고침(RefreshBar)이 공유한다.
+ * 증분 조회는 남은 페이지 수를 미리 알 수 없어 퍼센트가 나오지 않는다. 그래서
+ * 정직하게 (a) 배너별 누적 신규 건수, (b) 무한 진행 애니메이션, (c) 경과 시간
+ * 세 가지로 "살아 있음"을 보인다 — 오래 걸릴 때 멈춘 것처럼 보이던 문제(#1)의 해법.
+ * @param {Object} props
+ * @param {Object<string, number>|null} props.prog 서버 progress 키 → 누적 건수. null 이면 아무것도 렌더하지 않는다.
+ * @param {boolean} props.busy 조회 중 여부(진행 애니메이션·경과 시간 표시를 결정).
+ * @param {boolean} [props.popover] 헤더의 새로고침 칩에 매달아 띄우는 모드. 켜면 흐름에서
+ *   빠져(absolute) 칩 아래에 겹쳐 뜬다 — 문서 흐름에 끼면 헤더가 늘어나며 본문 전체를
+ *   아래로 밀어내기 때문이다. 부모가 position:relative 여야 한다.
+ * @returns {JSX.Element|null}
+ */
 function FetchProgress({ prog, busy, popover }) {
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
   const [elapsed, setElapsed] = React.useState(0);

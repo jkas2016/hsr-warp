@@ -1,8 +1,10 @@
-// Top-level app. Header (logo + RefreshBar + ThemeToggle), tab nav, and the
-// active view with a cross-fade. Owns live data (loaded from the local server
-// via window.WarpData), theme, current view, the selected 5★, and the
-// start-up update check. window.WARP_DATA mirrors the current dataset so
-// FiveDetail can look up per-banner meta.
+/**
+ * 최상위 앱. 헤더(로고 + RefreshBar + ThemeToggle), 탭 내비게이션, 크로스페이드되는 현재 뷰.
+ * 실데이터(window.WarpData 로 로컬 서버에서 로드), 테마, 현재 뷰, 선택된 5★, 시작 시
+ * 업데이트 확인을 모두 이 컴포넌트가 소유한다. window.WARP_DATA 는 현재 데이터셋을 미러링해
+ * FiveDetail 이 배너별 메타를 조회할 수 있게 한다.
+ * @returns {JSX.Element}
+ */
 function Dashboard() {
   const { ThemeToggle, Tabs, Select } = window.HSRWarpDesignSystem_4a0d44;
   const t = window.I18N.t;
@@ -78,7 +80,12 @@ function Dashboard() {
     [data, scopeVer],
   );
 
-  // QueryPanel/RefreshBar 공용: 실 조회. 데이터 세팅은 호출부(onLoaded)가 한다.
+  /**
+   * QueryPanel/RefreshBar 공용: 실 조회. 데이터 세팅은 호출부(onLoaded)가 한다.
+   * @param {string} path 게임 설치 경로.
+   * @param {function(string, number): void} onProgress 배너별 진행 콜백.
+   * @returns {Promise<Object>} 어댑트된 WARP_DATA(+summary).
+   */
   function runFetch(path, onProgress) { return window.WarpData.runFetch(path, onProgress); }
 
   const tabs = loaded ? [
@@ -179,7 +186,13 @@ function Dashboard() {
   );
 }
 
-// 게임 전환 세그먼티드 컨트롤 — 로고 + 짧은 게임명. 선택된 쪽만 카드 표면으로 떠오른다.
+/**
+ * 게임 전환 세그먼티드 컨트롤 — 로고 + 짧은 게임명. 선택된 쪽만 카드 표면으로 떠오른다.
+ * @param {Object} props
+ * @param {string} props.game 현재 게임 id.
+ * @param {function(string): void} props.onChange 게임 선택 핸들러.
+ * @returns {JSX.Element}
+ */
 function GameSwitcher({ game, onChange }) {
   const t = window.I18N.t;
   return (
@@ -204,7 +217,14 @@ function GameSwitcher({ game, onChange }) {
   );
 }
 
-// 시작 시 업데이트 확인 결과 배너(코드 새 버전 / 배너 데이터 갱신).
+/**
+ * 시작 시 업데이트 확인 결과 배너(코드 새 버전 / 배너 데이터 갱신).
+ * 알릴 것이 없으면 아무것도 렌더하지 않는다.
+ * @param {Object} props
+ * @param {Object|null} props.updates /api/updates 응답.
+ * @param {function(): void} props.onClose 닫기 핸들러.
+ * @returns {JSX.Element|null}
+ */
 function UpdateBar({ updates, onClose }) {
   const t = window.I18N.t;
   const u = updates || {};
