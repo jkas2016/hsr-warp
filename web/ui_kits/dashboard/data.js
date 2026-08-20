@@ -19,13 +19,32 @@ window.WarpData = (function () {
   // 마지막 전체 분석 결과(버전 구간 스코프용 — 재조회 없이 filterAnalysis 재계산).
   let _full = null, _list = [], _fullData = null;
 
-  // HSR 은 구버전 호환을 위해 경로를 유지하고, 나머지 게임은 하위 경로에 둔다.
+  /**
+   * 현재 게임의 schedule.json 경로.
+   * HSR 은 구버전 호환을 위해 경로를 유지하고, 나머지 게임은 하위 경로에 둔다.
+   * @returns {string} 요청 경로.
+   */
   function scheduleURL() { return gameID === 'hsr' ? '/schedule.json' : `/${gameID}/schedule.json`; }
+  /**
+   * 현재 게임을 담은 쿼리 문자열을 만든다.
+   * @param {string} [extra] 덧붙일 쿼리(예: 'path=...').
+   * @returns {string} 'game=xxx[&extra]'.
+   */
   function q(extra) { return `game=${encodeURIComponent(gameID)}${extra ? '&' + extra : ''}`; }
 
-  // 스케줄 로드 전에도 배너 메타를 물어볼 수 있어야 한다(첫 렌더). 그땐 HSR 기본 테이블.
+  /**
+   * 현재 분석 설정. 스케줄 로드 전에도 배너 메타를 물어볼 수 있어야 한다(첫 렌더).
+   * 그땐 HSR 기본 테이블로 폴백한다.
+   * @returns {Object} WarpAnalyze.resolveConfig 산출물.
+   */
   function conf() { return cfg || window.WarpAnalyze.resolveConfig(null); }
 
+  /**
+   * 현재 게임을 바꾸고 캐시를 무효화한다(다음 loadStored 가 새 게임 일정·기록을 다시 읽는다).
+   * 같은 게임이거나 지원하지 않는 id 면 아무것도 하지 않는다.
+   * @param {string} id 게임 id.
+   * @returns {void}
+   */
   function setGame(id) {
     if (id === gameID || !GAMES.includes(id)) return;
     gameID = id;
@@ -35,21 +54,39 @@ window.WarpData = (function () {
     sched = cfg = _full = _fullData = null;
     versions = []; _list = [];
   }
+  /** @returns {string} 현재 게임 id. */
   function game() { return gameID; }
+  /** @returns {string[]} 지원 게임 id 목록(표시 순서) 사본. */
   function games() { return GAMES.slice(); }
+  /**
+   * 게임 로고 경로.
+   * @param {string} [id] 게임 id. 생략하면 현재 게임.
+   * @returns {string} 대시보드 기준 상대 경로. 미등록 id 는 HSR 로고.
+   */
   function logo(id) { return LOGOS[id || gameID] || LOGOS.hsr; }
 
-  // 역할 → 배너 코드. 게임마다 코드가 다르므로 '11'/'12' 같은 리터럴을 쓰지 않는다.
+  /**
+   * 역할 → 배너 코드. 게임마다 코드가 다르므로 '11'/'12' 같은 리터럴을 쓰지 않는다.
+   * @param {string} role 역할 키(예: 'limited-char').
+   * @returns {string|null} 배너 코드. 없으면 null.
+   */
   function byRole(role) {
     const c = conf();
     return c.order.find((code) => c.banners[code] && c.banners[code].role === role) || null;
   }
-  // 역할 → 배너 short(= i18n 정규 키). 표시할 땐 I18N.bannerLabel() 로 감싼다.
+  /**
+   * 역할 → 배너 short(= i18n 정규 키). 표시할 땐 I18N.bannerLabel() 로 감싼다.
+   * @param {string} role 역할 키.
+   * @returns {string} 배너 short. 해당 역할이 없으면 빈 문자열.
+   */
   function roleShort(role) {
     const code = byRole(role);
     return code ? conf().banners[code].short : '';
   }
-  // 현재 게임의 배너 목록(표시 순서). QueryPanel 진행 표시가 쓴다.
+  /**
+   * 현재 게임의 배너 목록(표시 순서). QueryPanel 진행 표시가 쓴다.
+   * @returns {Array<{code: string, role: string, short: string}>} 배너 목록.
+   */
   function banners() {
     const c = conf();
     return c.order.filter((code) => c.banners[code]).map((code) => ({ code, role: c.banners[code].role, short: c.banners[code].short }));
@@ -61,8 +98,18 @@ window.WarpData = (function () {
     '캐릭터': 'limited-char', '무기': 'limited-weapon',
     '일반': 'standard', '출발': 'beginner', '본디': 'bangboo',
   };
+  /**
+   * SSE progress 의 배너 라벨을 역할 키로 되돌린다.
+   * @param {string} label 서버가 보낸 배너 이름.
+   * @returns {string|null} 역할 키. 매칭 실패 시 null.
+   */
   function roleOfProgress(label) { return PROGRESS_ROLE[label] || null; }
 
+  /**
+   * 현재 게임의 schedule.json 을 한 번만 읽어 설정·버전 목록을 준비한다.
+   * 네트워크 실패는 삼키고 기본 테이블로 진행한다(대시보드가 백지가 되지 않도록).
+   * @returns {Promise<void>}
+   */
   async function init() {
     if (inited) return;
     try {
@@ -73,7 +120,10 @@ window.WarpData = (function () {
     inited = true;
   }
 
-  // 시각 -> 버전 라벨. versionWindows 로 [s,e) 구간을 만들어 찾는다.
+  /**
+   * 시각 → 버전 라벨 조회 함수를 만든다. versionWindows 로 [s,e) 구간을 만들어 찾는다.
+   * @returns {function(string): string} 기록 시각을 받아 버전 라벨을 주는 함수(미매칭은 빈 문자열).
+   */
   function verLookup() {
     const wins = window.WarpAnalyze.versionWindows(versions);
     return (time) => {
@@ -83,12 +133,22 @@ window.WarpData = (function () {
     };
   }
 
-  // analyze() 전체 결과(full) + 원본 list -> 킷 WARP_DATA 형태.
+  /**
+   * analyze() 전체 결과(full) + 원본 list → 킷 WARP_DATA 형태로 어댑트한다.
+   * 분석은 재구현하지 않는다 — 모양만 바꾼다.
+   * @param {Object} full WarpAnalyze.analyze 또는 filterAnalysis 산출물.
+   * @param {Object[]} list 필터된 원본 기록(버전 비교 표 계산에 쓴다).
+   * @returns {Object} 뷰 컴포넌트가 소비하는 WARP_DATA.
+   */
   function adapt(full, list) {
     const verOf = verLookup();
     const cb = full.luck.charBanner || {};
     const visible = full.banners.filter((b) => b.meta.role !== 'beginner'); // 초보자 채널은 킷 표시 대상 아님
-    // rateUp(0.5/0.75) → '50/50'/'75/25' 배지 문구(게임별 배너 테이블에서 유도).
+    /**
+     * rateUp(0.5/0.75) → '50/50'/'75/25' 배지 문구(게임별 배너 테이블에서 유도).
+     * @param {string} type 배너 코드.
+     * @returns {string|null} 배지 문구. 픽업 개념이 없는 배너는 null.
+     */
     const oddsOf = (type) => {
       const b = type && conf().banners[type];
       if (!b || b.rateUp == null) return null;
@@ -177,6 +237,12 @@ window.WarpData = (function () {
   // 수집·저장(SRGF/UIGF)은 전부 그대로다 — 표시에서만 뺀다.
   const HIDDEN_ROLES = ['standard', 'beginner', 'bangboo'];
 
+  /**
+   * 원본 응답을 분석해 킷 형태로 어댑트하고, 버전 스코프용으로 결과를 캐시한다.
+   * HIDDEN_ROLES 역할의 채널은 집계에서 제외한다(저장 데이터는 그대로).
+   * @param {{list?: Object[], info?: Object}} raw /api/data 또는 SSE done 페이로드.
+   * @returns {Object} WARP_DATA.
+   */
   function analyzeAndAdapt(raw) {
     const c = conf();
     const list = ((raw && raw.list) || []).filter((r) => {
@@ -190,9 +256,12 @@ window.WarpData = (function () {
     return _fullData;
   }
 
-  // 전체 데이터를 한 버전 패치 구간으로 좁혀 어댑트한다(전 화면 적용용).
-  // version 이 '전체'/없거나 일정에 없으면 전체 데이터를 그대로 돌려준다.
-  // 버전 비교 표(versions)는 항상 전체 기준을 유지한다(비교는 본질적으로 교차 버전).
+  /**
+   * 전체 데이터를 한 버전 패치 구간으로 좁혀 어댑트한다(전 화면 적용용).
+   * 버전 비교 표(versions)는 항상 전체 기준을 유지한다(비교는 본질적으로 교차 버전).
+   * @param {string} version 버전 라벨. '전체'/빈 값이거나 일정에 없으면 전체 데이터를 그대로 돌려준다.
+   * @returns {Object|null} 스코프된 WARP_DATA(+scopedVersion). 아직 분석 결과가 없으면 null.
+   */
   function scopeTo(version) {
     if (!version || version === '전체' || !_full) return _fullData;
     const w = window.WarpAnalyze.versionWindows(versions).find((x) => x.v === version);
@@ -203,7 +272,10 @@ window.WarpData = (function () {
     return scoped;
   }
 
-  // 저장된 기록을 분석해 반환(게임 조회 없음). 기록이 없으면 null.
+  /**
+   * 저장된 기록을 분석해 반환한다(게임 조회 없음).
+   * @returns {Promise<Object|null>} WARP_DATA. 첫 실행이거나 기록이 없으면 null.
+   */
   async function loadStored() {
     await init();
     try {
@@ -213,8 +285,12 @@ window.WarpData = (function () {
     return null;
   }
 
-  // 게임에서 증분 조회(SSE). onProgress(배너이름, 누적신규건수).
-  // 성공 시 adapt 된 데이터(+summary)로 resolve, 실패 시 Error 로 reject.
+  /**
+   * 게임에서 증분 조회한다(SSE).
+   * @param {string} path 게임 설치 경로.
+   * @param {function(string, number): void} [onProgress] (배너 이름, 누적 신규 건수) 콜백.
+   * @returns {Promise<Object>} 성공 시 adapt 된 데이터(+summary), 실패 시 Error 로 reject.
+   */
   function runFetch(path, onProgress) {
     return new Promise((resolve, reject) => {
       const es = new EventSource(`/api/fetch?${q('path=' + encodeURIComponent(path))}`);
@@ -239,8 +315,11 @@ window.WarpData = (function () {
     });
   }
 
-  // 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지. 경로는 게임별로 따로 저장된다
-  // (/api/config 는 전역 설정이라 게임 파라미터를 받지 않는다 — 응답에서 현재 게임만 꺼낸다).
+  /**
+   * 게임 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지. 경로는 게임별로 따로 저장된다
+   * (/api/config 는 전역 설정이라 게임 파라미터를 받지 않는다 — 응답에서 현재 게임만 꺼낸다).
+   * @returns {Promise<string>} 게임 설치 경로. 알아내지 못하면 빈 문자열.
+   */
   async function configPath() {
     try {
       const c = await fetch('/api/config').then((r) => r.json());
@@ -254,7 +333,10 @@ window.WarpData = (function () {
     return '';
   }
 
-  // 시작 시 1회 업데이트 확인(코드/배너데이터 2채널, 베스트에포트).
+  /**
+   * 시작 시 1회 업데이트 확인(코드/배너데이터 2채널, 베스트에포트).
+   * @returns {Promise<Object|null>} /api/updates 응답. 실패하면 null.
+   */
   async function checkUpdates() {
     try { return await fetch('/api/updates').then((r) => r.json()); } catch (e) { return null; }
   }
