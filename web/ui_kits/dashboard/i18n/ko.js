@@ -75,6 +75,7 @@ window.I18N_DICTS.ko = {
   'refresh.path': '경로',
   'refresh.running': '갱신 중…',
   'refresh.refresh': '↻ 새로고침',
+  'progress.elapsed': '경과',
   'hero.luckLabel': '운 지표 · 한정 배너',
   'hero.lucky': '행운',
   'hero.unlucky': '불운',

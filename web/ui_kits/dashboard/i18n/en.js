@@ -75,6 +75,7 @@ window.I18N_DICTS.en = {
   'refresh.path': 'Path',
   'refresh.running': 'Refreshing…',
   'refresh.refresh': '↻ Refresh',
+  'progress.elapsed': 'Elapsed',
   'hero.luckLabel': 'Luck · Limited banners',
   'hero.lucky': 'lucky',
   'hero.unlucky': 'unlucky',

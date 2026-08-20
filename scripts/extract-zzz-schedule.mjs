@@ -182,7 +182,9 @@ async function main() {
 
   // 배포 버전. 업데이터가 이 정수를 비교해 갱신을 내려보내므로 산출물이 바뀌면 올린다.
   // 2: VERSIONS 를 1.0~3.1 전 구간으로 채움(버전 비교 탭 활성화).
-  const out = { version: 2, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
+  // 3: 3.1 후반기(2026-08-19~) 반영 — 신규 독점 1591/14159 와 특별 채널
+  //    3중 픽업(banner_type 12/13: 1411·1481·1201 / 14141·14148·14120).
+  const out = { version: 3, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
   const dst = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'zzz', 'schedule.json');
   mkdirSync(dirname(dst), { recursive: true });
   writeFileSync(dst, JSON.stringify(out), 'utf8');

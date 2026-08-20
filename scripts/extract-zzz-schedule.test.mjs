@@ -205,9 +205,19 @@ for (const p of schedule) {
   assert.strictEqual(versions[0].s, realSchedule[0].s, '첫 버전 시작일 ≠ 최초 배너 시작일');
 
   // 4) 마지막 버전이 일정의 마지막 구간을 덮어야 한다 — 신규 패치 미반영 조기 경보.
+  //    한 버전 안에서도 후반기 페이즈가 새 구간으로 열리므로(3.1 은 07-29 전반기 +
+  //    08-19 후반기 3중 픽업) "마지막 구간 = 새 버전 시작"으로 볼 수 없다. 대신
+  //    버전 시작일로부터의 경과로 판단한다 — 이력상 페이즈 지연은 최대 26일인데
+  //    버전 간격은 최소 34일이라, 그 사이에 경계를 두면 둘이 겹치지 않는다.
+  const DAY = 86400000;
+  const at = (d) => new Date(`${d}T00:00:00Z`).getTime();
+  const minVersionSpan = Math.min(...versions.slice(1).map((v, i) => (at(v.s) - at(versions[i].s)) / DAY));
   const lastPhase = realSchedule[realSchedule.length - 1];
-  assert.ok(versions[versions.length - 1].s >= lastPhase.s,
-    `최신 배너(${lastPhase.s})를 덮는 버전이 없다 — VERSIONS 갱신 필요`);
+  const lastVersion = versions[versions.length - 1];
+  const lag = (at(lastPhase.s) - at(lastVersion.s)) / DAY;
+  assert.ok(lag >= 0 && lag < minVersionSpan,
+    `최신 배너(${lastPhase.s})가 마지막 버전 ${lastVersion.v}(${lastVersion.s}) 시작 ${lag}일 뒤다 ` +
+    `— 버전 간격 최소 ${minVersionSpan}일 이상 벌어졌으니 새 패치가 반영되지 않았다. VERSIONS 갱신 필요`);
 }
 
 console.log('OK  extract-zzz-schedule tests passed');

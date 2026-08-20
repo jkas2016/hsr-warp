@@ -75,6 +75,7 @@ window.I18N_DICTS.ja = {
   'refresh.path': 'パス',
   'refresh.running': '更新中…',
   'refresh.refresh': '↻ 更新',
+  'progress.elapsed': '経過',
   'hero.luckLabel': '運指標 · 限定ワープ',
   'hero.lucky': '幸運',
   'hero.unlucky': '不運',
