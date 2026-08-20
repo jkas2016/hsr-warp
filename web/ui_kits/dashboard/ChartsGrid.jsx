@@ -15,6 +15,7 @@ function ChartsGrid({ D, theme, lang }) {
   React.useEffect(() => {
     if (!window.Chart) return;
     const cs = getComputedStyle(document.documentElement);
+    /** @param {string} n CSS 변수명. @returns {string} trim 된 값(미정의면 빈 문자열). */
     const v = (n) => cs.getPropertyValue(n).trim();
     const muted = v('--muted'), grid = v('--line'), panel = v('--panel');
     // 게임 팔레트(tokens/game.css)를 따라야 하므로 하드코딩 대신 CSS 변수에서 읽는다.

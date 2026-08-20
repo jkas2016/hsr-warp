@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 const WEB = path.join(__dirname, '..', '..');
+/** @param {string} p web/ 기준 상대 경로. @returns {string} 파일 내용. */
 const read = (p) => fs.readFileSync(path.join(WEB, p), 'utf8');
 
 const colors = read('tokens/colors.css');

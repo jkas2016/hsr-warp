@@ -1,9 +1,20 @@
 import { LANGS } from '../i18n/index.js';
 
-// 지구본 드롭다운. details/summary 라 JS 없이도 동작하고, 항목은 실제 링크(언어 경로)다.
-// 클릭 시 저장된 언어를 갱신해 루트(/) 재방문 시 자동 이동에 반영한다.
+/**
+ * 지구본 드롭다운. details/summary 라 JS 없이도 동작하고, 항목은 실제 링크(언어 경로)다.
+ * 클릭 시 저장된 언어를 갱신해 루트(/) 재방문 시 자동 이동에 반영한다.
+ * @param {Object} props
+ * @param {string} props.lang 현재 언어 코드(aria-current 표시에 쓴다).
+ * @param {string} props.label 버튼 접근성 라벨.
+ * @returns {JSX.Element}
+ */
 export function LangSwitcher({ lang, label }) {
   const base = import.meta.env.BASE_URL;
+  /**
+   * 선택한 언어를 저장한다. 저장소를 못 쓰는 환경은 조용히 넘어간다.
+   * @param {string} code 언어 코드.
+   * @returns {void}
+   */
   const save = (code) => { try { localStorage.setItem('hsrwarp-lang', code); } catch (e) {} };
   return (
     <details className="lang-menu">

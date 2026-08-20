@@ -7,6 +7,7 @@ const path = require('path');
 // 사용자에게는 앱이 멈춘 것으로 보였다). 최초 조회(QueryPanel)와 새로고침(RefreshBar)은
 // 같은 SSE progress 를 받으므로 같은 표시 컴포넌트(FetchProgress)를 써야 한다.
 const dir = __dirname;
+/** @param {string} f 이 디렉터리 기준 파일명. @returns {string} 파일 내용. */
 const read = (f) => fs.readFileSync(path.join(dir, f), 'utf8');
 
 // 1) 진행 표시는 한 컴포넌트에 모여 있다 — 양쪽이 각자 그리면 한쪽만 고쳐지고 갈라진다.

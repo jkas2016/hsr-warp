@@ -16,13 +16,18 @@ function VersionsView({ D, theme, lang }) {
   const [sel, setSel] = React.useState(null);
 
   const all = D.versions;
+  /** @param {string} v 버전 라벨(예: '3.1'). @returns {string} 메이저 버전('3'). */
   const majorOf = (v) => String(v).split('.')[0];
   // 비교 범위 선택지는 데이터의 메이저 버전에서 유도한다(게임마다 버전대가 다르다).
   const majors = [...new Set(all.map((v) => majorOf(v.v)))].sort((a, b) => Number(b) - Number(a));
   // rows 는 시간순(ASC) — 차트가 그대로 쓴다. 하단 테이블만 렌더 시 reverse 해 최신 버전 우선(DESC).
   const rows = all.filter((v) => (range === '전체' ? true : majorOf(v.v) === range));
 
-  // 선택 배너의 지표(평균뽑기·픽승/픽뚫·기준선). 없으면 all 로 폴백(구 데이터 방어).
+  /**
+   * 선택 배너의 지표(평균뽑기·픽승/픽뚫·기준선). 없으면 all 로 폴백(구 데이터 방어).
+   * @param {Object} v 버전 비교 행.
+   * @returns {Object} 선택된 축의 지표.
+   */
   const mOf = (v) => v[banner] || v.all;
   // 기준선: 표시된 버전 중 5★가 있는 것들의 base 평균(캐릭/광추는 상수, 전체는 개수가중 평균).
   const withData = rows.map(mOf).filter((m) => m && m.count5 > 0);
@@ -102,6 +107,7 @@ function VersionPityChart({ rows, banner, baseLine, sel, theme, lang }) {
   React.useEffect(() => {
     if (!window.Chart) return;
     const t = window.I18N.t;
+    /** @param {Object} v 버전 비교 행. @returns {Object} 선택된 축의 지표(없으면 all). */
     const mOf = (v) => v[banner] || v.all;
     const cs = getComputedStyle(document.documentElement);
     const muted = cs.getPropertyValue('--muted').trim(), grid = cs.getPropertyValue('--line').trim();

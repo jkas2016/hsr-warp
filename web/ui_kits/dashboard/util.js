@@ -62,8 +62,11 @@ window.WarpUtil = (function () {
     React.useEffect(() => {
       if (!start) { setVal(target); return; }
       let raf, done = false, t0;
+      /** 최종값으로 못 박는다. 두 번 이상 불려도 한 번만 반영된다. @returns {void} */
       const finish = () => { if (!done) { done = true; setVal(target); } };
+      /** @param {number} x 0..1 진행도. @returns {number} ease-out 보정값. */
       const ease = (x) => 1 - Math.pow(1 - x, 3);
+      /** @param {number} t rAF 타임스탬프(ms). @returns {void} */
       const tick = (t) => {
         if (done) return;
         if (t0 == null) t0 = t;

@@ -26,6 +26,7 @@ function Dashboard() {
   // 언어 변경은 핸들러에서 싱글턴을 먼저 동기화한 뒤 상태를 갱신한다 — 재렌더 시점엔
   // I18N.lang 이 이미 새 값이라 이 트리의 모든 t()가 새 언어로 평가된다(render-purity 유지).
   // 마운트 시엔 lang 초기값이 window.I18N.lang 과 동일하므로 별도 동기화 불필요.
+  /** @param {string} l 새 언어 코드. @returns {void} */
   const changeLang = (l) => { window.I18N.setLang(l); setLangState(l); };
   React.useEffect(() => {
     document.documentElement.setAttribute('lang', lang);
@@ -45,13 +46,22 @@ function Dashboard() {
 
   // 현재 게임. WarpData 싱글턴이 localStorage 로 유지하고, 여기선 prop/렌더용 상태로만 둔다.
   const [gameID, setGameID] = React.useState(() => window.WarpData.game());
-  // 게임 전환은 데이터 재로드를 동반한다. setGame 이 일정·분석 캐시를 비우므로 곧바로 다시 읽는다.
-  // 새 게임에 기록이 없을 수 있어 결과가 없으면 빈 화면(QueryPanel)으로 돌아간다.
-  // 연속 전환 시 늦게 도착한 이전 게임의 응답이 화면을 덮지 않도록 도착 시점 게임을 확인한다.
+  /**
+   * 저장된 기록을 다시 읽어 화면을 갱신한다.
+   * 새 게임에 기록이 없을 수 있어 결과가 없으면 빈 화면(QueryPanel)으로 돌아간다.
+   * 연속 전환 시 늦게 도착한 이전 게임의 응답이 화면을 덮지 않도록 도착 시점 게임을 확인한다.
+   * @param {string} id 재로드를 요청한 시점의 게임 id.
+   * @returns {void}
+   */
   const reload = (id) => {
     setData(null);
     window.WarpData.loadStored().then((d) => { if (window.WarpData.game() === id) setData(d || null); });
   };
+  /**
+   * 게임을 전환한다. setGame 이 일정·분석 캐시를 비우므로 곧바로 다시 읽는다.
+   * @param {string} id 새 게임 id.
+   * @returns {void}
+   */
   const changeGame = (id) => { window.WarpData.setGame(id); setGameID(id); reload(id); };
 
   // 게임 팔레트 전환(tokens/game.css). 첫 페인트 전엔 index.html 의 인라인 스크립트가

@@ -15,8 +15,16 @@ const FILES = ['characters.json', 'light_cones.json'];
 // SRGF/앱 언어코드 → StarRailRes 디렉토리명.
 const LANGS = { ko: 'kr', en: 'en', zh: 'cn', ja: 'jp' };
 
-// 타임아웃(AbortSignal.timeout) + 소규모 재시도 — 순차 fetch 가 응답 없이 행(hang)하면
-// 빌드가 무한 정지하던 문제 방지. 일시적 네트워크/CDN 오류엔 지수 백오프로 재시도.
+/**
+ * JSON 을 받아온다. 타임아웃(AbortSignal.timeout) + 소규모 재시도 — 순차 fetch 가 응답 없이
+ * 행(hang)하면 빌드가 무한 정지하던 문제 방지. 일시적 네트워크/CDN 오류엔 백오프로 재시도한다.
+ * @param {string} url 요청 URL.
+ * @param {Object} [options]
+ * @param {number} [options.retries=3] 재시도 횟수.
+ * @param {number} [options.timeout=30000] 요청당 타임아웃(ms).
+ * @returns {Promise<Object>} 파싱된 JSON.
+ * @throws {Error} 재시도를 모두 소진하면 마지막 오류를 그대로 던진다.
+ */
 async function fetchJSON(url, { retries = 3, timeout = 30000 } = {}) {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -31,6 +39,10 @@ async function fetchJSON(url, { retries = 3, timeout = 30000 } = {}) {
   }
 }
 
+/**
+ * StarRailRes 에서 언어별 캐릭터·광추 이름을 받아 item_id → {ko,en,zh,ja} 사전으로 합쳐 저장한다.
+ * @returns {Promise<void>}
+ */
 async function main() {
   const merged = {}; // item_id → {ko,en,zh,ja}
   for (const [lang, dir] of Object.entries(LANGS)) {

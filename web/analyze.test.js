@@ -5,7 +5,9 @@ const { schedule, versions } = require('./schedule.json'); // 배너 일정은 �
 let id = 1000n;
 // 3.7 phase 1 (2025-11-04..11-25): featured char includes 1415,1409 ; featured lc includes 23052.
 const T = '2025-11-10 12:00:00';
+/** 캐릭터 배너('11') 5★ 기록 한 건. @param {string|number} item_id @param {string} [time=T] @returns {Object} */
 const r5 = (item_id, time = T) => ({ id: String(id++), rank_type: '5', item_id: String(item_id), name: 'x', item_type: 'C', time, gacha_type: '11' });
+/** 캐릭터 배너('11') 3·4★ 기록 한 건. @param {string|number} rank 희귀도 @param {string} [time=T] @returns {Object} */
 const r34 = (rank, time = T) => ({ id: String(id++), rank_type: String(rank), item_id: '0', name: 'y', item_type: 'C', time, gacha_type: '11' });
 
 // ---- pity ----
@@ -53,6 +55,7 @@ assert.strictEqual(u.unknown5, 1);
 assert.strictEqual(u.contested, 0, 'unidentified excluded from 50/50');
 
 // ---- light cone (banner 12), 3.7 p1: 23052 featured, 23000 standard ----
+/** 광추 배너('12') 5★ 기록 한 건. @param {string|number} iid item_id @param {string} [time=T] @returns {Object} */
 const r5lc = (iid, time = T) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'z', item_type: 'L', time, gacha_type: '12' });
 const banner12 = [r5lc(23000) /*standard -> loss*/, r5lc(23052) /*featured -> guaranteed*/];
 const sl = analyzeBanner(banner12, BANNERS['12'], schedule);
@@ -142,7 +145,9 @@ assert.strictEqual(w[2].e, Infinity, '마지막 버전 끝은 무한');
 
 // 시나리오: 3.6에서 픽뚫(loss→확정) 적립, 3.7에서 70천장 확정 5★.
 id = 9000n;
+/** 시각을 직접 주는 캐릭터 배너 5★. @param {string|number} iid item_id @param {string} t 시각 @returns {Object} */
 const r5t = (iid, t) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'n', item_type: 'C', time: t, gacha_type: '11' });
+/** 시각을 직접 주는 캐릭터 배너 3★(천장 적립용). @param {string} t 시각 @returns {Object} */
 const r3t = (t) => ({ id: String(id++), rank_type: '3', item_id: '0', name: 'y', item_type: 'C', time: t, gacha_type: '11' });
 const recs = [];
 recs.push(r5t(1102, '2025-10-01 00:00:00'));           // 3.6: Seele 비픽업 → loss → 확정
@@ -210,9 +215,13 @@ assert.strictEqual(row36.all.cLoss, row36.char.cLoss, 'all 픽뚫=char 픽뚫');
 
 // ---- analyzeVersions: 캐릭+광추 합산(all) ----
 id = 20000n;
+/** 캐릭터 배너 3★(무득점 뽑기). @param {string} t 시각 @returns {Object} */
 const cN = t => ({ id: String(id++), rank_type: '3', item_id: '0', name: 'y', item_type: 'C', time: t, gacha_type: '11' });
+/** 캐릭터 배너 5★. @param {string|number} iid item_id @param {string} t 시각 @returns {Object} */
 const cV = (iid, t) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'n', item_type: 'C', time: t, gacha_type: '11' });
+/** 광추 배너 3★(무득점 뽑기). @param {string} t 시각 @returns {Object} */
 const lN = t => ({ id: String(id++), rank_type: '3', item_id: '0', name: 'y', item_type: 'L', time: t, gacha_type: '12' });
+/** 광추 배너 5★. @param {string|number} iid item_id @param {string} t 시각 @returns {Object} */
 const lV = (iid, t) => ({ id: String(id++), rank_type: '5', item_id: String(iid), name: 'n', item_type: 'L', time: t, gacha_type: '12' });
 const T37 = '2025-11-10 12:00:00';
 const mix = [];
@@ -242,6 +251,7 @@ assert.deepStrictEqual(analyzeVersions(full, vdata, undefined), [], 'undefined �
 assert.ok(Array.isArray(versions) && versions.length >= 29, 'versions 29개 이상');
 const W = versionWindows(versions);
 for (let i = 1; i < W.length; i++) assert.ok(W[i].s >= W[i - 1].s, 'versions 시각 오름차순');
+/** @param {string} v 버전 라벨. @returns {Object|undefined} 그 버전의 정의. */
 const find = v => versions.find(x => x.v === v);
 assert.strictEqual(find('3.7').s, '2025-11-04', '3.7 앵커(analyze.test의 3.7 p1과 일치)');
 assert.strictEqual(find('1.0').s, '2023-04-26', '1.0 = 글로벌 출시');

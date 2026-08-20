@@ -16,6 +16,11 @@ const jsx = fs.readdirSync(dir).filter((f) => f.endsWith('.jsx'));
 // 라인의 코드 부분만: 블록 주석 제거 후, '://' 가 아닌 '//' 이후를 잘라낸다(URL 보존).
 // split 은 CRLF 도 처리해야 한다 — 줄 끝 '\r' 이 남으면 '//.*$' 가 매칭에 실패해
 // 주석이 안 걸러지고 오탐이 난다(Windows 체크아웃의 CRLF 에서 재현).
+/**
+ * 라인의 코드 부분만 남긴다.
+ * @param {string} src 소스 전문.
+ * @returns {string[]} 주석을 뺀 줄 배열(줄 번호 보존).
+ */
 function codeLines(src) {
   const noBlock = src.replace(/\/\*[\s\S]*?\*\//g, '');
   return noBlock.split(/\r?\n/).map((ln) => ln.replace(/(^|[^:])\/\/.*$/, '$1'));

@@ -11,6 +11,7 @@ function BannerCards({ D, scoped }) {
   const bl = window.I18N.bannerLabel;
   const { Card, ProgressBar, Badge } = window.HSRWarpDesignSystem_4a0d44;
   const { num, pityColor } = window.WarpUtil;
+  /** @param {string} c 배너 색(hex). @returns {string} 그 색을 옅게 깐 box-shadow 값. */
   const glowFor = (c) => `0 0 26px ${c}55`;
 
   return (
