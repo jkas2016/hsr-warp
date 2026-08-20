@@ -1,8 +1,14 @@
-// Collapsed refresh control shown after data is loaded. A compact chip with
-// last-updated time + ↻ refresh; clicking path expands the path input inline.
-// Refresh runs the real incremental fetch (runFetch prop) and re-loads data.
-// 조회가 오래 걸릴 수 있으므로 최초 조회와 같은 FetchProgress 로 진행 상황을 보인다 —
-// 버튼 라벨만 바뀌면 사용자에게는 멈춘 것처럼 보인다.
+/**
+ * 데이터 로드 후 보이는 접힌 새로고침 컨트롤. 마지막 갱신 시각 + 새로고침 버튼의 작은 칩이며,
+ * 경로 버튼을 누르면 경로 입력이 인라인으로 펼쳐진다. 새로고침은 실제 증분 조회를 돌린다.
+ * 조회가 오래 걸릴 수 있으므로 최초 조회와 같은 FetchProgress 로 진행 상황을 보인다 —
+ * 버튼 라벨만 바뀌면 사용자에게는 멈춘 것처럼 보인다.
+ * @param {Object} props
+ * @param {function(string, function(string, number): void): Promise<Object>} props.runFetch 증분 조회 실행 함수.
+ * @param {function(Object): void} [props.onLoaded] 조회 성공 시 받은 데이터 콜백.
+ * @param {string} [props.lastUpdated] 마지막 갱신 시각 표시 문자열.
+ * @returns {JSX.Element}
+ */
 function RefreshBar({ runFetch, onLoaded, lastUpdated }) {
   const { Input, Button } = window.HSRWarpDesignSystem_4a0d44;
   const t = window.I18N.t;
@@ -14,6 +20,10 @@ function RefreshBar({ runFetch, onLoaded, lastUpdated }) {
 
   React.useEffect(() => { window.WarpData.configPath().then((p) => { if (p) setPath(p); }); }, []);
 
+  /**
+   * 새로고침 조회를 실행한다. 경로가 비어 있으면 경로 입력을 펼치고 에러를 띄운다.
+   * @returns {Promise<void>}
+   */
   async function run() {
     if (busy) return;
     const p = (path || '').trim();

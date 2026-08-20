@@ -1,6 +1,12 @@
-// Versions tab — per-patch comparison (item 4). A range Select filters which
-// versions show; a row click highlights it; a bar chart compares average pity
-// against the 62.5 theoretical line (shorter = luckier).
+/**
+ * Versions 탭 — 패치별 비교. 범위 Select 로 표시할 버전을 거르고, 행을 누르면 강조되며,
+ * 막대 차트가 평균 뽑기를 이론 기준선과 비교한다(짧을수록 운이 좋다).
+ * @param {Object} props
+ * @param {{versions: Object[]}} props.D WARP_DATA.
+ * @param {string} props.theme 현재 테마(차트 재빌드 dep).
+ * @param {string} props.lang 현재 언어(차트 라벨 재빌드 dep).
+ * @returns {JSX.Element}
+ */
 function VersionsView({ D, theme, lang }) {
   const { Card, Select } = window.HSRWarpDesignSystem_4a0d44;
   const { num } = window.WarpUtil;
@@ -79,6 +85,18 @@ function VersionsView({ D, theme, lang }) {
   );
 }
 
+/**
+ * 버전별 평균 뽑기 막대 차트. 기준선보다 짧으면 초록, 길면 빨강이고,
+ * 선택된 버전이 있으면 나머지는 반투명해진다. y축엔 기준선 눈금을 강제로 추가한다.
+ * @param {Object} props
+ * @param {Object[]} props.rows 버전 비교 행 목록.
+ * @param {'char'|'lc'|'all'} props.banner 표시할 지표 축(없으면 all 로 폴백).
+ * @param {number} props.baseLine 이론 기준선(평균 뽑기).
+ * @param {string} props.sel 강조할 버전 라벨. 빈 값이면 전부 불투명.
+ * @param {string} props.theme 현재 테마(재빌드 dep).
+ * @param {string} props.lang 현재 언어(툴팁 단위 재평가 dep).
+ * @returns {JSX.Element}
+ */
 function VersionPityChart({ rows, banner, baseLine, sel, theme, lang }) {
   const ref = React.useRef();
   React.useEffect(() => {

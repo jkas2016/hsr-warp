@@ -1,6 +1,12 @@
-// First-run query card — game-path input + gold 조회 button. Runs the real
-// incremental fetch over SSE (window.WarpData.runFetch via the runFetch prop),
-// showing per-banner live counts as progress events arrive, then onLoaded(data).
+/**
+ * 첫 실행 조회 카드 — 게임 경로 입력 + 조회 버튼.
+ * SSE 로 실제 증분 조회를 돌리며(runFetch prop = window.WarpData.runFetch),
+ * progress 이벤트가 올 때마다 배너별 누적 건수를 보이고 끝나면 onLoaded(data) 를 호출한다.
+ * @param {Object} props
+ * @param {function(string, function(string, number): void): Promise<Object>} props.runFetch 증분 조회 실행 함수.
+ * @param {function(Object): void} props.onLoaded 조회 성공 시 받은 데이터 콜백.
+ * @returns {JSX.Element}
+ */
 function QueryPanel({ runFetch, onLoaded }) {
   const { Input, Button, Card } = window.HSRWarpDesignSystem_4a0d44;
   const t = window.I18N.t;
@@ -12,6 +18,10 @@ function QueryPanel({ runFetch, onLoaded }) {
   // 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지.
   React.useEffect(() => { window.WarpData.configPath().then((p) => { if (p) setPath(p); }); }, []);
 
+  /**
+   * 입력된 경로로 조회를 실행한다. 이미 실행 중이면 무시하고, 경로가 비면 에러만 띄운다.
+   * @returns {Promise<void>}
+   */
   async function run() {
     if (busy) return;
     const p = (path || '').trim();

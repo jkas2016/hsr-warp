@@ -1,7 +1,13 @@
-// 5★ acquisition history table. Rows are passed in (filtered by the parent).
-// Clicking a row calls onRowClick(f) — used to open the detail modal.
-// pageSize: 주면 그 개수만 보이고 '더보기'로 늘린다(미지정 시 전체 표시 — 예: 최근 5★).
-// 부모가 필터를 바꾸면 key 로 리마운트해 페이지를 초기화한다(아래 HistoryView/BannersView).
+/**
+ * 5★ 획득 이력 표. 행은 부모가 필터해 넘긴다.
+ * 부모가 필터를 바꾸면 key 로 리마운트해 페이지를 초기화한다(HistoryView/BannersView 참고).
+ * @param {Object} props
+ * @param {Object[]} props.rows 표시할 5★ 목록.
+ * @param {function(Object): void} [props.onRowClick] 행 클릭 핸들러(상세 모달 열기).
+ * @param {number} [props.pageSize] 주면 그 개수만 보이고 '더보기'로 늘린다.
+ *   미지정 시 전체 표시(예: 최근 5★).
+ * @returns {JSX.Element}
+ */
 function FivesTable({ rows, onRowClick, pageSize }) {
   const t = window.I18N.t;
   const bl = window.I18N.bannerLabel;
