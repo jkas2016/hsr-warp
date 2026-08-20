@@ -1,6 +1,12 @@
-// Chart.js analysis grid — rarity doughnut, char-banner pity histogram,
-// 50/50 stacked bars, monthly pulls. Reads themed colors from CSS vars and
-// rebuilds when the theme flips.
+/**
+ * Chart.js 분석 그리드 — 희귀도 도넛, 캐릭터 배너 천장 히스토그램, 50/50 누적 막대, 월별 뽑기.
+ * 색은 CSS 변수에서 읽고, 테마가 바뀌면 차트를 다시 만든다.
+ * @param {Object} props
+ * @param {Object} props.D WARP_DATA.
+ * @param {string} props.theme 현재 테마('dark'|'light') — 바뀌면 재빌드 dep.
+ * @param {string} props.lang 현재 언어 — 라벨 재평가용 재빌드 dep.
+ * @returns {JSX.Element}
+ */
 function ChartsGrid({ D, theme, lang }) {
   const t = window.I18N.t;
   const { Card } = window.HSRWarpDesignSystem_4a0d44;
@@ -9,6 +15,7 @@ function ChartsGrid({ D, theme, lang }) {
   React.useEffect(() => {
     if (!window.Chart) return;
     const cs = getComputedStyle(document.documentElement);
+    /** @param {string} n CSS 변수명. @returns {string} trim 된 값(미정의면 빈 문자열). */
     const v = (n) => cs.getPropertyValue(n).trim();
     const muted = v('--muted'), grid = v('--line'), panel = v('--panel');
     // 게임 팔레트(tokens/game.css)를 따라야 하므로 하드코딩 대신 CSS 변수에서 읽는다.

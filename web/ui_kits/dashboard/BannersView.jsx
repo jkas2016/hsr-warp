@@ -1,6 +1,13 @@
-// Banners tab — pick a banner (segmented control) and see a deep dive:
-// big pity status, a pity-distribution histogram, 50/50 split, and that
-// banner's full 5★ list (click → detail).
+/**
+ * Banners 탭 — 세그먼티드 컨트롤로 배너를 고르면 그 배너를 깊게 본다:
+ * 큰 천장 상태, 천장 분포 히스토그램, 50/50 비율, 그리고 그 배너의 전체 5★ 목록(클릭 → 상세).
+ * @param {Object} props
+ * @param {Object} props.D WARP_DATA.
+ * @param {string} props.theme 현재 테마(차트 재빌드 dep).
+ * @param {boolean} props.scoped 버전 스코프 상태.
+ * @param {function(Object): void} props.onFiveClick 5★ 행 클릭 핸들러.
+ * @returns {JSX.Element}
+ */
 function BannersView({ D, theme, scoped, onFiveClick }) {
   const { Card, ProgressBar, Badge, StatCard } = window.HSRWarpDesignSystem_4a0d44;
   const { num, pityColor, pityBins, pickBanner } = window.WarpUtil;
@@ -89,6 +96,14 @@ function BannersView({ D, theme, scoped, onFiveClick }) {
   );
 }
 
+/**
+ * 작은 지표 타일(라벨 + 값).
+ * @param {Object} props
+ * @param {string} props.k 라벨.
+ * @param {React.ReactNode} props.v 값.
+ * @param {string} [props.color] 값 색(CSS 색 문자열).
+ * @returns {JSX.Element}
+ */
 function Mini({ k, v, color }) {
   return (
     <div style={{ background: 'var(--panel-2)', borderRadius: 'var(--r-md)', padding: '10px 12px' }}>
@@ -97,6 +112,15 @@ function Mini({ k, v, color }) {
     </div>
   );
 }
+/**
+ * 전체 대비 비율 막대 한 줄(50/50 승·패·확정 분해에 쓴다).
+ * @param {Object} props
+ * @param {string} props.label 항목 라벨.
+ * @param {number} props.v 이 항목의 값.
+ * @param {string} props.color 막대·값 색.
+ * @param {number} props.total 분모. 0 이면 막대는 0%.
+ * @returns {JSX.Element}
+ */
 function Split({ label, v, color, total }) {
   const pct = total ? Math.round((v / total) * 100) : 0;
   return (
@@ -110,6 +134,16 @@ function Split({ label, v, color, total }) {
     </div>
   );
 }
+/**
+ * 천장 분포 히스토그램. 천장 상한(cap)에 맞춰 10 단위 구간 수를 정하고,
+ * 소프트 천장 전 구간은 초록, 이후는 주황으로 칠한다.
+ * @param {Object} props
+ * @param {number[]} props.bins 구간별 5★ 건수(WarpUtil.pityBins 산출물).
+ * @param {number} props.cap 배너 천장.
+ * @param {string} props.theme 현재 테마(재빌드 dep).
+ * @param {string} props.sel 선택된 배너 short(재빌드 dep).
+ * @returns {JSX.Element}
+ */
 function BannerPityChart({ bins, cap, theme, sel }) {
   const ref = React.useRef();
   React.useEffect(() => {

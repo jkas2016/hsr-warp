@@ -7,6 +7,13 @@ const path = require('path');
 // 바뀌면 조회 진행률이 조용히 0 으로 굳는다(실제로 한 번 그렇게 끊어진 적이 있다).
 // 근본 해법은 서버가 역할/코드를 직접 실어 보내는 것이지만, 그 전까지는 이 테스트가 결합을 지킨다.
 const ROOT = path.join(__dirname, '..', '..', '..');
+/**
+ * 소스에서 블록을 찾아 그 안의 큰따옴표 문자열을 모두 모은다.
+ * @param {string} src 소스 전문.
+ * @param {RegExp} block 캡처 그룹 1이 블록 본문인 정규식.
+ * @returns {Set<string>} 블록 안의 문자열 값 집합.
+ * @throws {Error} 블록을 찾지 못하면 단언이 실패한다.
+ */
 const values = (src, block) => {
   const m = src.match(block);
   assert.ok(m, `블록을 못 찾았다: ${block}`);

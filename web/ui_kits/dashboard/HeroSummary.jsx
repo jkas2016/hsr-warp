@@ -1,6 +1,11 @@
-// Hero bento + summary stat row. The luck card is "featured" (gradient
-// accent + glow + big animated number); 50/50 and avg-pity sit beside it.
-// Luck sign (행운/불운) and the next-5★ guarantee state come from live data.
+/**
+ * Hero bento + 요약 통계 행. 운 카드가 주인공이고(그라데이션 액센트 + glow + 큰 애니메이션 숫자),
+ * 50/50 과 평균 뽑기가 그 옆에 붙는다. 운의 부호와 다음 5★ 확정 상태는 실데이터에서 온다.
+ * @param {Object} props
+ * @param {Object} props.D WARP_DATA(전체 또는 버전 스코프).
+ * @param {boolean} props.scoped 버전 스코프 상태. true 면 '현재 천장·확정' 같은 시점 지표를 감춘다.
+ * @returns {JSX.Element}
+ */
 function HeroSummary({ D, scoped }) {
   const { Card, LuckBar, StatCard, Badge } = window.HSRWarpDesignSystem_4a0d44;
   const { num, useCountUp } = window.WarpUtil;

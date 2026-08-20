@@ -210,6 +210,7 @@ for (const p of schedule) {
   //    버전 시작일로부터의 경과로 판단한다 — 이력상 페이즈 지연은 최대 26일인데
   //    버전 간격은 최소 34일이라, 그 사이에 경계를 두면 둘이 겹치지 않는다.
   const DAY = 86400000;
+  /** @param {string} d 'YYYY-MM-DD'. @returns {number} epoch ms(UTC 자정). */
   const at = (d) => new Date(`${d}T00:00:00Z`).getTime();
   const minVersionSpan = Math.min(...versions.slice(1).map((v, i) => (at(v.s) - at(versions[i].s)) / DAY));
   const lastPhase = realSchedule[realSchedule.length - 1];

@@ -20,6 +20,7 @@ npm run release -- X.Y.Z             # 릴리스 발행 — CHANGELOG 확정 →
 ```
 
 포맷·정적검사는 `gofmt -w .` 와 `go vet ./...` 가 권위 — 컨벤션을 글로 적지 않는다.
+문서 주석·정적분석은 `npm run lint:go`(golangci-lint, 설정은 `.golangci.yml`). 바이너리는 공식 권장대로 별도 설치한다(`choco install golangci-lint` — 관리자 셸 필요, 또는 [릴리스 zip](https://github.com/golangci/golangci-lint/releases) 을 PATH 에). `go install` 설치는 [공식 문서가 비권장](https://golangci-lint.run/docs/welcome/install/local/)한다.
 
 ## 깨면 안 되는 것
 

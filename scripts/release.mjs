@@ -18,6 +18,12 @@ const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
 /**
  * CHANGELOG 의 [Unreleased] 를 확정 버전으로 승격한다.
  * 원문은 건드리지 않고 새 문자열을 돌려준다.
+ * @param {string} text CHANGELOG 전문.
+ * @param {string} version 확정할 버전(예: '1.0.2').
+ * @param {string} date 릴리스 날짜('YYYY-MM-DD').
+ * @returns {string} 승격된 CHANGELOG 전문(원문의 개행 방식 유지).
+ * @throws {Error} 버전이 SemVer 가 아니거나, 이미 발행된 버전이거나,
+ *   [Unreleased] 절이 없거나 비었거나, 하단 릴리스 링크 목록을 찾지 못하면.
  */
 export function promoteChangelog(text, version, date) {
   if (!SEMVER.test(version ?? '')) {
@@ -55,6 +61,14 @@ export function promoteChangelog(text, version, date) {
   return nl === '\r\n' ? out.replace(/\n/g, '\r\n') : out;
 }
 
+/**
+ * 명령을 동기 실행한다. 실패하면 die() 로 즉시 중단한다.
+ * @param {string} cmd 실행 파일.
+ * @param {string[]} args 인자.
+ * @param {Object} [options]
+ * @param {boolean} [options.capture=false] true 면 stdout 을 캡처해 반환, false 면 그대로 흘려보낸다.
+ * @returns {string} capture 일 때 trim 된 stdout, 아니면 빈 문자열.
+ */
 function run(cmd, args, { capture = false } = {}) {
   const r = spawnSync(cmd, args, {
     cwd: ROOT,
@@ -67,15 +81,26 @@ function run(cmd, args, { capture = false } = {}) {
   return (r.stdout ?? '').trim();
 }
 
+/**
+ * 사유를 찍고 종료 코드 1 로 프로세스를 끝낸다.
+ * @param {string} msg 중단 사유.
+ * @returns {never}
+ */
 function die(msg) {
   console.error(`\n중단: ${msg}`);
   process.exit(1);
 }
 
-// 태그 push 로 만들어진 run 은 headBranch 가 태그 이름이다. 생성까지 몇 초
-// 걸리므로 잠깐 폴링한다. `gh run watch` 를 run-id 없이 부르면 대화형 선택
-// 프롬프트가 떠 스크립트가 멈춘다.
+/**
+ * 태그로 만들어진 릴리스 워크플로 run id 를 찾는다.
+ * 태그 push 로 만들어진 run 은 headBranch 가 태그 이름이다. 생성까지 몇 초
+ * 걸리므로 잠깐 폴링한다. `gh run watch` 를 run-id 없이 부르면 대화형 선택
+ * 프롬프트가 떠 스크립트가 멈춘다.
+ * @param {string} tag 릴리스 태그(예: 'v1.0.2').
+ * @returns {string|null} run id. gh 가 없거나 폴링이 끝나도 못 찾으면 null.
+ */
 function findRunId(tag) {
+  /** @param {number} ms 대기 시간. @returns {string} Atomics.wait 결과(사용하지 않는다). */
   const wait = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
   for (let i = 0; i < 20; i++) {
     const r = spawnSync('gh', ['run', 'list', '--workflow=release.yml', '--limit', '10',
@@ -94,12 +119,22 @@ function findRunId(tag) {
   return null;
 }
 
+/**
+ * 오늘 날짜(로컬 기준).
+ * @returns {string} 'YYYY-MM-DD'.
+ */
 function today() {
   const d = new Date();
+  /** @param {number} n @returns {string} 2자리로 0 패딩한 문자열. */
   const p = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/**
+ * 릴리스 발행 진입점 — CHANGELOG 확정 → push → 태그 → Actions 관찰.
+ * `--dry-run` 이면 확정될 CHANGELOG 만 미리 보여주고 아무것도 바꾸지 않는다.
+ * @returns {void}
+ */
 function main() {
   const argv = process.argv.slice(2);
   const dryRun = argv.includes('--dry-run');

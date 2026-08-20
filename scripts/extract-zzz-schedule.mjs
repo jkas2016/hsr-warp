@@ -73,22 +73,32 @@ export const BANNERS = {
 // ZZZ 는 B급=2 / A급=3 / S급=4 다(실측). HSR 의 3/4/5 와 다르다.
 export const RANKS = { top: '4', mid: '3' };
 
-// utcDate 는 시각 문자열에서 날짜만 취한다. 소스는 +08:00/+01:00 오프셋이
-// 섞여 있고 is_server_time 플래그가 따로 붙지만, 오프셋을 반영해 UTC로 완전
-// 환산하면 자정 근처 항목의 날짜가 하루 밀려 원문 표시일과 어긋난다.
-// wasPickup 이 ±60일 여유를 두므로 오프셋을 무시하고 날짜만 취해도 판정에는
-// 영향이 없다 — 대신 원문 날짜와 일치하는 값을 유지한다.
+/**
+ * 시각 문자열에서 날짜만 취한다. 소스는 +08:00/+01:00 오프셋이 섞여 있고
+ * is_server_time 플래그가 따로 붙지만, 오프셋을 반영해 UTC로 완전 환산하면
+ * 자정 근처 항목의 날짜가 하루 밀려 원문 표시일과 어긋난다.
+ * wasPickup 이 ±60일 여유를 두므로 오프셋을 무시하고 날짜만 취해도 판정에는
+ * 영향이 없다 — 대신 원문 날짜와 일치하는 값을 유지한다.
+ * @param {{time?: string}|null} t 소스의 시각 객체.
+ * @returns {string|null} 'YYYY-MM-DD'. 파싱할 수 없으면 null.
+ */
 function utcDate(t) {
   if (!t || !t.time) return null;
   const m = /^(\d{4}-\d{2}-\d{2})/.exec(t.time);
   return m ? m[1] : null;
 }
 
-// ZZZ id 자릿수 규칙: 에이전트(캐릭터)=4자리, W-엔진(무기)=5자리(HSR 도 같은
-// 패턴 — 캐릭터 4자리/광추 5자리 — web/ui_kits/dashboard/items.test.js:11-12
-// 가 그 규칙을 고정한다). banner_type 표기가 틀려도 id 자릿수는 어긋나지
-// 않으므로, 소스의 banner_type 오표기(실측: 음의 엔진 배너 1건이 2로 오표기)
-// 를 자릿수로 교정한다.
+/**
+ * id 자릿수로 픽업 풀을 교정한다.
+ * ZZZ id 자릿수 규칙: 에이전트(캐릭터)=4자리, W-엔진(무기)=5자리(HSR 도 같은
+ * 패턴 — 캐릭터 4자리/광추 5자리 — web/ui_kits/dashboard/items.test.js:11-12
+ * 가 그 규칙을 고정한다). banner_type 표기가 틀려도 id 자릿수는 어긋나지
+ * 않으므로, 소스의 banner_type 오표기(실측: 음의 엔진 배너 1건이 2로 오표기)
+ * 를 자릿수로 교정한다.
+ * @param {'c'|'l'} pool 소스의 banner_type 에서 유도한 풀.
+ * @param {string} id 아이템 id.
+ * @returns {'c'|'l'} 교정된 풀.
+ */
 function poolFor(pool, id) {
   if (pool === 'c' && id.length === 5) return 'l';
   if (pool === 'l' && id.length === 4) return 'c';
@@ -110,8 +120,12 @@ const UPRATE_FALLBACK = {
   'Ode of Resurrected Wings': ['14158'],
 };
 
-// buildSchedule 은 원본을 schedule 배열로 변환한다. 순수 함수라 테스트가
-// 네트워크 없이 돈다.
+/**
+ * 원본 응답을 schedule 배열로 변환한다. 순수 함수라 테스트가 네트워크 없이 돈다.
+ * @param {Object} raw 소스 JSON 원본.
+ * @returns {{schedule: Array<{s: string, e: string, c: string[], l: string[]}>, skipped: Array<{name: string, reason: string}>, warnings: Array<{name: string, id: string, reason: string}>}}
+ *   시작일 오름차순 일정, 건너뛴 배너, 자릿수로 교정한 항목.
+ */
 export function buildSchedule(raw) {
   const byStart = new Map();
   const skipped = [];
@@ -169,6 +183,11 @@ export function buildSchedule(raw) {
   return { schedule, skipped, warnings };
 }
 
+/**
+ * 소스에서 ZZZ 배너 원본을 받아 web/zzz/schedule.json 의 schedule 을 갱신한다.
+ * 건너뜀·교정은 전부 경고로 표면화한다.
+ * @returns {Promise<void>}
+ */
 async function main() {
   const res = await fetch(SRC, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`소스 응답 ${res.status}`);

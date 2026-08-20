@@ -65,6 +65,8 @@ func probe(client *http.Client, ac *collector.AuthContext, g game.Game, code, en
 	return len(ar.Data.List), nil
 }
 
+// main 은 인자로 받은 게임(기본 zzz)의 가장 오래된 저장 id 보다 과거를 API 에
+// 요청해, 그 결과로 서버 보관 한계인지 수집기 조기 중단인지를 가른다.
 func main() {
 	gameID := "zzz"
 	if len(os.Args) > 1 {

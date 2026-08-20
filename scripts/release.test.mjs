@@ -28,6 +28,13 @@ const SAMPLE = [
   '',
 ].join('\n');
 
+/**
+ * fn 이 정규식에 맞는 오류를 던지는지 단언한다.
+ * @param {function(): *} fn 호출할 함수.
+ * @param {RegExp} re 기대하는 오류 메시지 패턴.
+ * @param {string} msg 실패 시 표시할 설명.
+ * @returns {void}
+ */
 function fails(fn, re, msg) {
   assert.throws(fn, re, msg);
 }

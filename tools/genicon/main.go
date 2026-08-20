@@ -17,6 +17,7 @@ import (
 	"os"
 )
 
+// main 은 256/48/32/16 크기를 렌더링해 icon.ico 와 web/favicon.ico 로 쓴다.
 func main() {
 	sizes := []int{256, 48, 32, 16}
 	pngs := make([][]byte, len(sizes))
@@ -32,6 +33,8 @@ func main() {
 	must(os.WriteFile("web/favicon.ico", ico, 0644))
 }
 
+// must 는 생성 도구용 헬퍼다 — 에러면 패닉으로 즉시 멈춘다(반쯤 쓰인 .ico 를
+// 남기고 성공한 척하지 않기 위해).
 func must(err error) {
 	if err != nil {
 		panic(err)

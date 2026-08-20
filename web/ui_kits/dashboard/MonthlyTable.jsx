@@ -1,5 +1,10 @@
-// 월별 집계 표 — 월 / 뽑기 / 성옥 / 5★ / 획득 5★ 이름. 최신월 우선,
-// '더보기'로 PAGE 개월씩 펼친다(구 대시보드의 월별 표 + 페이징 복원).
+/**
+ * 월별 집계 표 — 월 / 뽑기 / 성옥 / 5★ / 획득 5★ 이름. 최신월 우선,
+ * '더보기'로 PAGE 개월씩 펼친다(구 대시보드의 월별 표 + 페이징 복원).
+ * @param {Object} props
+ * @param {{monthly: Object[]}} props.D WARP_DATA — monthly 만 사용한다.
+ * @returns {JSX.Element}
+ */
 function MonthlyTable({ D }) {
   const t = window.I18N.t;
   const { Card, Button } = window.HSRWarpDesignSystem_4a0d44;

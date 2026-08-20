@@ -24,6 +24,8 @@ func monthOf(t string) string {
 	return ym[:4] + ym[5:7]
 }
 
+// sortByID 는 recs 를 id 오름차순으로 제자리 정렬한다. id 는 거대 정수라
+// 문자열 비교가 아닌 idLess(math/big) 로 비교한다.
 func sortByID(recs []Record) {
 	sort.SliceStable(recs, func(i, j int) bool { return idLess(recs[i].ID, recs[j].ID) })
 }

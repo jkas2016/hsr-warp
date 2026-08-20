@@ -10,10 +10,30 @@ const FILES = [
   'util.js', 'data.js',
 ];
 
-// 줄 단위로 주석(// ...)을 제거한 뒤 한글이 남아있으면 미추출.
-function stripLineComment(line) {
-  const i = line.indexOf('//');
-  return i >= 0 ? line.slice(0, i) : line;
+/**
+ * 주석(한 줄·블록 모두)을 제거한다. 남은 코드에 한글이 있으면 미추출 표시 문자열이다.
+ * JSDoc 도 블록 주석이므로 여러 줄에 걸친 블록을 상태로 추적해 지운다.
+ * 줄 번호를 보존해야 하므로 파일 전체를 한 번에 지우지 않고 줄 배열을 그대로 매핑한다.
+ * @param {string[]} lines 소스 줄 배열.
+ * @returns {string[]} 같은 길이의, 주석을 뺀 줄 배열.
+ */
+function stripComments(lines) {
+  let inBlock = false;
+  return lines.map((line) => {
+    let out = '', i = 0;
+    while (i < line.length) {
+      if (inBlock) {
+        const end = line.indexOf('*/', i);
+        if (end < 0) break;          // 줄 끝까지 블록 주석
+        inBlock = false; i = end + 2; continue;
+      }
+      const b = line.indexOf('/*', i), l = line.indexOf('//', i);
+      if (l >= 0 && (b < 0 || l < b)) { out += line.slice(i, l); break; }
+      if (b < 0) { out += line.slice(i); break; }
+      out += line.slice(i, b); i = b + 2; inBlock = true;
+    }
+    return out;
+  });
 }
 const HANGUL = /[가-힣]/;
 // 허용: 정규 키로 유지되는 배너 short/스코프/결과 한국어 리터럴(로직 값).
@@ -25,9 +45,8 @@ let bad = [];
 for (const f of FILES) {
   const p = path.join(__dirname, f);
   const lines = fs.readFileSync(p, 'utf8').split('\n');
-  lines.forEach((ln, i) => {
-    let code = stripLineComment(ln).replace(ALLOW, '');
-    if (HANGUL.test(code)) bad.push(`${f}:${i + 1}: ${ln.trim()}`);
+  stripComments(lines).forEach((code, i) => {
+    if (HANGUL.test(code.replace(ALLOW, ''))) bad.push(`${f}:${i + 1}: ${lines[i].trim()}`);
   });
 }
 assert.strictEqual(bad.length, 0, '미추출 한글 표시문자열:\n' + bad.join('\n'));

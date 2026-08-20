@@ -176,6 +176,8 @@ func CheckSchedule(client *http.Client, rawURL, dataDir string, embedded []byte,
 	return ScheduleStatus{Updated: true, Version: v}, nil
 }
 
+// writeAtomic 은 임시 파일에 쓴 뒤 rename 으로 교체해, 중간에 실패해도
+// 반쯤 쓰인 파일이 남지 않게 한다. rename 이 실패하면 임시 파일을 지운다.
 func writeAtomic(path string, b []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
@@ -191,6 +193,8 @@ func writeAtomic(path string, b []byte) error {
 	return nil
 }
 
+// fetch 는 url 을 GET 해 본문을 읽는다. 200 이 아니면 에러이고, 본문은
+// 1MB 로 잘라 읽어 비정상적으로 큰 응답에 메모리를 쓰지 않는다.
 func fetch(client *http.Client, url string) ([]byte, error) {
 	resp, err := client.Get(url)
 	if err != nil {
