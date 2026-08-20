@@ -4,7 +4,10 @@
 // 세 가지로 "살아 있음"을 보인다 — 오래 걸릴 때 멈춘 것처럼 보이던 문제(#1)의 해법.
 //
 // prog: { 서버progress키: 누적건수 } | null, busy: 조회 중 여부.
-function FetchProgress({ prog, busy, compact }) {
+// popover: 헤더의 새로고침 칩에 매달아 띄우는 모드. 켜면 흐름에서 빠져(absolute)
+//   칩 아래에 겹쳐 뜬다 — 문서 흐름에 끼면 헤더가 늘어나며 본문 전체를 아래로
+//   밀어내기 때문이다. 부모가 position:relative 여야 한다.
+function FetchProgress({ prog, busy, popover }) {
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
   const [elapsed, setElapsed] = React.useState(0);
 
@@ -29,8 +32,18 @@ function FetchProgress({ prog, busy, compact }) {
   const shown = window.WarpData.banners().filter((b) => b.role !== 'beginner' || addedByRole.beginner !== undefined);
   if (shown.length === 0) return null;
 
+  // 팝오버는 칩 아래 오른쪽 정렬로 겹쳐 띄우고, 인라인은 카드 흐름에 그대로 놓는다.
+  const style = popover
+    ? {
+      position: 'absolute', top: 'calc(100% + 9px)', right: 0, zIndex: 30,
+      display: 'grid', gap: 8, minWidth: 300, padding: '13px 15px',
+      background: 'var(--card-bg)', border: '1px solid var(--card-border)',
+      borderRadius: 'var(--r-lg)', boxShadow: 'var(--shadow-pop)',
+    }
+    : { marginTop: 14, display: 'grid', gap: 9, width: '100%' };
+
   return (
-    <div style={{ marginTop: compact ? 10 : 14, display: 'grid', gap: compact ? 6 : 9, width: '100%' }}>
+    <div style={style}>
       {shown.map((b) => {
         const added = addedByRole[b.role] || 0;
         return (

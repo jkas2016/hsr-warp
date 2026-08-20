@@ -27,12 +27,24 @@ for (const f of ['QueryPanel.jsx', 'RefreshBar.jsx']) {
   assert.ok(/<FetchProgress/.test(src), `${f}: FetchProgress 로 진행 상황을 그려야 한다`);
 }
 
-// 3) 조회는 총량을 알 수 없어 퍼센트가 불가능하다. 멈춘 것처럼 보이지 않으려면
+// 3) 새로고침 칩은 헤더 안에 있어, 진행 표시가 흐름에 끼어들면 헤더가 늘어나며
+//    본문 전체를 아래로 밀어낸다. 그래서 칩 쪽 표시는 흐름에서 빠진 팝오버여야 한다.
+assert.ok(/popover/.test(fp), 'FetchProgress 에 팝오버 모드가 없다');
+assert.ok(/position:\s*'absolute'/.test(fp), '팝오버가 absolute 로 흐름에서 빠지지 않는다');
+{
+  const rb = read('RefreshBar.jsx');
+  assert.ok(/<FetchProgress[^>]*popover/.test(rb), 'RefreshBar 는 진행 표시를 팝오버로 띄워야 한다');
+  assert.ok(/position:\s*'relative'/.test(rb), 'RefreshBar 에 팝오버 기준이 될 relative 가 없다');
+  // 칩 자체가 조회 중에 모양을 바꾸면 그것만으로도 레이아웃이 흔들린다.
+  assert.ok(!/borderRadius:\s*busy\s*\?/.test(rb), '조회 중 칩 모서리를 바꾸면 헤더가 흔들린다');
+}
+
+// 4) 조회는 총량을 알 수 없어 퍼센트가 불가능하다. 멈춘 것처럼 보이지 않으려면
 //    최소한 (a) 무한 진행 애니메이션과 (b) 경과 시간이 있어야 한다.
 assert.ok(/indet/.test(fp), 'FetchProgress 에 무한 진행 애니메이션(indet)이 없다');
 assert.ok(/elapsed/i.test(fp), 'FetchProgress 에 경과 시간 표시가 없다');
 
-// 4) 새 컴포넌트가 index.html 에 등록되지 않으면 런타임에서 조용히 undefined 가 된다.
+// 5) 새 컴포넌트가 index.html 에 등록되지 않으면 런타임에서 조용히 undefined 가 된다.
 const html = read('index.html');
 assert.ok(html.includes('src="FetchProgress.jsx"'), 'index.html 에 FetchProgress.jsx 가 없다');
 assert.ok(
@@ -40,7 +52,7 @@ assert.ok(
   'FetchProgress.jsx 는 이를 쓰는 패널보다 먼저 로드돼야 한다',
 );
 
-// 5) 경과 시간 문구는 하드코딩이 아니라 i18n 키여야 한다(nohardcode 규칙과 같은 이유).
+// 6) 경과 시간 문구는 하드코딩이 아니라 i18n 키여야 한다(nohardcode 규칙과 같은 이유).
 for (const lang of ['ko', 'en', 'ja', 'zh']) {
   const src = read(path.join('i18n', `${lang}.js`));
   assert.ok(src.includes("'progress.elapsed'"), `i18n/${lang}.js 에 progress.elapsed 가 없다`);
