@@ -2,8 +2,14 @@ import { useEffect } from 'react';
 import { GuidePage } from './pages/GuidePage.jsx';
 import { DICTS } from './i18n/index.js';
 
-// 페이지는 빌드 시 정적 프리렌더됨. 하이드레이션 후 테마 토글 + 스크롤 리빌을 부여한다.
-// (기존 guide.js 로직 이식: 테마는 localStorage 'hsrwarp-theme', 기본 dark.)
+/**
+ * 가이드 사이트 루트. 페이지는 빌드 시 정적 프리렌더되고, 하이드레이션 후
+ * 테마 토글 + 스크롤 리빌을 부여한다.
+ * (기존 guide.js 로직 이식: 테마는 localStorage 'hsrwarp-theme', 기본 dark.)
+ * @param {Object} props
+ * @param {string} [props.lang='ko'] 표시 언어. 사전에 없으면 ko 로 폴백.
+ * @returns {JSX.Element}
+ */
 export function App({ lang = 'ko' }) {
   useEffect(() => {
     const root = document.documentElement;
@@ -16,6 +22,7 @@ export function App({ lang = 'ko' }) {
     } catch (e) {}
 
     const btn = document.querySelector('.theme-toggle');
+    /** 테마를 light ↔ dark 로 뒤집고 저장한다. @returns {void} */
     const onToggle = () => {
       const next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
       root.setAttribute('data-theme', next);
@@ -24,6 +31,7 @@ export function App({ lang = 'ko' }) {
     if (btn) btn.addEventListener('click', onToggle);
 
     const items = [].slice.call(document.querySelectorAll('.reveal'));
+    /** 리빌 대상을 한 번에 전부 표시한다(옵저버 미지원·안전망 경로). @returns {void} */
     const revealAll = () => items.forEach((el) => el.classList.add('in'));
     let io;
     let timer;

@@ -5,13 +5,24 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // SSG: 앱을 언어별로 렌더해 4개 HTML(/, /en/, /zh/, /ja/)을 생성한다.
 // (Vite SSG 가이드 https://vite.dev/guide/ssr.html#pre-rendering-ssg)
 const here = path.dirname(fileURLToPath(import.meta.url));
+/**
+ * 이 스크립트 위치 기준 상대 경로를 절대 경로로.
+ * @param {string} p 상대 경로.
+ * @returns {string} 절대 경로.
+ */
 const abs = (p) => path.resolve(here, p);
 const PLACEHOLDER = '<!--app-html-->';
 const HEAD_I18N = '<!--head-i18n-->';
 const ORIGIN = 'https://jkas2016.github.io';
 const BASE = '/hsr-warp/';
 
-// 필수 빌드 산출물을 읽되, 부재 시 어느 빌드 단계가 빠졌는지 문맥을 붙여 던진다(raw ENOENT 금지).
+/**
+ * 필수 빌드 산출물을 읽되, 부재 시 어느 빌드 단계가 빠졌는지 문맥을 붙여 던진다(raw ENOENT 금지).
+ * @param {string} rel 이 스크립트 기준 상대 경로.
+ * @param {string} step 이 파일을 만드는 빌드 단계 이름(오류 메시지에 넣는다).
+ * @returns {string} 파일 내용(utf-8).
+ * @throws {Error} 파일이 없으면 단계 안내를 붙인 오류, 그 외 오류는 그대로.
+ */
 function readBuilt(rel, step) {
   try {
     return fs.readFileSync(abs(rel), 'utf-8');
@@ -53,6 +64,13 @@ for (const l of LANGS) {
 
   // head 치환은 정규식/문자열 매칭이라 no-match 시 조용히 no-op 된다 — index.html 의 head 구조가
   // 바뀌면(속성 순서, 따옴표 종류 등) 감지 없이 한국어 head 가 그대로 배포될 수 있어 사후조건으로 막는다.
+  /**
+   * head 치환 사후조건. 어긋나면 즉시 빌드를 중단한다.
+   * @param {boolean} cond 통과 조건.
+   * @param {string} what 검사 대상 이름(오류 메시지용).
+   * @returns {void}
+   * @throws {Error} 조건이 거짓이면.
+   */
   const must = (cond, what) => { if (!cond) throw new Error(`head 치환 실패(${l.code}): ${what} — index.html 의 head 를 확인하세요.`); };
   must(html.includes(`<html lang="${l.html}"`), '<html lang>');
   must(html.includes(`<title>${meta.title}</title>`), '<title>');

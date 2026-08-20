@@ -61,9 +61,13 @@ const result = analyze({ info, list }, schedule);
 const nameOf = new Map();
 for (const r of list) if (r.item_id && r.name) nameOf.set(String(r.item_id), r.name);
 
-// 특정 시각을 포함하는 일정 구간을 찾는다(wasPickup 과 같은 ±60일 여유).
 const DAY = 86400000;
 const TOL = 60 * DAY;
+/**
+ * 특정 시각을 포함하는 일정 구간을 찾는다(wasPickup 과 같은 ±60일 여유).
+ * @param {number} t 기준 시각(epoch ms).
+ * @returns {Object[]} 허용 오차 안에 드는 일정 구간 목록.
+ */
 function windowsAt(t) {
   return (cfg.list || []).filter((p) => {
     const s = Date.parse(p.s), e = Date.parse(p.e);

@@ -22,10 +22,24 @@ const ZZZ = {
 let id = 1000n;
 const T = '2026-08-01 12:00:00';
 // ZZZ 는 S급이 rank_type 4, A급이 3, B급이 2다(실측).
+/**
+ * ZZZ S급(rank_type 4) 기록 한 건.
+ * @param {string|number} item_id
+ * @param {string} [gacha_type='2'] 채널 코드.
+ * @param {string} [time=T] 뽑은 시각.
+ * @returns {Object}
+ */
 const s4 = (item_id, gacha_type = '2', time = T) => ({
   id: String(id++), rank_type: '4', item_id: String(item_id),
   name: 'x', item_type: '에이전트', time, gacha_type,
 });
+/**
+ * ZZZ A/B급 기록 한 건.
+ * @param {string|number} rank 희귀도(3=A, 2=B).
+ * @param {string} [gacha_type='2'] 채널 코드.
+ * @param {string} [time=T] 뽑은 시각.
+ * @returns {Object}
+ */
 const low = (rank, gacha_type = '2', time = T) => ({
   id: String(id++), rank_type: String(rank), item_id: '0',
   name: 'y', item_type: 'W-엔진', time, gacha_type,

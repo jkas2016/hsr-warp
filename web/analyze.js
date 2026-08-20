@@ -318,6 +318,7 @@
    */
   function filterAnalysis(full, data, win, cfg) {
     cfg = cfg || (full && full._cfg) || resolveConfig(null);
+    /** @param {string} t 기록 시각. @returns {boolean} 윈도우 [s,e) 안이면 true. */
     const inWin = t => { const ms = dms(t); return ms >= win.s && ms < win.e; };
     const list = (Array.isArray(data.list) ? data.list : []).filter(r => inWin(r.time));
 

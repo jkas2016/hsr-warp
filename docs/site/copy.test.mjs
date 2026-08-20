@@ -10,6 +10,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const dir = dirname(fileURLToPath(import.meta.url));
+/**
+ * 블록/JSX 주석을 제거한다. URL 의 '//' 는 건드리지 않는다.
+ * @param {string} s 소스 문자열.
+ * @returns {string} 주석을 지운 소스.
+ */
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
 const src = readFileSync(join(dir, 'src/pages/GuidePage.jsx'), 'utf8');
 // 블록/JSX 주석 {/* ... */} 제거 — 주석 속 마커가 통과하지 않도록. URL 의 '//' 는 건드리지 않는다.
