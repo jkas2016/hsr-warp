@@ -75,6 +75,7 @@ window.I18N_DICTS.zh = {
   'refresh.path': '路径',
   'refresh.running': '刷新中…',
   'refresh.refresh': '↻ 刷新',
+  'progress.elapsed': '已用时',
   'hero.luckLabel': '运气指标 · 限定跃迁',
   'hero.lucky': '幸运',
   'hero.unlucky': '非酋',

@@ -1,11 +1,14 @@
 // Collapsed refresh control shown after data is loaded. A compact chip with
 // last-updated time + ↻ refresh; clicking path expands the path input inline.
 // Refresh runs the real incremental fetch (runFetch prop) and re-loads data.
+// 조회가 오래 걸릴 수 있으므로 최초 조회와 같은 FetchProgress 로 진행 상황을 보인다 —
+// 버튼 라벨만 바뀌면 사용자에게는 멈춘 것처럼 보인다.
 function RefreshBar({ runFetch, onLoaded, lastUpdated }) {
   const { Input, Button } = window.HSRWarpDesignSystem_4a0d44;
   const t = window.I18N.t;
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [prog, setProg] = React.useState(null);
   const [path, setPath] = React.useState('');
   const [err, setErr] = React.useState('');
 
@@ -15,13 +18,13 @@ function RefreshBar({ runFetch, onLoaded, lastUpdated }) {
     if (busy) return;
     const p = (path || '').trim();
     if (!p) { setErr(t('refresh.needPath')); setOpen(true); return; }
-    setBusy(true); setErr('');
+    setBusy(true); setErr(''); setProg({});
     try {
-      const data = await runFetch(p, () => {});
-      setBusy(false); setOpen(false);
+      const data = await runFetch(p, (banner, added) => setProg((cur) => ({ ...(cur || {}), [banner]: added })));
+      setBusy(false); setOpen(false); setProg(null);
       if (onLoaded) onLoaded(data);
     } catch (e) {
-      setBusy(false); setOpen(true);
+      setBusy(false); setOpen(true); setProg(null);
       setErr(e.message || t('refresh.fetchFailed'));
     }
   }
@@ -30,7 +33,7 @@ function RefreshBar({ runFetch, onLoaded, lastUpdated }) {
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
       background: 'var(--card-bg)', border: '1px solid var(--card-border)',
-      borderRadius: 'var(--r-pill)', padding: '7px 8px 7px 16px', boxShadow: 'var(--shadow-card)',
+      borderRadius: busy ? 'var(--r-lg)' : 'var(--r-pill)', padding: '7px 8px 7px 16px', boxShadow: 'var(--shadow-card)',
     }}>
       <span style={{ width: 7, height: 7, borderRadius: '50%', background: err ? 'var(--red)' : 'var(--green)', boxShadow: `0 0 8px ${err ? 'var(--red)' : 'var(--green)'}`, flex: 'none' }} />
       <span style={{ fontSize: 12.5, color: err ? 'var(--red)' : 'var(--muted)' }}>
@@ -44,6 +47,7 @@ function RefreshBar({ runFetch, onLoaded, lastUpdated }) {
         <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)}>{open ? t('refresh.closePath') : t('refresh.path')}</Button>
         <Button size="sm" onClick={run} disabled={busy}>{busy ? t('refresh.running') : t('refresh.refresh')}</Button>
       </div>
+      <FetchProgress prog={prog} busy={busy} compact />
     </div>
   );
 }
