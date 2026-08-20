@@ -1,3 +1,5 @@
+// Package server 는 대시보드 자산과 로컬 JSON/SSE API 를 제공하는 HTTP 계층이다.
+// 분석은 하지 않는다 — 저장된 기록을 그대로 내려주고 계산은 브라우저가 맡는다.
 package server
 
 import (
@@ -51,6 +53,8 @@ func NewWithAssets(p Paths, assets fs.FS, version string) *Server {
 	return newServer(p, assets, version)
 }
 
+// newServer 는 New/NewWithAssets 의 공통 생성자다. 갱신 확인 URL 과
+// HTTP 클라이언트 타임아웃 같은 기본값은 여기 한 곳에서만 정한다.
 func newServer(p Paths, assets fs.FS, version string) *Server {
 	return &Server{
 		paths: p, assets: assets, version: version,
@@ -59,6 +63,8 @@ func newServer(p Paths, assets fs.FS, version string) *Server {
 	}
 }
 
+// writeJSON 은 v 를 UTF-8 JSON 본문으로 쓴다. 인코딩 실패는 이미 헤더를
+// 내보낸 뒤라 상태 코드를 바꿀 수 없으므로 무시한다.
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(v)
@@ -116,6 +122,8 @@ func (s *Server) dataDirFor(g game.Game) string {
 	return filepath.Join(s.paths.DataDir, g.ID)
 }
 
+// handleData 는 GET /api/data — 해당 게임의 저장된 전체 기록을 SRGF 로 반환한다.
+// 기록이 없으면 null 이 아니라 빈 리스트를 준다(대시보드가 순회하므로).
 func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
 	g, ok := s.gameOf(r)
 	if !ok {
@@ -137,6 +145,8 @@ func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, out)
 }
 
+// handleConfig 는 /api/config — POST 면 설정을 저장하고 {"ok":true}, 그 외에는
+// 현재 설정을 반환한다. 설정 파일이 없으면 LoadConfig 가 기본값을 준다.
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		var c Config
@@ -154,6 +164,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, LoadConfig(s.paths.ConfigFile))
 }
 
+// handleDetect 는 GET /api/detect — 게임 설치 경로 자동 탐지 결과를 반환한다.
+// 찾지 못하면 path 는 빈 문자열이다(에러가 아니다).
 func (s *Server) handleDetect(w http.ResponseWriter, r *http.Request) {
 	g, ok := s.gameOf(r)
 	if !ok {

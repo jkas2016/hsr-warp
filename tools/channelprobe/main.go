@@ -16,6 +16,8 @@ import (
 	"hsr-warp/internal/game"
 )
 
+// main 은 <gameID> <gamePath> 두 인자를 받아 후보 채널 코드를 차례로 두드리고,
+// 레코드를 돌려준 코드만 출력한다.
 func main() {
 	gid, path := os.Args[1], os.Args[2]
 	g, _ := game.ByID(gid)
@@ -55,7 +57,12 @@ func main() {
 				} `json:"list"`
 			} `json:"data"`
 		}
-		json.Unmarshal(b, &ar)
+		// 파싱 실패를 삼키면 retcode=0 n=0 으로 찍혀 "이 코드엔 기록이 없다" 로
+		// 오독된다 — 진단 도구에서 가장 위험한 실패 모드라 명시적으로 드러낸다.
+		if err := json.Unmarshal(b, &ar); err != nil {
+			fmt.Printf("code=%-3s 응답 파싱 실패: %v\n", code, err)
+			continue
+		}
 		fmt.Printf("code=%-3s retcode=%-5d n=%-3d msg=%s\n", code, ar.Retcode, len(ar.Data.List), ar.Message)
 		for i, r := range ar.Data.List {
 			if i >= 8 {

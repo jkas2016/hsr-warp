@@ -1,0 +1,38 @@
+version: "2"
+
+linters:
+  enable:
+    - revive # 공개 심볼 문서 주석 누락
+    - godot  # 선언 주석은 마침표로 끝낸다
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: package-comments
+    godot:
+      scope: declarations
+    staticcheck:
+      # ST1005 는 "에러 문자열은 문장부호로 끝내지 않는다"는 영어 관례 규칙이다.
+      # 이 앱의 에러 문자열은 대시보드에 그대로 노출되는 한국어 사용자 메시지라
+      # 마침표가 정상이다.
+      checks:
+        - all
+        - -ST1005
+    errcheck:
+      # 반환 에러로 할 수 있는 일이 없는 정리(cleanup) 계열만 제외한다.
+      # 실제 로직 에러는 계속 잡힌다.
+      exclude-functions:
+        - (io.Closer).Close     # defer resp.Body.Close() 등 — 읽기 끝난 뒤 닫기
+        - (*os.File).Close      # 원자적 쓰기 경로의 임시 파일 닫기
+        - os.Remove             # rename 실패 후 임시 파일 청소(베스트에포트)
+        - fmt.Fprintf           # SSE 응답 쓰기 — 끊긴 클라이언트에 대응할 방법이 없다
+        - encoding/binary.Write # bytes.Buffer 대상이라 실패하지 않는다
+  exclusions:
+    rules:
+      # TestXxx 는 Go 관례상 문서 주석 대상이 아니고, 테스트의 정리 코드는
+      # 실패해도 테스트 결과에 영향이 없다.
+      - path: _test\.go
+        linters:
+          - revive
+          - godot
+          - errcheck
