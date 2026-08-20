@@ -8,6 +8,7 @@
 ## [Unreleased]
 
 ### 추가됨
+- 모든 JS/JSX 함수에 JSDoc 을 달고, 누락되면 `npm test` 가 실패하도록 가드(`scripts/jsdoc.test.mjs`)를 추가했다. Go 쪽은 `.golangci.yml` 로 같은 검사를 건다(`npm run lint:go`). 무의존 스캐너라 문서 누락만 잡고 `@param` 이름 정합성은 보지 않는다 (#62)
 - `npm run release -- X.Y.Z` — 릴리스의 기계적인 단계(`[Unreleased]` 확정 + 하단 링크 추가 → `chore(release):` 커밋·push → 태그 push → Actions 관찰)를 한 명령으로 묶는다. `--dry-run` 으로 확정될 CHANGELOG 를 미리 볼 수 있다. 태그 push 앞의 점검(워킹 트리·브랜치·`origin/main` 동기·태그 중복·`npm test`)에서 하나라도 걸리면 아무것도 밀지 않는다. 버전 번호 결정과 `[Unreleased]` 본문 서술은 그대로 사람 몫 (#58)
 
 ### 수정됨

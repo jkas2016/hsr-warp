@@ -33,3 +33,6 @@ installer/Output/
 
 # 로컬 기획 산출물(superpowers) — 추적 안 함
 .superpowers/
+
+# git worktree 작업 공간 — 같은 저장소의 사본이라 커밋되면 트리가 통째로 중복된다
+.claude/worktrees/
