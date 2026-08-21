@@ -40,7 +40,7 @@ function VersionsView({ D, theme, lang }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+      <div data-share-omit style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('table.banner')}</span>
         <Select value={banner} onChange={(e) => setBanner(e.target.value)}>
           <option value="all">{t('scope.all')}</option>
@@ -55,12 +55,12 @@ function VersionsView({ D, theme, lang }) {
         <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 'auto' }}>{t('versions.clickRow')}</span>
       </div>
 
-      <Card padding={18} style={{ marginBottom: 16 }}>
+      <Card padding={18} style={{ marginBottom: 16 }} data-share="version-pity">
         <div className="lbl" style={{ marginBottom: 12 }}>{t('versions.avgCompare', { name: bannerName })} <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>{t('versions.avgCompareNote', { base: baseLine.toFixed(1) })}</span></div>
         <VersionPityChart rows={rows} banner={banner} baseLine={baseLine} sel={sel} theme={theme} lang={lang} />
       </Card>
 
-      <Card padding={6}>
+      <Card padding={6} data-share="versions">
         <table className="tbl">
           <thead><tr><th>{t('versions.colVersion')}</th><th>{t('versions.colPeriod')}</th><th>{t('versions.colPulls')}</th><th>{t('versions.col5')}</th><th>{t('versions.colAvg')}</th><th>{t('versions.colWl')}</th></tr></thead>
           <tbody>

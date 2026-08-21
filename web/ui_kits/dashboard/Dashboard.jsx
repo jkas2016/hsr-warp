@@ -12,6 +12,7 @@ function Dashboard() {
   const [scopeVer, setScopeVer] = React.useState('전체'); // 버전 구간 필터(전 화면 적용)
   const [view, setView] = React.useState('overview');
   const [five, setFive] = React.useState(null);
+  const [share, setShare] = React.useState(false);
   const [updates, setUpdates] = React.useState(null);
   const [theme, setTheme] = React.useState(() => {
     try { return localStorage.getItem('hsrwarp-theme') || 'dark'; } catch (e) { return 'dark'; }
@@ -112,7 +113,7 @@ function Dashboard() {
 
   return (
     <div className="page">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <header data-share-header style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <img src={window.WarpData.logo(gameID)} alt="" width="46" height="46" style={{ borderRadius: 12, boxShadow: 'var(--glow-gold)' }} />
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, margin: 0, letterSpacing: '-.4px' }}>
@@ -123,10 +124,10 @@ function Dashboard() {
                     : t('header.subtitleEmpty')}
           </div>
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div data-share-omit style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {/* 게임 전환. key 로 RefreshBar/QueryPanel 을 다시 마운트해 경로 자동 채움을 새 게임 기준으로 돌린다. */}
           <GameSwitcher game={gameID} onChange={changeGame} />
-          {loaded && <RefreshBar key={gameID} runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} />}
+          {loaded && <RefreshBar key={gameID} runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} onShare={() => setShare(true)} />}
           <Select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">
             <option value="ko">한국어</option>
             <option value="en">English</option>
@@ -192,6 +193,7 @@ function Dashboard() {
       )}
 
       <FiveDetail five={five} onClose={() => setFive(null)} />
+      <ShareModal open={share} onClose={() => setShare(false)} uid={uid} lang={lang} />
     </div>
   );
 }

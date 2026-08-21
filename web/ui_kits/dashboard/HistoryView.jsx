@@ -23,7 +23,7 @@ function HistoryView({ D, onFiveClick }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 16 }}>
+      <div data-share-omit style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginBottom: 16 }}>
         <ChipGroup label={t('history.filterBanner')} options={bannerLabels}
           value={bannerLabels[bannerCodes.indexOf(banner)]}
           onChange={(lbl) => setBanner(bannerCodes[bannerLabels.indexOf(lbl)])} />
@@ -34,7 +34,9 @@ function HistoryView({ D, onFiveClick }) {
       <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
         {t('history.summary', { n: rows.length })}
       </div>
-      <FivesTable key={banner + '|' + result} rows={rows} onRowClick={onFiveClick} pageSize={20} />
+      <div data-share="history">
+        <FivesTable key={banner + '|' + result} rows={rows} onRowClick={onFiveClick} pageSize={20} />
+      </div>
     </div>
   );
 }

@@ -15,7 +15,7 @@ function BannerCards({ D, scoped }) {
   const glowFor = (c) => `0 0 26px ${c}55`;
 
   return (
-    <section style={{ marginTop: 26 }}>
+    <section data-share="banners" style={{ marginTop: 26 }}>
       <h2 className="h2">{t('bannercards.title')}</h2>
       <div className="banner-row">
         {D.banners.map((b) => (

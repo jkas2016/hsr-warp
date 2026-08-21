@@ -66,7 +66,7 @@ function ChartsGrid({ D, theme, lang }) {
   const wrap = { position: 'relative', height: 230 };
   const h3 = { fontSize: 13, marginBottom: 12, color: 'var(--muted)', fontWeight: 600, marginTop: 0, fontFamily: 'var(--font-display)' };
   return (
-    <section style={{ marginTop: 26 }}>
+    <section data-share="charts" style={{ marginTop: 26 }}>
       <h2 className="h2">{t('charts.title')}</h2>
       <div className="charts-row">
         <Card padding={18}><h3 style={h3}>{t('charts.rarity')}</h3><div style={wrap}><canvas ref={refs.rarity} /></div></Card>

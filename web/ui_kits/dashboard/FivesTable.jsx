@@ -45,7 +45,7 @@ function FivesTable({ rows, onRowClick, pageSize }) {
         </tbody>
       </table>
       {pageSize && rest > 0 && (
-        <div style={{ padding: '12px 12px 4px' }}>
+        <div data-share-omit style={{ padding: '12px 12px 4px' }}>
           <Button variant="ghost" size="sm" onClick={() => setShown((s) => s + pageSize)}>{t('table.more', { n: rest })}</Button>
         </div>
       )}

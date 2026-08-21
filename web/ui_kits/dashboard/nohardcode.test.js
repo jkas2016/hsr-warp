@@ -7,6 +7,7 @@ const FILES = [
   'QueryPanel.jsx', 'RefreshBar.jsx', 'HeroSummary.jsx', 'BannerCards.jsx',
   'ChartsGrid.jsx', 'FivesTable.jsx', 'MonthlyTable.jsx', 'FiveDetail.jsx',
   'OverviewView.jsx', 'BannersView.jsx', 'HistoryView.jsx', 'VersionsView.jsx',
+  'ShareModal.jsx',
   'util.js', 'data.js',
 ];
 
