@@ -33,8 +33,8 @@ Go 모듈 `hsr-warp`. 백엔드는 수집·저장·서빙만 하고, 분석(천�
 
 **`schedule.json`이 분석 파라미터 전체의 단일 소스다.** `resolveConfig`(analyze.js)가 `ranks`(최고/중간 등급의 `rank_type` 코드)·`banners`(코드별 `role`/`cap`/`rateUp`/`expAvg`)·`order`(표시 순서)·`schedule`(픽업 일정)를 한 파일에서 주입받는다. `banners`가 없는 구 스키마(배열)가 들어오면 HSR 내장 기본 테이블(`BANNERS`/`DEFAULT_RANKS`/`ORDER`)로 폴백해 구버전 `data/schedule.json` override와 호환한다.
 - **`order`가 필수인 이유**: 생략하면 `Object.keys(banners)`가 정수 유사 문자열 키를 숫자 오름차순으로 재정렬해(`'2'`가 `'11'` 앞으로) 배너 표시 순서가 조용히 뒤집힌다. 스크립트가 낸 산출물은 항상 `order`를 명시한다.
-- **`expAvg`는 인게임 공시 종합확률(보증 포함)의 역수다** — 추정이 아니라 공시 원문 값. HSR 캐릭터 `1/0.016 = 62.5`, 광추 `1/0.0187 ≈ 53.5`. ZZZ 독점(에이전트)·상시 `62.5`(1.600%), W-엔진·본디 `50.0`(2.000%).
-- HSR 채널: `gacha_type` `11`=캐릭터(`limited-char`), `12`=광추(`limited-weapon`), `1`=일반/스텔라(`standard`), `2`=출발(`beginner`, `rank_type` 최고=`5`/중간=`4`). ZZZ 채널: `real_gacha_type` `2`=독점/에이전트(`limited-char`), `3`=W-엔진(`limited-weapon`), `1`=상시(`standard`), `5`=본디(`bangboo`, `rank_type` 최고=`4`/중간=`3` — HSR의 3/4/5 체계와 다르다). **대시보드는 두 게임 모두 한정 캐릭터·한정 무기 두 축만 수치화한다** — `data.js`의 `HIDDEN_ROLES`(`standard`·`beginner`·`bangboo`)가 나머지를 표시에서 뺀다. 픽업(50/50) 개념이 없는 채널이라 한정 배너 지표를 오염시키기 때문이다. 수집·저장(SRGF/UIGF)은 전부 그대로이므로 내보내기에는 남는다.
+- **`expAvg`는 인게임 공시 종합확률(보증 포함)의 역수다** — 추정이 아니라 공시 원문 값. HSR 캐릭터 `1/0.016 = 62.5`, 광추 `1/0.0187 ≈ 53.5`. ZZZ 독점(에이전트)·특별 픽업·상시 `62.5`(1.600%), W-엔진·특별 W-엔진·방부 `50.0`(2.000%).
+- HSR 채널: `gacha_type` `11`=캐릭터(`limited-char`), `12`=광추(`limited-weapon`), `1`=일반/스텔라(`standard`), `2`=출발(`beginner`, `rank_type` 최고=`5`/중간=`4`). ZZZ 채널: `real_gacha_type` `2`=독점/에이전트(`limited-char`), `3`=W-엔진(`limited-weapon`), `102`=특별 픽업/에이전트(`special-char`), `103`=특별 픽업/W-엔진(`special-weapon`), `1`=상시(`standard`), `5`=방부(`bangboo`, `rank_type` 최고=`4`/중간=`3` — HSR의 3/4/5 체계와 다르다). **상시·방부는 조회하지 않는다**(픽업 개념이 없어 집계에서도 빠지는 채널) — 이미 저장된 기록은 그대로 표시하므로 `schedule.json`의 `banners`에는 설정이 남아 있다. **대시보드는 두 게임 모두 한정 캐릭터·한정 무기 두 축만 수치화한다** — `data.js`의 `HIDDEN_ROLES`(`standard`·`beginner`·`bangboo`)가 나머지를 표시에서 뺀다. 픽업(50/50) 개념이 없는 채널이라 한정 배너 지표를 오염시키기 때문이다. 수집·저장(SRGF/UIGF)은 전부 그대로이므로 내보내기에는 남는다.
 
 **HSR**: 신규 패치 출시 시 **`web/schedule.json`의 `schedule` 배열에 `{s,e,c,l}` 항목 추가 + 최상위 `version` +1**(c=캐릭터 픽업, l=광추 픽업 item_id; 픽업=Mantan21/HSR-Warp-Simulator, item_id=StarRailRes). `main` 에 push 하면 사용자 앱이 시작 시 자동으로 받아 반영한다(릴리스 불필요). **게임 버전 경계(예: 3.x→4.x)에는 최상위 `versions` 배열에도 `{"v":"X.Y","s":"YYYY-MM-DD"}` 항목 추가** — 버전 시작일(대시보드 버전별 통계의 단일 소스).
 
@@ -99,6 +99,34 @@ installer 잡은 `.iss` 를 고친 릴리스에서 처음 검증된다(로컬에
 
 데이터 형식·`gacha_type` 코드·표준 풀·확률은 외부 명세에 묶여 있다: SRGF v1.0(uigf.org), Prydwen(50/50·확률), StarRailRes(item_id 검증). 출처는 README 를 따른다.
 
+## 신규 가챠 채널이 열렸을 때
+
+게임사가 기존 채널(독점·W-엔진 등)과 **별개 코드**로 기간 한정 채널을 배포하는 일이 있다. 실제 사례: ZZZ 3.1 하반기 "3인 동시 특별 픽업"(다이아린·유즈하·하루마사)은 `real_gacha_type` `102`(에이전트)·`103`(W-엔진)으로 왔다. 코드 목록에 없으면 **요청 자체를 보내지 않아** 그 배너 기록이 수집·저장·표시 전 단계에서 통째로 사라진다. 조회는 성공하고 에러도 안 나므로 겉으로는 "그냥 기록이 없는 것"과 구분되지 않는다.
+
+**먼저 실측한다.** `tools/channelprobe`가 후보 코드를 직접 두드려 레코드를 주는 코드만 출력한다:
+
+```powershell
+go run ./tools/channelprobe zzz 'D:\Game\HoYoPlay\games\ZenlessZoneZero Game' 1 2 3 5 102 103
+```
+
+- **한 자리 수로 스윕을 끝내지 말 것.** 특별 채널은 100번대에 있다. 1~13만 훑고 "그 외엔 없다"고 단정해 원인을 놓친 전례가 있다(#60 → #63에서 정정). 최소 `0~25`, `100~120`, `200~203`은 훑는다.
+- 해당 배너가 **진행 중일 때** 훑어야 의미가 있다. 배너가 열리기 전에는 어떤 코드도 레코드를 주지 않으므로 "없다"는 결론이 거짓 음성이 된다.
+- 코드를 찾았으면 소스(FuriaPaladins)의 `banner_type` 과 혼동하지 말 것. 소스의 `banner_type`은 배너 분류이고, 조회에 쓰는 것은 API의 `real_gacha_type`이다 — 값이 서로 다르다.
+
+**추가할 때 손대야 하는 곳(전부 바꿔야 한 바퀴가 돈다).** `npm test`의 `banner-schedule.test.js`·`progress-map.test.js`·`i18n.test.js`·`nohardcode.test.js`가 빠뜨림을 잡아준다:
+
+| 파일 | 무엇을 |
+|---|---|
+| `internal/game/game.go` | `Role*` 상수 + 해당 게임 `Banners`에 `{Code, Role}` |
+| `internal/collector/fetch.go` | `roleName`(역할 → SSE/로그 표시 이름) |
+| `web/analyze.js` | `ROLE_SPEC`에 `{kind, pool}` — 픽업 판정 대상이면 `kind: 'limited'` |
+| `web/<game>/schedule.json` | `banners`에 `{role,name,short,color,cap,rateUp,expAvg}` + `order`에 코드 + `version` +1 |
+| `scripts/extract-*.mjs` | 위와 같은 값(재생성 시 산출물이 되돌아가지 않게) |
+| `web/ui_kits/dashboard/data.js` | `PROGRESS_ROLE`(SSE 라벨 → 역할) |
+| `web/ui_kits/dashboard/i18n.js` + `i18n/{ko,en,ja,zh}.js` | `BANNER_CODE`(short → 키) + 4개 언어 문구 |
+
+**계정 전체 지표에도 넣을지 판단한다.** 픽업 채널이라면 `analyze.js`의 `combineLimited`가 접는 대상(`kind === 'limited'`)에 들어가야 개요 상단 운 지표·픽승률·평균 뽑기 수에 반영된다. `data.js`의 요약 문구는 두 축(캐릭터+무기)으로 나눠 표시하므로 새 채널을 어느 축에 더할지도 함께 정해야 합계가 어긋나지 않는다.
+
 ## Gotchas
 
 - authkey는 게임에서 **전언 기록 화면을 최근 ~24시간 내 한 번 열어야** 유효하다. 유효 authkey가 없으면 조회는 SSE error 이벤트로 실패를 알린다(설계된 동작).
@@ -107,4 +135,7 @@ installer 잡은 `.iss` 를 고친 릴리스에서 처음 검증된다(로컬에
 - **`real_gacha_type`이 `internal/collector/cache.go`의 `pageKeys`에 반드시 있어야 한다.** ZZZ의 authkey URL 베이스 쿼리에 이 파라미터가 이미 들어 있어, 페이지 조립 시 제거하지 않으면 중복되고 **서버가 앞의(원본) 값을 채택해 4개 채널이 전부 같은 데이터를 반환한다** — 실제로 재현된 버그다.
 - **ZZZ의 `rank_type`은 2/3/4 체계다**(B급=`2`, A급=`3`, S급=`4`) — HSR의 3/4/5와 다르다. `schedule.json`의 `ranks` 블록(`web/zzz/schedule.json`은 `{"top":"4","mid":"3"}`)이 이를 주입하며, `analyze.js`가 이 값 없이 하드코딩된 `'5'`/`'4'`로 ZZZ 레코드를 분류하면 집계가 전부 오작동한다.
 - **SSE progress의 배너 라벨이 Go와 프런트엔드 양쪽에 문자열로 결합돼 있다.** `internal/collector/fetch.go`의 `roleName` 맵(역할→한글 이름)과 `web/ui_kits/dashboard/data.js`의 `PROGRESS_ROLE`(그 반대 방향 매핑)이 같은 문자열 집합을 유지해야 한다 — 실제로 한 번 조용히 끊어져 조회 진행률이 0에서 굳은 적이 있다. `web/ui_kits/dashboard/progress-map.test.js`가 두 파일의 값 집합 일치를 강제한다(`npm test`에 포함). **한쪽을 바꾸면 반드시 다른 쪽도 바꿔라.**
+- **`web/` 아래를 고친 뒤에는 반드시 재빌드해야 확인된다.** 대시보드 자산은 `go:embed all:web`으로 exe에 박히므로, 실행 중인 exe는 파일을 고쳐도 옛 자산을 계속 서빙한다. 브라우저 새로고침으로는 절대 안 바뀐다 — "고쳤는데 화면이 그대로"의 대부분이 이것이다.
+- **ZZZ 배너 소스에는 특별 픽업 배너가 없다.** `zzz_formatted.json`은 시점에 따라 `banner_type` 12/13(특별 채널) 항목을 아예 담지 않으며(2026-08 실측: 37건 전부 `banner_type: 2`), W-엔진 배너도 별도 항목으로 오지 않는다. **소스에 있던 것이 사라질 수 있으므로 `extract-zzz-schedule.mjs` 재실행은 산출물을 되돌릴 위험이 있다** — 재생성 전후로 `web/zzz/schedule.json`의 `schedule` 길이와 최신 항목을 반드시 비교하고, 손으로 넣은 픽업 라인업이 날아가지 않았는지 확인한다.
+- **"조회가 안 되는 것"과 "표시가 안 되는 것"을 먼저 가른다.** 증상이 "기록이 안 보인다"일 때, ① `data/<game>/warp_YYYYMM.json`의 최신 레코드 시각과 ② `/api/fetch` SSE를 직접 호출한 결과(`added` 값)와 ③ `tools/channelprobe`가 API에서 직접 받은 레코드, 이 셋을 비교하면 어느 경계에서 끊겼는지가 한 번에 나온다. UI만 보고 원인을 추정하면 "수집 실패"로 오진하기 쉽다.
 - ZZZ 응답의 `gacha_id`는 전 레코드 `"0"`이라 배너 인스턴스 식별에 쓸 수 없다(`wasPickup`이 시각 기반이라 영향 없음).
