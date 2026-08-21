@@ -2,6 +2,12 @@
 
 [한국어](README.ko.md) | **English**
 
+[![Download for Windows](https://img.shields.io/github/v/release/jkas2016/hsr-warp?style=for-the-badge&label=Download%20for%20Windows&color=2ea44f)](https://github.com/jkas2016/hsr-warp/releases/latest)
+[![Guide site](https://img.shields.io/badge/Guide%20site-jkas2016.github.io-1f6feb?style=for-the-badge)](https://jkas2016.github.io/hsr-warp/)
+
+- **[⬇️ Download the installer](https://github.com/jkas2016/hsr-warp/releases/latest)** — `hsr-warp-setup-X.X.X.exe`, no admin rights needed.
+- **[📖 Guide site](https://jkas2016.github.io/hsr-warp/)** — install, authkey, metrics, 50/50 rules, troubleshooting (auto-routes to your browser's language).
+
 A small program that imports your **Honkai: Star Rail Warp** and **Zenless Zone Zero Signal Search** records onto your PC and shows **pity, luck, 50/50 results, and monthly stats**. Install it with the wizard, run it, and the dashboard opens in your browser automatically — switch between the two games from the top. The app and guide are available in **Korean, English, Simplified Chinese, and Japanese**.
 
 - **Easy install** — One installer, no admin rights needed. It tells you at launch when a new version is available.
