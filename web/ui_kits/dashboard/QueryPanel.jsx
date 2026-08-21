@@ -1,9 +1,15 @@
-// First-run query card — game-path input + gold 조회 button. Runs the real
-// incremental fetch over SSE (window.WarpData.runFetch via the runFetch prop),
-// showing per-banner live counts as progress events arrive, then onLoaded(data).
+/**
+ * 첫 실행 조회 카드 — 게임 경로 입력 + 조회 버튼.
+ * SSE 로 실제 증분 조회를 돌리며(runFetch prop = window.WarpData.runFetch),
+ * progress 이벤트가 올 때마다 배너별 누적 건수를 보이고 끝나면 onLoaded(data) 를 호출한다.
+ * @param {Object} props
+ * @param {function(string, function(string, number): void): Promise<Object>} props.runFetch 증분 조회 실행 함수.
+ * @param {function(Object): void} props.onLoaded 조회 성공 시 받은 데이터 콜백.
+ * @returns {JSX.Element}
+ */
 function QueryPanel({ runFetch, onLoaded }) {
   const { Input, Button, Card } = window.HSRWarpDesignSystem_4a0d44;
-  const t = window.I18N.t, bl = window.I18N.bannerLabel;
+  const t = window.I18N.t;
   const [path, setPath] = React.useState('');
   const [busy, setBusy] = React.useState(false);
   const [prog, setProg] = React.useState(null); // { banner_code: accumulated_new_count } | null
@@ -12,6 +18,10 @@ function QueryPanel({ runFetch, onLoaded }) {
   // 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지.
   React.useEffect(() => { window.WarpData.configPath().then((p) => { if (p) setPath(p); }); }, []);
 
+  /**
+   * 입력된 경로로 조회를 실행한다. 이미 실행 중이면 무시하고, 경로가 비면 에러만 띄운다.
+   * @returns {Promise<void>}
+   */
   async function run() {
     if (busy) return;
     const p = (path || '').trim();
@@ -27,13 +37,6 @@ function QueryPanel({ runFetch, onLoaded }) {
     }
   }
 
-  // 배너 short 는 분석 계층(analyze.js BANNERS) 단일 소스에서 — 서버 progress 키와 동일.
-  // 표준 3배너는 항상, 출발은 신규가 잡힐 때만 표시.
-  const B = window.WarpAnalyze.BANNERS;
-  const order = ['11', '12', '1'].map((k) => B[k].short);
-  const departure = B['2'].short;
-  const shown = prog ? order.concat(prog[departure] !== undefined ? [departure] : []) : [];
-
   return (
     <Card padding={18} style={{ marginTop: 20 }}>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -48,24 +51,7 @@ function QueryPanel({ runFetch, onLoaded }) {
         </div>
       )}
       {err && <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>{err}</div>}
-      {prog && shown.length > 0 && (
-        <div style={{ marginTop: 14, display: 'grid', gap: 9 }}>
-          {shown.map((k) => {
-            const added = prog[k] || 0;
-            return (
-              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ width: 52, fontSize: 12.5, color: 'var(--muted)' }}>{bl(k)}</span>
-                <div style={{ flex: 1, height: 7, borderRadius: 'var(--r-pill)', background: 'var(--panel-2)', overflow: 'hidden' }}>
-                  <div className={busy ? 'indet' : ''} style={{ height: '100%', borderRadius: 'var(--r-pill)', background: 'var(--grad-gold)', width: busy ? '42%' : '100%' }} />
-                </div>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: busy ? 'var(--gold-ink)' : 'var(--green)', width: 54, textAlign: 'right' }}>
-                  {busy ? `+${added}…` : `+${added} ✓`}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <FetchProgress prog={prog} busy={busy} />
     </Card>
   );
 }

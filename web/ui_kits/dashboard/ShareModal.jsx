@@ -1,5 +1,13 @@
-// 공유 모달 — 현재 탭에 실재하는 섹션을 체크해 PNG 한 장으로 내보낸다.
-// 합성·캡처·저장은 전부 브라우저 로컬(window.WarpShare)에서 처리하고 서버로 올라가는 것은 없다.
+/**
+ * 공유 모달 — 현재 탭에 실재하는 섹션을 체크해 PNG 한 장으로 내보낸다.
+ * 합성·캡처·저장은 전부 브라우저 로컬(window.WarpShare)에서 처리하고 서버로 올라가는 것은 없다.
+ * @param {Object} props
+ * @param {boolean} props.open 모달 표시 여부. 열릴 때마다 현재 탭의 섹션을 다시 읽는다.
+ * @param {function(): void} props.onClose 모달을 닫는 콜백.
+ * @param {string} [props.uid] 마스킹 대상 UID. 없으면 마스킹할 것이 없다.
+ * @param {string} props.lang 현재 언어. 바뀌면 섹션 라벨을 다시 만든다.
+ * @returns {JSX.Element|null} 닫혀 있으면 null.
+ */
 function ShareModal({ open, onClose, uid, lang }) {
   const { Dialog, Button } = window.HSRWarpDesignSystem_4a0d44;
   const S = window.WarpShare;
@@ -32,10 +40,19 @@ function ShareModal({ open, onClose, uid, lang }) {
   // 미리보기 objectURL 은 모달이 닫히거나 새 이미지가 생기면 해제한다.
   React.useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
+  /**
+   * 섹션 체크 상태를 뒤집는다.
+   * @param {string} id 섹션 id.
+   * @returns {void}
+   */
   function toggle(id) {
     setChecked((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
   }
 
+  /**
+   * 선택한 섹션으로 PNG 를 만들어 저장한다. 다운로드가 막힌 환경이면 미리보기로 폴백한다.
+   * @returns {Promise<void>}
+   */
   async function run() {
     const ids = S.selectSections(present, checked);
     if (!ids.length || busy) return;

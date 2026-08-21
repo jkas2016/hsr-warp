@@ -8,11 +8,51 @@
 ## [Unreleased]
 
 ### 추가됨
+- 모든 JS/JSX 함수에 JSDoc 을 달고, 누락되면 `npm test` 가 실패하도록 가드(`scripts/jsdoc.test.mjs`)를 추가했다. Go 쪽은 `.golangci.yml` 로 같은 검사를 건다(`npm run lint:go`). 무의존 스캐너라 문서 누락만 잡고 `@param` 이름 정합성은 보지 않는다 (#62)
+- `npm run release -- X.Y.Z` — 릴리스의 기계적인 단계(`[Unreleased]` 확정 + 하단 링크 추가 → `chore(release):` 커밋·push → 태그 push → Actions 관찰)를 한 명령으로 묶는다. `--dry-run` 으로 확정될 CHANGELOG 를 미리 볼 수 있다. 태그 push 앞의 점검(워킹 트리·브랜치·`origin/main` 동기·태그 중복·`npm test`)에서 하나라도 걸리면 아무것도 밀지 않는다. 버전 번호 결정과 `[Unreleased]` 본문 서술은 그대로 사람 몫 (#58)
+
+### 변경됨
+- ZZZ 상시·방부 채널은 더 이상 조회하지 않는다 — 픽업(50/50) 개념이 없어 대시보드 집계에서도 제외되는 채널이라, 매 조회마다 왕복만 늘리고 진행 표시를 어지럽혔다. 이미 저장된 기록은 그대로 보존·표시된다
+
+### 수정됨
+- ZZZ 3.1 하반기 "3인 동시 특별 픽업"(다이아린·유즈하·하루마사) 배너 기록이 대시보드에 통째로 없던 문제 — 이 배너는 API 상 독점(2)·W-엔진(3)과 별개인 `real_gacha_type=102`(에이전트)·`103`(W-엔진)으로 배포되는데, 조회 채널 목록에 없어 요청 자체를 보내지 않았다. #60 이 "2/3/1/5 외 어떤 코드도 레코드를 주지 않는다"고 단정한 것은 실측 범위가 1~13 이었던 탓으로, 100 번대를 훑으면 102/103 이 레코드를 돌려준다(`tools/channelprobe`). 두 채널을 조회·분석·표시에 추가했고, 실계정 재조회로 누락됐던 40건(다이아린·「지난밤의 전화」 포함)이 들어오는 것을 확인했다
+- 특별 픽업 채널의 S급이 개요 상단 계정 전체 지표(운 지표·픽승률·평균 뽑기 수)에서 빠지던 문제 — `combineLimited` 이 대표 캐릭터·무기 배너 두 개만 접었다. 픽업 규칙이 같은 한정 채널을 전부 합산하도록 일반화했고, 요약 문구의 두 축(에이전트+W-엔진)에도 특별 픽업을 각각 합산해 합계가 어긋나지 않게 했다
+- ZZZ 방부 채널 이름이 `본디` 로 잘못 표기되던 문제 — 서버 SSE 진행 표시와 대시보드 i18n 양쪽을 `방부` 로 고쳤다
+- 만료·캐시 안내가 ZZZ 사용자에게 없는 메뉴를 가리키던 문제 — 서버 메시지가 HSR 용어(`[전언] → [기록]`)로 고정돼 있었다. 인게임 진입 경로를 게임 값 테이블로 옮겨 ZZZ 는 `[변조] → [상세] → [변조 기록]` 으로 안내한다(대시보드 i18n 의 표기와 일치)
+- ZZZ 조회가 항상 `auth key time out` 으로 실패하던 문제 — 캐시에 살아있는 authkey 가 있는데도 며칠 전 죽은 authkey 를 골라 보내고 있었다. 원인은 최신 판정 기준이던 URL 의 `timestamp` 쿼리로, 이 값은 게임이 가챠 웹뷰 URL 을 만들 때 박은 것이라 새 세션에서 새 authkey 를 받아도 갱신되지 않는다(ZZZ 2.51 실측 — 8/14·8/18·8/20 세션의 authkey 는 전부 다른데 timestamp 는 7/29 값 그대로). 이제 Chromium 캐시 엔트리의 기록 시각으로 후보를 정렬하고, 조회 전에 후보를 실제로 두드려 살아있는 authkey 를 고른다. 캐시 포맷을 못 읽으면 기존 방식으로 폴백한다. HSR 에도 같은 함정이 있었다
+- ZZZ 조회 시 authkey 가 만료돼도 만료 안내 대신 `API 오류 (retcode=-1): auth key time out` 원문이 그대로 뜨던 문제 — 만료를 retcode `-101` 로만 판정했는데, ZZZ 엔드포인트(`public-operation-common`)는 `retcode=-1` + `message: "auth key time out"` 으로 알린다. 이제 메시지도 함께 보고 판정해, 발급 시각·경과 일수와 "게임 안에서 기록 화면을 직접 열라"는 안내가 정상적으로 표시된다
+
+## [1.0.1] - 2026-08-19
+
+1.0.0 의 남은 자국을 지우는 릴리스. 설치 마법사 체크박스 잘림을 근본 원인까지 잡았고, 스타레일에만 묶여 있던 아이콘을 두 게임 공용으로 바꿨다.
+
+### 추가됨
+- 조회 가능 기간 안내 — 두 README와 가이드 사이트 FAQ(ko/en/zh/ja)에 "얼마나 예전 기록까지 가져오나요?" 항목 추가. ZZZ는 게임 서버가 최근 약 6개월치만 반환하는 반면 HSR은 실측상 그보다 오래된 기록도 반환된다는 차이를 명시한다 (#55)
+
+### 변경됨
+- 앱 아이콘을 '워프 티켓'(양옆이 파인 티켓 + 4점 별 음각)으로 교체 — 기존 아이콘은 스타레일의 개척 열차를 형상화한 것이라 ZZZ까지 지원하는 지금은 한쪽 게임에만 묶였다. exe 아이콘·웹 파비콘(`icon.ico`·`web/favicon.ico`·`web/favicon.svg`)이 모두 바뀐다 (#56)
+
+### 수정됨
+- 설치 마법사 체크박스가 고DPI에서 좌우로 잘리던 문제 — 1.0.0 의 `WizardStyle=modern windows11` 회피는 불완전했고, 선택·해제 어느 상태든 200% 스케일에서 테두리가 깎였다. 원인은 Inno Setup 의 `TNewCheckListBox` 가 `GetThemePartSize` 로 얻은 사각형을 `DrawThemeBackground` 의 클립으로 그대로 넘기는 것. 작업 목록·실행 목록을 숨기고 네이티브 `TNewCheckBox` 로 대체했다 (#56)
+
+## [1.0.0] - 2026-08-18
+
+단일 exe가 두 게임을 추적하게 된 첫 안정 릴리스. HSR 전용 도구에서 벗어나 게임 어댑터 구조를 갖췄고, 안내 문서·설치 마법사까지 멀티게임 기준으로 정리했다.
+
+### 추가됨
+- 젠레스 존 제로(ZZZ) 지원 — 단일 exe로 HSR·ZZZ 모두 추적. 헤더 게임 스위처, 게임별 데이터 저장(`data/hsr/`·`data/zzz/`), 게임별 배너 일정 채널(`/zzz/schedule.json`), 게임별 팔레트·용어 i18n(변조·채널·S급·에이전트·W-엔진 등, ko/en/zh/ja 모두 각 언어 클라이언트 표기 기준). 기존 사용자의 데이터(`data/warp_*.json`)는 앱 시작 시 `data/hsr/`로 자동 이동(1회, 비파괴) (#51)
+- ZZZ 배너 일정 데이터 — `scripts/extract-zzz-schedule.mjs`가 [FuriaPaladins/Hoyoverse-Data](https://github.com/FuriaPaladins/Hoyoverse-Data)에서 추출해 repo에 벤더링, `npm run schedule:status`가 두 게임 모두 보고 (#51)
 - 가이드 사이트 다국어(en/zh/ja) 지원 — 언어별 프리렌더 4페이지(`/`, `/en/`, `/zh/`, `/ja/`), 루트 자동 언어 이동(?lang → localStorage → navigator → ko), 지구본 언어 전환 UI, 언어별 SEO 메타(og·hreflang) (#46)
 - 중국어·일본어 웹폰트(`Noto Sans SC`/`JP`) — 기존 `Noto Sans KR` 이 못 덮는 간체 한자·신자체가 OS 폴백으로 떨어지던 문제 해소 (#46)
 - README 영어 주 전환 + `README.ko.md` 분리, 저장소 description·topics 설정 (#46)
+- 설치 마법사 한국어·영어 지원 — 작업·아이콘·실행 문구를 Inno Setup 표준 메시지 상수로 전환해 선택한 언어를 따른다. 프로그램 목록 아이콘(`UninstallDisplayIcon`)도 표시된다 (#51)
+
+### 변경됨
+- README·가이드 사이트를 멀티게임 안내로 전환 — 두 README와 사이트 사전 4벌(ko/en/zh/ja)에서 게임별로 갈리는 것만 병기한다(기록 화면 진입 경로, 게임 폴더, 저장 위치 `data\hsr\`·`data\zzz\`, 저장 형식 SRGF v1.0 / UIGF v4.0). 사이트 로고는 두 게임을 겹쳐 표시 (#51)
 
 ### 수정됨
+- ZZZ 기록 화면 진입 경로 안내가 화면 이름만 담고 있던 문제 — ZZZ는 변조 화면과 기록 사이에 「상세」가 한 단계 더 있어 이 안내만으로는 기록 화면에 닿지 못했다. 네 언어 모두 3단계 경로로 교정(변조 → 상세 → 변조 기록) (#51)
+- 설치 마법사가 고DPI에서 작업 목록 체크박스 왼쪽이 잘리던 문제 — `WizardStyle=modern windows11` 로 회피(Inno Setup 6.7.3 현재 기본 테마 경로의 버그) (#51)
 - 가이드 아키텍처 문서 링크가 하위 경로 페이지(`/en/`·`/zh/`·`/ja/`)에서 404 나던 문제 — base 절대 경로로 수정 (#46)
 - 가이드 FAQ 의 소스 빌드 요구사항 정정 — `go` 도 설치돼 있어야 하며 PATH 에는 `node` 만 필요 (4개 언어) (#46)
 
@@ -93,6 +133,9 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[1.0.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.1
+[1.0.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.0
+[0.5.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.5.0
 [0.4.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.4.1
 [0.4.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.4.0
 [0.3.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.3.0

@@ -1,6 +1,12 @@
-// Versions tab — per-patch comparison (item 4). A range Select filters which
-// versions show; a row click highlights it; a bar chart compares average pity
-// against the 62.5 theoretical line (shorter = luckier).
+/**
+ * Versions 탭 — 패치별 비교. 범위 Select 로 표시할 버전을 거르고, 행을 누르면 강조되며,
+ * 막대 차트가 평균 뽑기를 이론 기준선과 비교한다(짧을수록 운이 좋다).
+ * @param {Object} props
+ * @param {{versions: Object[]}} props.D WARP_DATA.
+ * @param {string} props.theme 현재 테마(차트 재빌드 dep).
+ * @param {string} props.lang 현재 언어(차트 라벨 재빌드 dep).
+ * @returns {JSX.Element}
+ */
 function VersionsView({ D, theme, lang }) {
   const { Card, Select } = window.HSRWarpDesignSystem_4a0d44;
   const { num } = window.WarpUtil;
@@ -10,17 +16,27 @@ function VersionsView({ D, theme, lang }) {
   const [sel, setSel] = React.useState(null);
 
   const all = D.versions;
+  /** @param {string} v 버전 라벨(예: '3.1'). @returns {string} 메이저 버전('3'). */
+  const majorOf = (v) => String(v).split('.')[0];
+  // 비교 범위 선택지는 데이터의 메이저 버전에서 유도한다(게임마다 버전대가 다르다).
+  const majors = [...new Set(all.map((v) => majorOf(v.v)))].sort((a, b) => Number(b) - Number(a));
   // rows 는 시간순(ASC) — 차트가 그대로 쓴다. 하단 테이블만 렌더 시 reverse 해 최신 버전 우선(DESC).
-  const rows = all.filter((v) =>
-    range === '전체' ? true : range === '4.x' ? v.v.startsWith('4') : v.v.startsWith('3'));
+  const rows = all.filter((v) => (range === '전체' ? true : majorOf(v.v) === range));
 
-  // 선택 배너의 지표(평균뽑기·픽승/픽뚫·기준선). 없으면 all 로 폴백(구 데이터 방어).
+  /**
+   * 선택 배너의 지표(평균뽑기·픽승/픽뚫·기준선). 없으면 all 로 폴백(구 데이터 방어).
+   * @param {Object} v 버전 비교 행.
+   * @returns {Object} 선택된 축의 지표.
+   */
   const mOf = (v) => v[banner] || v.all;
   // 기준선: 표시된 버전 중 5★가 있는 것들의 base 평균(캐릭/광추는 상수, 전체는 개수가중 평균).
   const withData = rows.map(mOf).filter((m) => m && m.count5 > 0);
   const baseLine = withData.length ? withData.reduce((s, m) => s + m.base, 0) / withData.length
     : (rows[0] ? mOf(rows[0]).base : 62.5);
-  const bannerName = banner === 'all' ? t('scope.all') : bl(banner === 'char' ? '캐릭터' : '광추');
+  // 배너 이름은 게임마다 다르다 — 역할로 현재 게임의 short 를 얻어 라벨링한다.
+  const charShort = window.WarpData.roleShort('limited-char');
+  const lcShort = window.WarpData.roleShort('limited-weapon');
+  const bannerName = banner === 'all' ? t('scope.all') : bl(banner === 'char' ? charShort : lcShort);
 
   return (
     <div>
@@ -28,14 +44,13 @@ function VersionsView({ D, theme, lang }) {
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('table.banner')}</span>
         <Select value={banner} onChange={(e) => setBanner(e.target.value)}>
           <option value="all">{t('scope.all')}</option>
-          <option value="char">{bl('캐릭터')}</option>
-          <option value="lc">{bl('광추')}</option>
+          <option value="char">{bl(charShort)}</option>
+          <option value="lc">{bl(lcShort)}</option>
         </Select>
         <span style={{ fontSize: 13, color: 'var(--muted)' }}>{t('versions.compareRange')}</span>
         <Select value={range} onChange={(e) => setRange(e.target.value)}>
           <option value="전체">{t('scope.all')}</option>
-          <option value="4.x">4.x</option>
-          <option value="3.x">3.x</option>
+          {majors.map((m) => <option key={m} value={m}>{m + '.x'}</option>)}
         </Select>
         <span style={{ fontSize: 12.5, color: 'var(--muted)', marginLeft: 'auto' }}>{t('versions.clickRow')}</span>
       </div>
@@ -75,17 +90,32 @@ function VersionsView({ D, theme, lang }) {
   );
 }
 
+/**
+ * 버전별 평균 뽑기 막대 차트. 기준선보다 짧으면 초록, 길면 빨강이고,
+ * 선택된 버전이 있으면 나머지는 반투명해진다. y축엔 기준선 눈금을 강제로 추가한다.
+ * @param {Object} props
+ * @param {Object[]} props.rows 버전 비교 행 목록.
+ * @param {'char'|'lc'|'all'} props.banner 표시할 지표 축(없으면 all 로 폴백).
+ * @param {number} props.baseLine 이론 기준선(평균 뽑기).
+ * @param {string} props.sel 강조할 버전 라벨. 빈 값이면 전부 불투명.
+ * @param {string} props.theme 현재 테마(재빌드 dep).
+ * @param {string} props.lang 현재 언어(툴팁 단위 재평가 dep).
+ * @returns {JSX.Element}
+ */
 function VersionPityChart({ rows, banner, baseLine, sel, theme, lang }) {
   const ref = React.useRef();
   React.useEffect(() => {
     if (!window.Chart) return;
     const t = window.I18N.t;
+    /** @param {Object} v 버전 비교 행. @returns {Object} 선택된 축의 지표(없으면 all). */
     const mOf = (v) => v[banner] || v.all;
     const cs = getComputedStyle(document.documentElement);
     const muted = cs.getPropertyValue('--muted').trim(), grid = cs.getPropertyValue('--line').trim();
+    // 게임 팔레트(tokens/game.css)를 따른다 — 폴백은 colors.css 기본값.
+    const green = cs.getPropertyValue('--green').trim() || '#52d39a', red = cs.getPropertyValue('--red').trim() || '#ff6b6b';
     const colors = rows.map((v) => {
       const avg = mOf(v).avgPity;
-      const base = (avg != null && avg < baseLine) ? '#52d39a' : '#ff6b6b';
+      const base = (avg != null && avg < baseLine) ? green : red;
       return sel && sel !== v.v ? base + '66' : base;
     });
     const c = new Chart(ref.current, {

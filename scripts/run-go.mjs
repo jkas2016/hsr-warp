@@ -11,7 +11,10 @@ import path from 'node:path';
 const isWin = process.platform === 'win32';
 const exe = isWin ? 'go.exe' : 'go';
 
-// 1) 이미 PATH에 있으면 그걸 쓴다.
+/**
+ * 1) 이미 PATH에 있으면 그걸 쓴다.
+ * @returns {string|null} go 실행 파일 절대경로. 못 찾으면 null.
+ */
 function fromPath() {
   const r = spawnSync(isWin ? 'where' : 'which', ['go'], { encoding: 'utf8' });
   if (r.status === 0) {
@@ -21,7 +24,10 @@ function fromPath() {
   return null;
 }
 
-// 2) 흔한 설치 위치를 직접 확인한다.
+/**
+ * 2) 흔한 설치 위치를 직접 확인한다.
+ * @returns {string|null} go 실행 파일 경로. 못 찾으면 null.
+ */
 function fromKnownDirs() {
   const dirs = [
     process.env.GOROOT && path.join(process.env.GOROOT, 'bin'),
@@ -38,8 +44,11 @@ function fromKnownDirs() {
   return null;
 }
 
-// 3) (Windows) 레지스트리의 머신 PATH를 읽어 go.exe가 있는 디렉터리를 찾는다.
-//    "Machine PATH엔 있는데 현재 셸엔 없는" 정확히 그 상황을 해결한다.
+/**
+ * 3) (Windows) 레지스트리의 머신 PATH를 읽어 go.exe가 있는 디렉터리를 찾는다.
+ * "Machine PATH엔 있는데 현재 셸엔 없는" 정확히 그 상황을 해결한다.
+ * @returns {string|null} go.exe 경로. Windows 가 아니거나 못 찾으면 null.
+ */
 function fromMachineRegistry() {
   if (!isWin) return null;
   const r = spawnSync(

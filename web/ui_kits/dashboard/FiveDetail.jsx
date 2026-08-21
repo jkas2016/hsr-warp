@@ -1,5 +1,11 @@
-// 5★ detail modal — opens when a history row is clicked. Shows the warp's
-// context: banner, pity vs theoretical average, 50/50 outcome, version, time.
+/**
+ * 5★ 상세 모달 — 이력의 행을 누르면 열린다. 그 워프의 맥락(배너, 이론 평균 대비 천장,
+ * 50/50 결과, 버전, 시각)을 보여준다.
+ * @param {Object} props
+ * @param {Object|null} props.five 선택된 5★. null 이면 닫힌 Dialog 를 렌더한다.
+ * @param {function(): void} props.onClose 닫기 핸들러.
+ * @returns {JSX.Element}
+ */
 function FiveDetail({ five, onClose }) {
   const { Dialog, PityPill, Tag, ProgressBar, Badge } = window.HSRWarpDesignSystem_4a0d44;
   const { resultMeta } = window.WarpUtil;
@@ -49,7 +55,13 @@ function FiveDetail({ five, onClose }) {
   );
 }
 
-// 상세 모달의 라벨+값 셀. 모듈 스코프(매 렌더 remount 방지).
+/**
+ * 상세 모달의 라벨+값 셀. 모듈 스코프에 둔다(매 렌더 remount 방지).
+ * @param {Object} props
+ * @param {string} props.k 라벨.
+ * @param {React.ReactNode} props.children 값 영역.
+ * @returns {JSX.Element}
+ */
 function Stat({ k, children }) {
   return (
     <div style={{ flex: 1, minWidth: 120 }}>

@@ -26,23 +26,42 @@
 
   const KNOWN = new Set(SECTIONS.map((s) => s.id));
 
-  // 화면에 실재하는 섹션(present, DOM 순서) 중 체크된 것만 추린다.
-  // 순서는 present 를 따른다 — 사용자가 체크한 순서가 아니라 화면 순서로 쌓아야
-  // 결과물이 화면과 같은 흐름으로 읽힌다.
+  /**
+   * 화면에 실재하는 섹션(present, DOM 순서) 중 체크된 것만 추린다.
+   * 순서는 present 를 따른다 — 사용자가 체크한 순서가 아니라 화면 순서로 쌓아야
+   * 결과물이 화면과 같은 흐름으로 읽힌다.
+   * @param {string[]} present 화면에 실재하는 섹션 id 목록(DOM 순서).
+   * @param {string[]} checked 사용자가 체크한 섹션 id 목록.
+   * @returns {string[]} 레지스트리에 등록됐고 체크된 섹션 id 를 DOM 순서로.
+   */
   function selectSections(present, checked) {
     const on = new Set(checked || []);
     return (present || []).filter((id) => KNOWN.has(id) && on.has(id));
   }
 
-  // 문자열에서 uid 를 같은 길이의 • 로 치환한다. uid 가 비면 원본 그대로.
+  /**
+   * 문자열에서 uid 를 같은 길이의 • 로 치환한다. uid 가 비면 원본 그대로.
+   * @param {string} text 원본 문자열.
+   * @param {string} [uid] 가릴 UID. 비면 치환하지 않는다.
+   * @returns {string} 마스킹된 문자열.
+   */
   function maskUid(text, uid) {
     if (!uid) return text;
     return String(text).split(uid).join('•'.repeat(uid.length));
   }
 
+  /**
+   * 한 자리 수를 0 으로 채워 두 자리로 만든다.
+   * @param {number} n 대상 숫자.
+   * @returns {string} 두 자리 문자열.
+   */
   const p2 = (n) => String(n).padStart(2, '0');
 
-  // hsr-warp-YYYYMMDD-HHmm.png (로컬 시각)
+  /**
+   * 공유 PNG 의 파일명을 만든다 — hsr-warp-YYYYMMDD-HHmm.png (로컬 시각).
+   * @param {Date} [date] 기준 시각. 없으면 현재 시각.
+   * @returns {string} 파일명.
+   */
   function shareFileName(date) {
     const d = date || new Date();
     const ymd = String(d.getFullYear()) + p2(d.getMonth() + 1) + p2(d.getDate());
@@ -55,12 +74,20 @@
   // 오프스크린 캡처 박스에만 붙는 표식. 주입 CSS 의 스코프이자 실화면 격리 수단이다.
   const BOX_ATTR = 'data-share-box';
 
-  // 현재 화면에 실재하는 섹션 id 를 DOM 순서로. 탭이 바뀌면 결과도 바뀐다.
+  /**
+   * 현재 화면에 실재하는 섹션 id 를 DOM 순서로 모은다. 탭이 바뀌면 결과도 바뀐다.
+   * @returns {string[]} data-share 마커가 붙은 요소의 id 목록.
+   */
   function presentSections() {
     return [...document.querySelectorAll('[data-share]')].map((el) => el.dataset.share);
   }
 
-  // 클론 트리의 텍스트 노드만 순회하며 uid 를 가린다. 원본 DOM 은 건드리지 않는다.
+  /**
+   * 클론 트리의 텍스트 노드만 순회하며 uid 를 가린다. 원본 DOM 은 건드리지 않는다.
+   * @param {Node} root 순회 시작 노드(클론 트리의 루트).
+   * @param {string} [uid] 가릴 UID. 비면 아무것도 하지 않는다.
+   * @returns {void}
+   */
   function maskUidIn(root, uid) {
     if (!uid) return;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -70,8 +97,13 @@
     }
   }
 
-  // Chart.js 는 <canvas> 라 DOM 클론만으로는 빈 영역이 된다.
-  // 원본 canvas 에서 인스턴스를 역참조해 PNG 로 굽고, 클론 쪽을 <img> 로 바꾼다.
+  /**
+   * Chart.js 는 <canvas> 라 DOM 클론만으로는 빈 영역이 된다.
+   * 원본 canvas 에서 인스턴스를 역참조해 PNG 로 굽고, 클론 쪽을 <img> 로 바꾼다.
+   * @param {Element} srcRoot 화면의 원본 서브트리.
+   * @param {Element} cloneRoot 같은 구조의 클론 서브트리.
+   * @returns {void}
+   */
   function swapCanvases(srcRoot, cloneRoot) {
     const srcs = srcRoot.querySelectorAll('canvas');
     const dsts = cloneRoot.querySelectorAll('canvas');
@@ -124,6 +156,11 @@
   // 애니메이션이 시작되기 전에도 "연속 동일" 이 성립해 0 이 박힌 PNG 가 나온다.
   // 게다가 rAF 는 비가시/헤드리스 상태에서 throttle 되거나 멈춘다.
   // setTimeout 은 useCountUp 의 safety 타이머와 같은 시계를 쓰므로 시간 보장이 성립한다.
+  /**
+   * 주어진 시간만큼 기다린다.
+   * @param {number} ms 대기 시간(ms).
+   * @returns {Promise<void>} 대기가 끝나면 resolve.
+   */
   function settle(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -157,7 +194,11 @@
   // 파일만 고치고 예전 exe 로 서빙하면 이 함수가 아예 실행되지 않는다.
   // 실제로 첫 검증 라운드가 그 상태로 돌아 "효과 없음" 으로 오판됐다.
 
-  // 폭 조건이 720px 박스에서 성립하는가. 폭 조건이 하나도 없으면 false(= 대상 아님).
+  /**
+   * 폭 조건이 720px 박스에서 성립하는가. 폭 조건이 하나도 없으면 false(= 대상 아님).
+   * @param {string} cond 미디어 쿼리 조건 문자열.
+   * @returns {boolean} 720px 에서 성립하면 true.
+   */
   function widthCondMatches(cond) {
     const re = /\((max|min)-width\s*:\s*([\d.]+)px\)/g;
     let m, seen = false;
@@ -169,6 +210,11 @@
     return seen;
   }
 
+  /**
+   * 문서의 폭 미디어 쿼리 중 720px 에서 성립하는 블록을 CSSOM 으로 읽어,
+   * 오프스크린 박스 하위 한정([data-share-box] 접두)으로 재선언하는 CSS 를 만든다.
+   * @returns {string} 박스에 주입할 CSS 텍스트. 대상이 없으면 빈 문자열.
+   */
   function narrowGridCss() {
     const out = [];
     for (let i = 0; i < document.styleSheets.length; i++) {
@@ -192,8 +238,15 @@
     return out.join('\n');
   }
 
-  // 선택 섹션을 오프스크린 고정 폭 컨테이너에 쌓아 PNG blob 을 만든다.
-  // 화면 폭·스크롤 위치와 무관한 결과물이 나온다.
+  /**
+   * 선택 섹션을 오프스크린 고정 폭 컨테이너에 쌓아 PNG blob 을 만든다.
+   * 화면 폭·스크롤 위치와 무관한 결과물이 나온다.
+   * @param {Object} opts
+   * @param {string[]} opts.ids 담을 섹션 id 목록(화면 순서).
+   * @param {string} [opts.uid] 마스킹 대상 UID.
+   * @param {boolean} [opts.mask] true 면 클론 트리에서 UID 를 가린다.
+   * @returns {Promise<Blob>} 캡처된 PNG blob.
+   */
   async function exportPng(opts) {
     const ids = (opts && opts.ids) || [];
     const uid = opts && opts.uid;
@@ -260,8 +313,13 @@
     }
   }
 
-  // blob 저장. 다운로드가 막힌 환경(iOS Safari 등)이면 false 를 돌려주고
-  // 호출부가 미리보기 폴백으로 넘어간다.
+  /**
+   * blob 을 파일로 저장한다. 다운로드가 막힌 환경(iOS Safari 등)이면 false 를 돌려주고
+   * 호출부가 미리보기 폴백으로 넘어간다.
+   * @param {Blob} blob 저장할 데이터.
+   * @param {string} filename 저장 파일명.
+   * @returns {boolean} 다운로드를 실제로 트리거했으면 true.
+   */
   function saveBlob(blob, filename) {
     const a = document.createElement('a');
     if (typeof a.download === 'undefined') return false;

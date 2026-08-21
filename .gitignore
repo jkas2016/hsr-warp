@@ -31,6 +31,8 @@ warp_data.sample.json
 # Inno Setup 컴파일 출력 (CI 전용; 로컬에서 생성되더라도 추적 안 함)
 installer/Output/
 
-# 로컬 기획 산출물(superpowers) · 개발 도구 — 추적 안 함
+# 로컬 기획 산출물(superpowers) — 추적 안 함
 .superpowers/
-tools/
+
+# git worktree 작업 공간 — 같은 저장소의 사본이라 커밋되면 트리가 통째로 중복된다
+.claude/worktrees/

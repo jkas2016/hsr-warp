@@ -1,3 +1,6 @@
+// Command hsr-warp 는 게임 캐시에서 authkey 를 뽑아 가챠 기록을 증분 수집하고,
+// SRGF 로 로컬 저장한 뒤 내장 대시보드를 로컬 HTTP 로 서빙하는 단일 실행파일이다.
+// 수집한 사용자 기록은 외부로 전송하지 않는다.
 package main
 
 import (
@@ -18,6 +21,7 @@ import (
 	"time"
 
 	"hsr-warp/internal/server"
+	"hsr-warp/internal/store"
 )
 
 // 아이콘 리소스(resource_windows_amd64.syso)는 아래 generate 로 만든다(icon.ico 변경 시 재실행):
@@ -32,7 +36,7 @@ import (
 var webFiles embed.FS
 
 // version 은 릴리스 빌드 시 goreleaser 가 ldflags(-X main.version)로 주입한다.
-// 직접 빌드 시에는 기본값 "dev" 가 쓰인다. (.goreleaser.yaml 참고)
+// 직접 빌드 시에는 기본값 "dev" 가 쓰인다(.goreleaser.yaml 참고).
 var version = "dev"
 
 // logLevel 은 빌드 시 ldflags 로 주입하는 기본 로그 레벨이다(릴리스=info).
@@ -72,6 +76,7 @@ func resolveLevel(env, baked string) slog.Level {
 // 스택이 남는다 — Go 엔 전역 예외 핸들러가 없으므로 이것이 로깅 계층의 전역 보장이다.
 type stackHandler struct{ slog.Handler }
 
+// Handle 은 ERROR 이상이면 스택트레이스를 attr 로 덧붙인 뒤 하위 핸들러에 넘긴다.
 func (h stackHandler) Handle(ctx context.Context, r slog.Record) error {
 	if r.Level >= slog.LevelError {
 		r.AddAttrs(slog.String("stack", string(debug.Stack())))
@@ -109,6 +114,8 @@ func fatal(msg string, args ...any) {
 	os.Exit(1)
 }
 
+// baseDir 는 data/·logs/·config.json 의 기준 디렉터리인 실행파일 위치를 반환한다.
+// 실행파일 경로를 못 구하면 현재 작업 디렉터리로 물러선다(go run 등).
 func baseDir() string {
 	exe, err := os.Executable()
 	if err != nil {
@@ -140,12 +147,19 @@ func openBrowser(url string) {
 	}
 }
 
+// main 은 로깅 설정 → 레거시 데이터 마이그레이션 → 빈 포트 확보 → 브라우저 열기
+// 순으로 준비한 뒤 HTTP 서버를 띄운다. 준비 단계 실패는 fatal 로 즉시 끝낸다.
 func main() {
 	base := baseDir()
 	setupLogging(base)
 	paths := server.Paths{
 		DataDir:    filepath.Join(base, "data"),
 		ConfigFile: filepath.Join(base, "config.json"),
+	}
+	// 구버전 레이아웃을 게임별 디렉터리로 옮긴다. 실패해도 앱은 계속 뜬다 —
+	// 최악의 경우 기존 기록이 안 보일 뿐이고, 재수집으로 복구된다.
+	if _, err := store.MigrateLegacyLayout(paths.DataDir); err != nil {
+		slog.Error("데이터 마이그레이션 실패", "err", err)
 	}
 	assets, err := fs.Sub(webFiles, "web")
 	if err != nil {
@@ -159,7 +173,7 @@ func main() {
 	}
 	url := fmt.Sprintf("http://127.0.0.1:%d/ui_kits/dashboard/", port)
 	slog.Info("대시보드 시작", "version", version, "url", url)
-	fmt.Printf("HSR 워프 대시보드 %s: %s\n(종료하려면 이 창에서 Ctrl+C)\n", version, url)
+	fmt.Printf("가챠 기록 대시보드 %s: %s\n(종료하려면 이 창에서 Ctrl+C)\n", version, url)
 	openBrowser(url)
 	// ReadHeaderTimeout: 로컬 slowloris 스톨 방지(헤더 읽기 단계만 제한 — SSE 장수명 응답엔 무영향).
 	httpSrv := &http.Server{Handler: srv.Handler(), ReadHeaderTimeout: 10 * time.Second}

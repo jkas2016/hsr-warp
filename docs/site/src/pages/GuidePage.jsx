@@ -1,9 +1,37 @@
 import { LangSwitcher } from './LangSwitcher.jsx';
 
+/**
+ * 가이드 사이트 본문 전체(히어로 · 기능 · 지표 · 파일 · 문제 해결 · FAQ · 푸터).
+ * 문구는 전부 dict 에서 온다 — 이 컴포넌트에 표시 문자열을 박지 않는다.
+ * @param {Object} props
+ * @param {Object} props.dict 현재 언어 사전(docs/site/src/i18n/<lang>.jsx).
+ * @param {string} [props.lang='ko'] 현재 언어 코드.
+ * @returns {JSX.Element}
+ */
 export function GuidePage({ dict, lang = 'ko' }) {
   const t = dict;
   const logo = import.meta.env.BASE_URL + 'logo-train.svg';
+  const logoZzz = import.meta.env.BASE_URL + 'logo-zzz.svg';
+  /**
+   * 배포 하위 경로(BASE_URL)를 붙인 자산 경로. 절대경로를 박으면 하위 경로 배포에서 404 난다.
+   * @param {string} f 자산 파일명.
+   * @returns {string} 사용 가능한 URL.
+   */
   const asset = (f) => import.meta.env.BASE_URL + f;
+
+  /**
+   * 두 게임 로고 한 쌍. 장식으로 쓰는 자리(목업·푸터)는 alt 를 비운다 —
+   * 바로 옆 텍스트가 같은 내용을 이미 말하고 있어 스크린리더에 중복된다.
+   * @param {Object} props
+   * @param {[string, string]} [props.alt=['','']] 두 로고의 대체 텍스트.
+   * @returns {JSX.Element}
+   */
+  const Logos = ({ alt = ['', ''] }) => (
+    <span className="logos">
+      <img src={logo} alt={alt[0]} />
+      <img src={logoZzz} alt={alt[1]} />
+    </span>
+  );
 
   // features 카드 아이콘(문구는 t.features에서, 아이콘은 구조라 여기 유지)
   const featIcons = [
@@ -24,7 +52,7 @@ export function GuidePage({ dict, lang = 'ko' }) {
       <nav className="nav">
         <div className="wrap nav-in">
           <a className="brand" href="#top">
-            <img src={logo} alt={t.nav.logoAlt} />
+            <Logos alt={[t.nav.logoAlt, t.nav.logoAltZzz]} />
             {t.nav.brand}
           </a>
           <div className="nav-links">
@@ -75,7 +103,7 @@ export function GuidePage({ dict, lang = 'ko' }) {
             </div>
             <div className="mock-body">
               <div className="mock-h">
-                <img src={logo} alt="" />
+                <Logos />
                 <b>{t.mock.heading}</b>
               </div>
               <div className="mock-stats">
@@ -296,7 +324,7 @@ export function GuidePage({ dict, lang = 'ko' }) {
         <div className="wrap">
           <div className="foot-grid">
             <div>
-              <div className="brand"><img src={logo} alt="" style={{ width: '30px', height: '30px', borderRadius: '8px' }} /> {t.footer.brand}</div>
+              <div className="brand"><Logos /> {t.footer.brand}</div>
               <p className="disc">{t.footer.disc}</p>
             </div>
             <div className="links">

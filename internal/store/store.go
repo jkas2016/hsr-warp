@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"hsr-warp/internal/game"
 )
 
 // monthOf 는 "2026-06-03 12:00:00" → "202606" 으로 변환한다. 형식 불일치 시 "".
@@ -22,6 +24,8 @@ func monthOf(t string) string {
 	return ym[:4] + ym[5:7]
 }
 
+// sortByID 는 recs 를 id 오름차순으로 제자리 정렬한다. id 는 거대 정수라
+// 문자열 비교가 아닌 idLess(math/big) 로 비교한다.
 func sortByID(recs []Record) {
 	sort.SliceStable(recs, func(i, j int) bool { return idLess(recs[i].ID, recs[j].ID) })
 }
@@ -134,16 +138,20 @@ func LoadAll(dir string) ([]Record, *Info, error) {
 	return dedupByID(all), info, nil
 }
 
-// MaxIDByBanner 는 배너별('1','2','11','12') 최대 id 를 반환한다(없으면 "0").
-func MaxIDByBanner(recs []Record) map[string]string {
-	max := map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}
+// MaxIDByBanner 는 배너별로 이미 저장된 최대 ID 를 반환한다. 증분 조회의
+// 시작점이므로 게임의 모든 배너 코드가 키로 존재해야 한다.
+func MaxIDByBanner(recs []Record, g game.Game) map[string]string {
+	out := map[string]string{}
+	for _, c := range g.Codes() {
+		out[c] = "0"
+	}
 	for _, r := range recs {
-		cur, ok := max[r.GachaType]
+		cur, ok := out[r.GachaType]
 		if ok && idLess(cur, r.ID) {
-			max[r.GachaType] = r.ID
+			out[r.GachaType] = r.ID
 		}
 	}
-	return max
+	return out
 }
 
 // WriteAffectedMonths 는 newRecords 를 월별로 그룹핑해, 신규가 생긴 월 파일만

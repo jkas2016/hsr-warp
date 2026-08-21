@@ -27,11 +27,37 @@ func TestScheduleVersion(t *testing.T) {
 	}
 }
 
+// order 가 banners 에 없는 코드를 참조하면 web/analyze.js 의 codesByRole 이 TypeError로
+// 죽어 대시보드가 백지가 된다(F3). schedule.json 은 원격에서 받아 그대로 기록하는 파일이라
+// 이 검증이 없으면 오배포가 그대로 사용자 앱까지 전파된다. banners/order 가 아예 없는
+// 구 스키마(HSR 구버전 호환)는 이 검증을 건너뛰고 여전히 유효해야 한다.
+func TestScheduleVersion_BannersOrderConsistency(t *testing.T) {
+	mismatched := `{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}],
+		"banners":{"2":{"role":"limited-char"}},
+		"order":["2","99"]}`
+	if _, ok := ScheduleVersion([]byte(mismatched)); ok {
+		t.Fatal("order 의 코드가 banners 에 없으면 무효여야 한다")
+	}
+
+	matched := `{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}],
+		"banners":{"2":{"role":"limited-char"},"3":{"role":"limited-weapon"}},
+		"order":["2","3"]}`
+	if v, ok := ScheduleVersion([]byte(matched)); !ok || v != 3 {
+		t.Fatalf("일치하는 banners/order 는 유효해야 한다: got (%d,%v)", v, ok)
+	}
+
+	// 구 스키마(banners/order 없음) — goodSchedule 은 이미 위 TestScheduleVersion 에서
+	// 통과를 확인했지만, 여기선 그 동작이 이 검증 추가로 깨지지 않았음을 재확인한다.
+	if _, ok := ScheduleVersion([]byte(goodSchedule)); !ok {
+		t.Fatal("banners/order 없는 구 스키마는 여전히 유효해야 한다")
+	}
+}
+
 func TestEffectiveSchedule(t *testing.T) {
 	embedded := []byte(`{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`)
 	dir := t.TempDir()
 	// data/ 없음 → 내장본.
-	if got := EffectiveSchedule(dir, embedded); string(got) != string(embedded) {
+	if got := EffectiveSchedule(dir, embedded, "hsr"); string(got) != string(embedded) {
 		t.Fatal("missing data/ should fall back to embedded")
 	}
 	// data/ 가 더 높은 version → data/.
@@ -39,18 +65,18 @@ func TestEffectiveSchedule(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "schedule.json"), higher, 0644); err != nil {
 		t.Fatal(err)
 	}
-	if got := EffectiveSchedule(dir, embedded); string(got) != string(higher) {
+	if got := EffectiveSchedule(dir, embedded, "hsr"); string(got) != string(higher) {
 		t.Fatal("higher data/ should win")
 	}
 	// data/ 가 같거나 낮으면 내장본.
 	lower := []byte(`{"version":3,"schedule":[{"s":"2023-04-26","e":"2023-05-17","c":["1102"],"l":["23001"]}]}`)
 	_ = os.WriteFile(filepath.Join(dir, "schedule.json"), lower, 0644)
-	if got := EffectiveSchedule(dir, embedded); string(got) != string(embedded) {
+	if got := EffectiveSchedule(dir, embedded, "hsr"); string(got) != string(embedded) {
 		t.Fatal("equal/lower data/ should fall back to embedded")
 	}
 	// data/ 가 깨졌으면 내장본.
 	_ = os.WriteFile(filepath.Join(dir, "schedule.json"), []byte("corrupt"), 0644)
-	if got := EffectiveSchedule(dir, embedded); string(got) != string(embedded) {
+	if got := EffectiveSchedule(dir, embedded, "hsr"); string(got) != string(embedded) {
 		t.Fatal("corrupt data/ should fall back to embedded")
 	}
 }
@@ -126,7 +152,7 @@ func TestCheckSchedule(t *testing.T) {
 	dir := t.TempDir()
 
 	// 원격이 더 높음 → data/ 기록 + Updated.
-	got, err := CheckSchedule(srv.Client(), srv.URL, dir, embedded)
+	got, err := CheckSchedule(srv.Client(), srv.URL, dir, embedded, "hsr")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +165,7 @@ func TestCheckSchedule(t *testing.T) {
 	}
 
 	// 다시 호출 → 같은 version 이라 미갱신.
-	if got, _ := CheckSchedule(srv.Client(), srv.URL, dir, embedded); got.Updated {
+	if got, _ := CheckSchedule(srv.Client(), srv.URL, dir, embedded, "hsr"); got.Updated {
 		t.Fatalf("second call should not update: %+v", got)
 	}
 }
@@ -149,7 +175,7 @@ func TestCheckSchedule_InvalidRemoteIgnored(t *testing.T) {
 	srv := releaseServer(t, `garbage`)
 	defer srv.Close()
 	dir := t.TempDir()
-	got, err := CheckSchedule(srv.Client(), srv.URL, dir, embedded)
+	got, err := CheckSchedule(srv.Client(), srv.URL, dir, embedded, "hsr")
 	if err != nil || got.Updated {
 		t.Fatalf("invalid remote should be ignored: got %+v err %v", got, err)
 	}
@@ -170,6 +196,39 @@ func TestWriteAtomic_CleansTempOnRenameFailure(t *testing.T) {
 	}
 	if leftovers, _ := filepath.Glob(filepath.Join(dir, "*.tmp")); len(leftovers) != 0 {
 		t.Fatalf("임시 파일이 정리되지 않음: %v", leftovers)
+	}
+}
+
+// 게임별 override 파일은 서로를 침범하지 않아야 한다. ZZZ override 가 HSR
+// 스케줄로 서빙되면 50/50 판정이 통째로 어긋난다.
+func TestEffectiveSchedule_IsPerGame(t *testing.T) {
+	dir := t.TempDir()
+	emb := []byte(`{"version":1,"schedule":[{"s":"2024-01-01","e":"2024-02-01","c":[],"l":[]}]}`)
+	zzzOverride := []byte(`{"version":9,"schedule":[{"s":"2025-01-01","e":"2025-02-01","c":[],"l":[]}]}`)
+	if err := os.WriteFile(filepath.Join(dir, "zzz-schedule.json"), zzzOverride, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := EffectiveSchedule(dir, emb, "zzz"); string(got) != string(zzzOverride) {
+		t.Errorf("zzz override 가 적용되지 않았다: %s", got)
+	}
+	// HSR 은 자기 override 파일(data/schedule.json)이 없으므로 내장본이다.
+	if got := EffectiveSchedule(dir, emb, "hsr"); string(got) != string(emb) {
+		t.Errorf("hsr 이 zzz override 에 오염됐다: %s", got)
+	}
+}
+
+// HSR override 경로는 data/schedule.json 그대로여야 한다 — 구버전 exe 가
+// 계속 이 파일을 쓰기 때문이다.
+func TestEffectiveSchedule_HSRKeepsLegacyPath(t *testing.T) {
+	dir := t.TempDir()
+	emb := []byte(`{"version":1,"schedule":[{"s":"2024-01-01","e":"2024-02-01","c":[],"l":[]}]}`)
+	override := []byte(`{"version":5,"schedule":[{"s":"2025-01-01","e":"2025-02-01","c":[],"l":[]}]}`)
+	if err := os.WriteFile(filepath.Join(dir, "schedule.json"), override, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if got := EffectiveSchedule(dir, emb, "hsr"); string(got) != string(override) {
+		t.Errorf("hsr override 가 적용되지 않았다: %s", got)
 	}
 }
 

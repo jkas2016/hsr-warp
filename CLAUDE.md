@@ -13,9 +13,14 @@ npm run build:debug                             # 개발용: 로그 debug 박은
 .\hsr-warp.exe                                  # 실행 (런타임 HSRWARP_LOG=debug 로도 override)
 npm test   # 전체 테스트(go + analyze + 대시보드 util/i18n/items/nohardcode + 사이트 copy)
 npm run schedule:status   # 배너 데이터가 몇 버전(패치)까지 대응됐는지 즉시 확인
+
+npm run release -- X.Y.Z --dry-run   # 확정될 CHANGELOG 미리보기
+npm run release -- X.Y.Z             # 릴리스 발행 — CHANGELOG 확정 → push → 태그 → Actions 관찰
+                                     # 버전의 단일 소스는 태그다. [Unreleased] 본문은 손으로 쓴다(상세는 ARCHITECTURE.md)
 ```
 
 포맷·정적검사는 `gofmt -w .` 와 `go vet ./...` 가 권위 — 컨벤션을 글로 적지 않는다.
+문서 주석·정적분석은 `npm run lint:go`(golangci-lint, 설정은 `.golangci.yml`). 바이너리는 공식 권장대로 별도 설치한다(`choco install golangci-lint` — 관리자 셸 필요, 또는 [릴리스 zip](https://github.com/golangci/golangci-lint/releases) 을 PATH 에). `go install` 설치는 [공식 문서가 비권장](https://golangci-lint.run/docs/welcome/install/local/)한다.
 
 ## 깨면 안 되는 것
 
@@ -23,5 +28,7 @@ npm run schedule:status   # 배너 데이터가 몇 버전(패치)까지 대응�
 - **저장은 비파괴**: `WriteAffectedMonths`는 신규 생긴 월만 재작성, 나머지 보존. `TestWriteAffectedMonths_PreservesUntouchedMonths`가 강제.
 - **50/50 판정은 `web/analyze.js` 단일 소스**: 신규 패치마다 `web/schedule.json`의 `schedule`에 `{s,e,c,l}`·`versions`에 `{v,s}` 추가하고 `version`(정수)을 올린다(업데이터가 version 비교로 배포). 신규 캐릭터/광추 이름은 `node scripts/extract-item-names.mjs`로 재추출. 현황은 `npm run schedule:status` (상세는 ARCHITECTURE.md).
 - **대시보드는 React DS 킷**: `web/ui_kits/dashboard/`(진입 `index.html`, 서빙 URL `/ui_kits/dashboard/`). `data.js`가 `analyze.js` 출력을 킷 컴포넌트용 `WARP_DATA` 형태로 어댑트할 뿐 — 분석 로직은 `analyze.js` 단일 소스를 유지하고 킷에서 재구현하지 않는다. `main.go`의 `go:embed`는 `all:web`(언더스코어로 시작하는 `_ds_bundle.js`를 포함하려면 `all:` 필요).
+- **신규 채널은 코드부터 실측**: 기간 한정 특별 픽업은 기존 채널과 별개 코드로 온다(ZZZ 3인 동시 픽업 = `real_gacha_type` 102/103). 목록에 없으면 요청조차 안 가 기록이 통째로 사라지는데 에러는 안 난다. `go run ./tools/channelprobe <game> <path> <코드...>` 로 훑되 **한 자리 수에서 멈추지 말고 100번대까지** 보고, 배너가 진행 중일 때 훑는다. 추가 시 손댈 파일 목록은 ARCHITECTURE.md "신규 가챠 채널이 열렸을 때".
+- **`web/` 수정 후엔 재빌드**: 대시보드 자산은 `go:embed` 라 실행 중인 exe 는 옛 파일을 계속 서빙한다. 브라우저 새로고침으로는 안 바뀐다.
 - **에러 로그엔 항상 스택**: 새 로그는 `log` 말고 `slog` 사용 (`stackHandler`가 ERROR에 스택 자동 첨부).
 - **authkey는 게임 전언 기록 화면을 ~24h 내 열어야 유효**. 없으면 조회는 SSE error(설계된 동작).

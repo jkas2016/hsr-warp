@@ -25,10 +25,17 @@ type scheduleFile struct {
 		C []string `json:"c"`
 		L []string `json:"l"`
 	} `json:"schedule"`
+	// Banners/Order 는 신 스키마(배너 코드 테이블)에서만 온다. 구 스키마(HSR 구버전)엔
+	// 아예 없으므로 nil 이 정상 — 그땐 아래 일치 검증을 건너뛴다.
+	Banners map[string]json.RawMessage `json:"banners"`
+	Order   []string                   `json:"order"`
 }
 
 // ScheduleVersion 은 schedule.json 바이트를 검증하고 version 을 돌려준다.
 // 구조가 깨졌거나 version<1 이거나 항목이 없거나 s/e 가 YYYY-MM-DD 로 파싱 불가면 ok=false.
+// banners/order 블록이 있으면(신 스키마) order 의 모든 코드가 banners 에 존재해야 한다 —
+// 어긋나면 web/analyze.js 의 codesByRole 이 해당 채널을 통째로 못 찾아 대시보드가 깨진다.
+// banners/order 가 아예 없는 구 스키마는 이 검증을 건너뛰고 그대로 유효하다.
 func ScheduleVersion(b []byte) (int, bool) {
 	var f scheduleFile
 	if err := json.Unmarshal(b, &f); err != nil {
@@ -42,6 +49,11 @@ func ScheduleVersion(b []byte) (int, bool) {
 			return 0, false
 		}
 		if _, err := time.Parse("2006-01-02", e.E); err != nil {
+			return 0, false
+		}
+	}
+	for _, code := range f.Order {
+		if _, ok := f.Banners[code]; !ok {
 			return 0, false
 		}
 	}
@@ -137,10 +149,19 @@ type ScheduleStatus struct {
 	Version int  `json:"version"`
 }
 
+// scheduleFileName 은 게임의 override 파일명을 반환한다. HSR 은 구버전 exe 가
+// 계속 쓰는 schedule.json 을 그대로 유지한다.
+func scheduleFileName(gameID string) string {
+	if gameID == "hsr" {
+		return "schedule.json"
+	}
+	return gameID + "-schedule.json"
+}
+
 // CheckSchedule 은 rawURL 에서 schedule.json 을 받아 검증하고, 현재 유효 version 보다 높으면
-// data/schedule.json 에 원자적으로 기록한다(인앱 갱신). 깨진 응답·동일/구버전은 무시(에러 아님).
-func CheckSchedule(client *http.Client, rawURL, dataDir string, embedded []byte) (ScheduleStatus, error) {
-	cur, _ := ScheduleVersion(EffectiveSchedule(dataDir, embedded))
+// data/ 의 게임별 override 파일에 원자적으로 기록한다(인앱 갱신). 깨진 응답·동일/구버전은 무시(에러 아님).
+func CheckSchedule(client *http.Client, rawURL, dataDir string, embedded []byte, gameID string) (ScheduleStatus, error) {
+	cur, _ := ScheduleVersion(EffectiveSchedule(dataDir, embedded, gameID))
 	b, err := fetch(client, rawURL)
 	if err != nil {
 		return ScheduleStatus{Version: cur}, err
@@ -149,12 +170,14 @@ func CheckSchedule(client *http.Client, rawURL, dataDir string, embedded []byte)
 	if !ok || v <= cur {
 		return ScheduleStatus{Version: cur}, nil
 	}
-	if err := writeAtomic(filepath.Join(dataDir, "schedule.json"), b); err != nil {
+	if err := writeAtomic(filepath.Join(dataDir, scheduleFileName(gameID)), b); err != nil {
 		return ScheduleStatus{Version: cur}, err
 	}
 	return ScheduleStatus{Updated: true, Version: v}, nil
 }
 
+// writeAtomic 은 임시 파일에 쓴 뒤 rename 으로 교체해, 중간에 실패해도
+// 반쯤 쓰인 파일이 남지 않게 한다. rename 이 실패하면 임시 파일을 지운다.
 func writeAtomic(path string, b []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
@@ -170,6 +193,8 @@ func writeAtomic(path string, b []byte) error {
 	return nil
 }
 
+// fetch 는 url 을 GET 해 본문을 읽는다. 200 이 아니면 에러이고, 본문은
+// 1MB 로 잘라 읽어 비정상적으로 큰 응답에 메모리를 쓰지 않는다.
 func fetch(client *http.Client, url string) ([]byte, error) {
 	resp, err := client.Get(url)
 	if err != nil {
@@ -189,10 +214,10 @@ type Updates struct {
 }
 
 // EffectiveSchedule 는 서빙할 schedule.json 바이트를 고른다:
-// data/schedule.json 이 유효하고 version 이 내장본보다 크면 그걸, 아니면 내장본.
+// data/ 의 게임별 override 가 유효하고 version 이 내장본보다 크면 그걸, 아니면 내장본.
 // 내장본이 깨졌더라도 내장본을 그대로 돌려준다(베스트에포트 — 빌드 시 내장본 무결성은 호출부 책임).
-func EffectiveSchedule(dataDir string, embedded []byte) []byte {
-	b, err := os.ReadFile(filepath.Join(dataDir, "schedule.json"))
+func EffectiveSchedule(dataDir string, embedded []byte, gameID string) []byte {
+	b, err := os.ReadFile(filepath.Join(dataDir, scheduleFileName(gameID)))
 	if err != nil {
 		return embedded
 	}

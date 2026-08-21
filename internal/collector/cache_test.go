@@ -1,7 +1,13 @@
 package collector
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"hsr-warp/internal/game"
 )
 
 func TestParseAuthURL(t *testing.T) {
@@ -133,6 +139,56 @@ func contains(s, sub string) bool {
 	return false
 }
 
+// ZZZ 는 캐시 루트 디렉터리 이름이 다르다. 게임 값 테이블의 DataDirName 을
+// 실제로 쓰는지 확인한다 — 하드코딩된 StarRail_Data 가 남아 있으면 실패한다.
+func TestFindAuthContext_UsesGameDataDirName(t *testing.T) {
+	root := t.TempDir()
+	// ZZZ 캐시 구조만 만들고 HSR 구조는 만들지 않는다.
+	dir := filepath.Join(root, "ZenlessZoneZero_Data", "webCaches", "2.51.0.0", "Cache", "Cache_Data")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	raw := "https://public-operation-common-sg.hoyoverse.com/common/gacha_record/api/getGachaLog" +
+		"?authkey=AAA&region=prod_gf_jp&lang=ko&real_gacha_type=2&timestamp=1700000000"
+	if err := os.WriteFile(filepath.Join(dir, "data_2"), []byte(raw), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	zzz, _ := game.ByID("zzz")
+	ac, err := FindAuthContext(root, zzz)
+	if err != nil {
+		t.Fatalf("ZZZ 캐시를 찾지 못했다: %v", err)
+	}
+	if ac.Region != "prod_gf_jp" || ac.Lang != "ko" {
+		t.Errorf("region/lang = %q/%q, want prod_gf_jp/ko", ac.Region, ac.Lang)
+	}
+
+	// 같은 루트를 HSR 로 보면 StarRail_Data 가 없으므로 실패해야 한다.
+	hsr, _ := game.ByID("hsr")
+	if _, err := FindAuthContext(root, hsr); err == nil {
+		t.Error("HSR 캐시가 없는데 성공했다")
+	}
+}
+
+// 실측: authkey URL 의 베이스 쿼리에 real_gacha_type 이 이미 들어 있다.
+// pageKeys 로 제거하지 않으면 페이지 조립 시 파라미터가 중복되고 서버가 앞의
+// 값을 채택해 4개 채널이 전부 같은 데이터를 반환한다.
+func TestParseAuthURL_StripsRealGachaType(t *testing.T) {
+	raw := "https://h/common/gacha_record/api/getGachaLog" +
+		"?authkey=AAA&region=prod_gf_jp&lang=ko&real_gacha_type=2&size=20&timestamp=1700000000"
+	ac, err := parseAuthURL([]byte(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(ac.BaseQuery, "real_gacha_type") {
+		t.Errorf("BaseQuery 에 real_gacha_type 이 남았다: %q", ac.BaseQuery)
+	}
+	// 다른 파라미터는 보존돼야 한다.
+	if !strings.Contains(ac.BaseQuery, "authkey=AAA") || !strings.Contains(ac.BaseQuery, "lang=ko") {
+		t.Errorf("필요한 쿼리가 사라졌다: %q", ac.BaseQuery)
+	}
+}
+
 func TestLatestVersion(t *testing.T) {
 	got := latestVersion([]string{"2.9.0.0", "2.10.0.0", "2.3.5.1"})
 	if got != "2.10.0.0" {
@@ -140,5 +196,115 @@ func TestLatestVersion(t *testing.T) {
 	}
 	if latestVersion(nil) != "" {
 		t.Fatalf("expected empty for nil input")
+	}
+}
+
+// 캐시에 authkey 가 여러 개 누적돼 있으면(기록 화면을 여러 번 열었을 때) 후보를
+// 최신 추정 순으로 모두 내줘야 한다 — 하나만 집어 실패하면 살아있는 authkey 를
+// 캐시에 두고도 조회가 막힌다(2026-08-20 ZZZ 실측 회귀).
+func TestFindAuthContexts_OrdersByCacheTime(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "ZenlessZoneZero_Data", "webCaches", "2.51.0.0", "Cache", "Cache_Data")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	f := newCacheFixture()
+	old := time.Date(2026, 8, 18, 2, 43, 0, 0, time.Local)
+	fresh := time.Date(2026, 8, 20, 0, 32, 0, 0, time.Local)
+	f.addEntry(old, "1/0/"+gachaURL+"?authkey=OLD&lang=ko&region=prod_gf_jp&timestamp=1785284008")
+	f.addEntry(fresh, "1/0/"+gachaURL+"?authkey=FRESH&lang=ko&region=prod_gf_jp&timestamp=1785283910")
+	if err := os.WriteFile(filepath.Join(dir, "data_1"), f.data1, 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "data_2"), f.data2, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	zzz, _ := game.ByID("zzz")
+	cands, err := FindAuthContexts(root, zzz)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cands) != 2 {
+		t.Fatalf("후보 2개를 기대, got %d", len(cands))
+	}
+	if !strings.Contains(cands[0].BaseQuery, "authkey=FRESH") {
+		t.Fatalf("첫 후보는 캐시 최신이어야 함: %s", cands[0].BaseQuery)
+	}
+	// IssuedAt 은 URL 의 timestamp(재사용되는 옛 값)가 아니라 캐시 기록 시각이어야
+	// 사용자에게 "며칠 지났다"를 정확히 말할 수 있다.
+	if !cands[0].IssuedAt.Equal(fresh) {
+		t.Fatalf("IssuedAt = %v, want %v", cands[0].IssuedAt, fresh)
+	}
+}
+
+// 엔트리 파싱이 불가능한 캐시(포맷 변경·부분 손상)에서도 기존 regex 스캔으로
+// 후보를 뽑아야 한다. 이때 순서 기준은 URL 의 timestamp 뿐이다.
+func TestFindAuthContexts_FallsBackToRegexScan(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "StarRail_Data", "webCaches", "2.49.0.0", "Cache", "Cache_Data")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	blob := "\x00" + gachaURL + "?authkey=A&lang=ko&timestamp=1000\x00" +
+		"\x00" + gachaURL + "?authkey=B&lang=ko&timestamp=2000\x00"
+	if err := os.WriteFile(filepath.Join(dir, "data_2"), []byte(blob), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	hsr, _ := game.ByID("hsr")
+	cands, err := FindAuthContexts(root, hsr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cands) != 2 {
+		t.Fatalf("후보 2개를 기대, got %d", len(cands))
+	}
+	if !strings.Contains(cands[0].BaseQuery, "authkey=B") {
+		t.Fatalf("폴백은 timestamp 최신 우선: %s", cands[0].BaseQuery)
+	}
+}
+
+// 같은 authkey 가 여러 요청으로 캐시에 반복 기록된다(배너 4개 × 페이지 수).
+// 중복 후보를 그대로 두면 검증 호출만 낭비하고 레이트 리밋에 걸린다.
+func TestFindAuthContexts_DedupesSameAuthkey(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "StarRail_Data", "webCaches", "2.49.0.0", "Cache", "Cache_Data")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	one := "\x00" + gachaURL + "?authkey=SAME&lang=ko&real_gacha_type=2&timestamp=1000\x00"
+	if err := os.WriteFile(filepath.Join(dir, "data_2"), []byte(one+one+one), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	hsr, _ := game.ByID("hsr")
+	cands, err := FindAuthContexts(root, hsr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cands) != 1 {
+		t.Fatalf("같은 authkey 는 후보 1개로 합쳐야 함, got %d", len(cands))
+	}
+}
+
+// 캐시에서 authkey 를 못 찾았을 때의 안내도 게임별 화면 이름을 써야 한다.
+func TestFindAuthContexts_NotFoundMessageUsesGameScreen(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "ZenlessZoneZero_Data", "webCaches", "2.51.0.0", "Cache", "Cache_Data")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "data_2"), []byte("no authkey here"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	zzz, _ := game.ByID("zzz")
+	_, err := FindAuthContexts(root, zzz)
+	if err == nil {
+		t.Fatal("authkey 가 없으면 에러여야 함")
+	}
+	if !strings.Contains(err.Error(), "변조") || strings.Contains(err.Error(), "전언") {
+		t.Fatalf("ZZZ 안내는 변조 기록 화면을 가리켜야 함: %v", err)
 	}
 }

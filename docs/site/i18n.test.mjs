@@ -38,10 +38,19 @@ try {
 }
 const { LANGS, DICTS } = mod;
 
-// React 엘리먼트는 리프로 취급($$typeof 심벌 존재).
+/**
+ * React 엘리먼트인지(리프로 취급한다 — $$typeof 심벌 존재).
+ * @param {*} v 검사할 값.
+ * @returns {boolean}
+ */
 const isElement = (v) => typeof v === 'object' && v !== null && !!v.$$typeof;
 
-// 값 트리 → 구조 서술자. 리프(문자열/숫자/JSX)는 'leaf', 배열은 원소별, 객체는 키별(정렬).
+/**
+ * 값 트리 → 구조 서술자. 리프(문자열/숫자/JSX)는 'leaf', 배열은 원소별, 객체는 키별(정렬).
+ * @param {*} v 사전 값.
+ * @returns {string|Array|Object} 언어 간 비교 가능한 구조 서술자.
+ * @throws {Error} 사전에 허용되지 않는 값이 섞여 있으면.
+ */
 function shape(v) {
   if (typeof v === 'string' || typeof v === 'number' || isElement(v)) return 'leaf';
   if (Array.isArray(v)) return v.map(shape);
@@ -49,7 +58,12 @@ function shape(v) {
   throw new Error('사전에 허용되지 않는 값: ' + String(v));
 }
 
-// JSX 트리에서 텍스트만 수집(로케일 불변 문자열 검사용).
+/**
+ * JSX 트리에서 텍스트만 수집한다(로케일 불변 문자열 검사용).
+ * @param {*} v 사전 값 또는 JSX 노드.
+ * @param {string[]} [out=[]] 누적 배열(재귀용).
+ * @returns {string[]} 수집된 텍스트.
+ */
 function textOf(v, out = []) {
   if (v == null) return out;
   if (typeof v === 'string' || typeof v === 'number') { out.push(String(v)); return out; }
@@ -63,7 +77,13 @@ assert.ok(DICTS.ko, 'ko 사전 없음');
 assert.ok(DICTS.en, 'en 사전 없음');
 
 const koShape = shape(DICTS.ko);
-const INVARIANT = ['hsr-warp-setup-', '/ui_kits/dashboard/', '%LOCALAPPDATA%', 'schedule.json', 'SRGF'];
+// 로케일 불변 문자열 — 번역해서는 안 되는 파일명·경로·규격명. 한 언어만 갱신이
+// 빠지는 사고를 잡는다. UIGF/ZenlessZoneZero 는 ZZZ 안내가 네 언어 모두에
+// 실제로 들어갔는지를 강제한다(SRGF/Star Rail 은 HSR 쪽 대응).
+const INVARIANT = [
+  'hsr-warp-setup-', '/ui_kits/dashboard/', '%LOCALAPPDATA%', 'schedule.json',
+  'SRGF', 'UIGF', 'Star Rail Games', 'ZenlessZoneZero',
+];
 for (const [code, dict] of Object.entries(DICTS)) {
   assert.deepStrictEqual(shape(dict), koShape, `${code} 사전의 키 구조가 ko와 다름`);
   const text = textOf(dict).join('\n');
@@ -87,9 +107,19 @@ const m = htmlSrc.match(/<script>\/\*lang-redirect\*\/([\s\S]*?)<\/script>/);
 assert.ok(m, 'index.html 에 lang-redirect 인라인 스크립트 없음');
 const scriptSrc = m[1].replace(/%BASE_URL%/g, '/hsr-warp/');
 
-// 셤 주입 실행기: 리다이렉트가 일어나면 그 URL, 아니면 null 반환.
-// 페이지 언어는 pathname 세그먼트로 표현(entry-client.jsx 와 동일한 단일 소스) —
-// <html lang> 셤은 더 이상 스크립트가 읽지 않으므로 제공하지 않는다.
+/**
+ * 셤을 주입해 lang-redirect 인라인 스크립트를 실제로 실행한다.
+ * 페이지 언어는 pathname 세그먼트로 표현한다(entry-client.jsx 와 동일한 단일 소스) —
+ * <html lang> 셤은 더 이상 스크립트가 읽지 않으므로 제공하지 않는다.
+ * @param {Object} shim
+ * @param {string} shim.pathname 현재 경로.
+ * @param {string} [shim.search=''] 쿼리 문자열.
+ * @param {string|null} [shim.saved=null] localStorage 에 저장된 언어.
+ * @param {string} [shim.nav=''] navigator.language 값.
+ * @param {string} [shim.hash=''] 해시.
+ * @param {boolean} [shim.savedThrows=false] true 면 localStorage 접근이 던진다(차단 환경 재현).
+ * @returns {string|null} 리다이렉트한 URL. 이동이 없으면 null.
+ */
 function runRedirect({ pathname, search = '', saved = null, nav = '', hash = '', savedThrows = false }) {
   let redirected = null;
   const loc = { pathname, search, hash, replace: (u) => { redirected = u; } };

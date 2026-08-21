@@ -7,8 +7,11 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"hsr-warp/internal/game"
 )
 
 // 만료 메시지는 사용자의 혼란("방금 게임 켰는데 왜 만료냐")을 직접 풀어줘야 한다:
@@ -16,7 +19,7 @@ import (
 func TestExpiredMessage_ShowsAgeAndGuidance(t *testing.T) {
 	issued := time.Date(2026, 4, 21, 8, 57, 0, 0, time.Local)
 	now := time.Date(2026, 6, 3, 19, 0, 0, 0, time.Local)
-	msg := expiredMessage(issued, now)
+	msg := expiredMessage(game.Default(), issued, now)
 	if !contains(msg, "43일") {
 		t.Fatalf("message should state the 43-day age, got: %s", msg)
 	}
@@ -30,7 +33,7 @@ func TestExpiredMessage_ShowsAgeAndGuidance(t *testing.T) {
 
 // 생성 시각을 모를 때(timestamp 없는 캐시)는 경과 표기 없이 안내만 한다.
 func TestExpiredMessage_UnknownIssuedAt(t *testing.T) {
-	msg := expiredMessage(time.Time{}, time.Now())
+	msg := expiredMessage(game.Default(), time.Time{}, time.Now())
 	if !contains(msg, "전언") || !contains(msg, "기록") {
 		t.Fatalf("message should still guide the user, got: %s", msg)
 	}
@@ -57,7 +60,7 @@ func TestFetchIncremental_StopsAtStoredID(t *testing.T) {
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr", Region: "asia"}
 	lastID := map[string]string{"1": "0", "2": "0", "11": "20", "12": "0"}
 
-	recs, uid, err := FetchIncremental(context.Background(), ac, lastID, 0, func(string, int) {})
+	recs, uid, err := FetchIncremental(context.Background(), ac, game.Default(), lastID, 0, func(string, int) {})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +89,7 @@ func TestFetchIncremental_EmitsPerPageDebug(t *testing.T) {
 	defer srv.Close()
 
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	if _, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {}); err != nil {
+	if _, _, err := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {}); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
@@ -103,7 +106,7 @@ func TestFetchIncremental_RateLimited(t *testing.T) {
 	}))
 	defer srv.Close()
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	_, _, err := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 	if err == nil || !contains(err.Error(), "기다") {
 		t.Fatalf("expected a rate-limit wait message, got %v", err)
 	}
@@ -122,7 +125,7 @@ func TestFetchIncremental_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		_, _, err := FetchIncremental(ctx, ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+		_, _, err := FetchIncremental(ctx, ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 		done <- err
 	}()
 	<-started
@@ -143,7 +146,7 @@ func TestFetchIncremental_AuthkeyExpired(t *testing.T) {
 	}))
 	defer srv.Close()
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	_, _, err := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 	if err == nil || !contains(err.Error(), "authkey") {
 		t.Fatalf("expected authkey error, got %v", err)
 	}
@@ -157,7 +160,7 @@ func TestFetchIncremental_Non2xxStatusIsError(t *testing.T) {
 	}))
 	defer srv.Close()
 	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
-	_, _, err := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+	_, _, err := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 	if err == nil || !contains(err.Error(), "502") {
 		t.Fatalf("non-2xx 는 HTTP 상태 에러여야 함, got %v", err)
 	}
@@ -184,7 +187,7 @@ func TestFetchIncremental_TerminatesOnNoPageProgress(t *testing.T) {
 	var count int
 	var ferr error
 	go func() {
-		r, _, e := FetchIncremental(context.Background(), ac, map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
+		r, _, e := FetchIncremental(context.Background(), ac, game.Default(), map[string]string{"1": "0", "2": "0", "11": "0", "12": "0"}, 0, func(string, int) {})
 		count, ferr = len(r), e
 		close(done)
 	}()
@@ -227,7 +230,7 @@ func TestIDLessEq_BigIntNotLexicographic(t *testing.T) {
 func TestExpiredMessage_FutureIssuedAtClampsToZero(t *testing.T) {
 	now := time.Date(2026, 6, 3, 12, 0, 0, 0, time.Local)
 	future := now.Add(48 * time.Hour)
-	msg := expiredMessage(future, now)
+	msg := expiredMessage(game.Default(), future, now)
 	// clamp 없이는 -2일(48h/24h)이 노출된다 — 날짜 표기(2026-06-05)의 하이픈과
 	// 헷갈리지 않도록 "-<숫자>일" 패턴으로만 검사한다.
 	if contains(msg, "-2일") {
@@ -235,5 +238,231 @@ func TestExpiredMessage_FutureIssuedAtClampsToZero(t *testing.T) {
 	}
 	if !contains(msg, "0일") {
 		t.Fatalf("미래 issuedAt 은 0일로 clamp 되어야 함: %s", msg)
+	}
+}
+
+// ZZZ 는 real_gacha_type 으로 채널을 지정한다. 조립된 요청 URL 에 이 파라미터가
+// 정확히 한 번만, 우리가 지정한 값으로 나타나야 한다. 중복되면 서버가 앞의 값을
+// 채택해 모든 채널이 같은 데이터를 반환하는 조용한 버그가 된다.
+func TestFetchIncremental_ZZZUsesRealGachaTypeExactlyOnce(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.RawQuery)
+		_, _ = w.Write([]byte(`{"retcode":0,"message":"OK","data":{"list":[]}}`))
+	}))
+	defer srv.Close()
+
+	zzz, _ := game.ByID("zzz")
+	ac := &AuthContext{
+		APIBase:   srv.URL,
+		BaseQuery: "authkey=AAA&lang=ko", // pageKeys 가 real_gacha_type 을 이미 제거한 상태
+		Region:    "prod_gf_jp",
+		Lang:      "ko",
+	}
+	if _, _, err := FetchIncremental(context.Background(), ac, zzz, nil, 0, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(got) != len(zzz.Banners) {
+		t.Fatalf("요청 수 = %d, want %d", len(got), len(zzz.Banners))
+	}
+	wantCodes := zzz.Codes()
+	for i, q := range got {
+		if strings.Count(q, "real_gacha_type=") != 1 {
+			t.Errorf("요청 %d: real_gacha_type 이 %d번 나타났다: %q", i, strings.Count(q, "real_gacha_type="), q)
+		}
+		if strings.Contains(q, "gacha_type=") && !strings.Contains(q, "real_gacha_type=") {
+			t.Errorf("요청 %d: ZZZ 인데 gacha_type 을 썼다: %q", i, q)
+		}
+		if !strings.Contains(q, "real_gacha_type="+wantCodes[i]) {
+			t.Errorf("요청 %d: 채널 %q 를 기대했으나 %q", i, wantCodes[i], q)
+		}
+	}
+}
+
+// HSR 은 기존대로 gacha_type 을 쓰고 채널 순서도 그대로여야 한다(회귀 방지).
+func TestFetchIncremental_HSRKeepsGachaType(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.RawQuery)
+		_, _ = w.Write([]byte(`{"retcode":0,"message":"OK","data":{"list":[]}}`))
+	}))
+	defer srv.Close()
+
+	hsr, _ := game.ByID("hsr")
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "authkey=AAA", Region: "asia", Lang: "ko"}
+	if _, _, err := FetchIncremental(context.Background(), ac, hsr, nil, 0, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	want := []string{"11", "12", "1", "2"}
+	if len(got) != len(want) {
+		t.Fatalf("요청 수 = %d, want %d", len(got), len(want))
+	}
+	for i, q := range got {
+		if strings.Contains(q, "real_gacha_type=") {
+			t.Errorf("요청 %d: HSR 인데 real_gacha_type 을 썼다: %q", i, q)
+		}
+		if !strings.Contains(q, "gacha_type="+want[i]) {
+			t.Errorf("요청 %d: gacha_type=%s 를 기대했으나 %q", i, want[i], q)
+		}
+	}
+}
+
+// 배너 표시명은 역할에서 유도한다. 게임마다 코드가 달라도 진행 로그가 읽혀야 한다.
+func TestBannerLabel_DerivesFromRole(t *testing.T) {
+	zzz, _ := game.ByID("zzz")
+	if got := BannerLabel(zzz, "2"); got == "" || got == "2" {
+		t.Errorf("ZZZ 코드 2 의 표시명이 유도되지 않았다: %q", got)
+	}
+	hsr, _ := game.ByID("hsr")
+	if got := BannerLabel(hsr, "11"); got == "" || got == "11" {
+		t.Errorf("HSR 코드 11 의 표시명이 유도되지 않았다: %q", got)
+	}
+	// 모르는 코드는 코드 자체로 폴백한다(로그가 비지 않게).
+	if got := BannerLabel(hsr, "99"); got != "99" {
+		t.Errorf("알 수 없는 코드 폴백 = %q, want 99", got)
+	}
+}
+
+// ZZZ 엔드포인트(public-operation-*)는 authkey 만료를 -101 이 아니라
+// retcode=-1 + message "auth key time out" 으로 알린다(2026-08-20 실측).
+// 코드 값만 보면 만료 안내를 놓치고 원문 API 오류가 그대로 노출된다.
+func TestFetchIncremental_AuthkeyExpired_ZZZMessageForm(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -1, "message": "auth key time out"})
+	}))
+	defer srv.Close()
+	zzz, ok := game.ByID("zzz")
+	if !ok {
+		t.Fatal("zzz 게임 정의를 찾지 못함")
+	}
+	ac := &AuthContext{APIBase: srv.URL, BaseQuery: "lang=ko-kr"}
+	_, _, err := FetchIncremental(context.Background(), ac, zzz, map[string]string{}, 0, func(string, int) {})
+	if err == nil {
+		t.Fatal("만료 에러를 기대")
+	}
+	if !contains(err.Error(), "변조") {
+		t.Fatalf("ZZZ 만료 안내(변조 기록 화면)를 기대, got %v", err)
+	}
+	if contains(err.Error(), "retcode") {
+		t.Fatalf("원문 API 오류가 아니라 만료 안내여야 함, got %v", err)
+	}
+}
+
+// 후보 authkey 중 살아있는 것을 실제 호출로 골라내야 한다. 캐시 엔트리 순서가
+// 항상 옳다고 보장할 수 없으므로(포맷 변경 시 regex 폴백), 만료된 후보는 건너뛴다.
+func TestSelectValidAuthContext_SkipsExpiredCandidates(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if contains(r.URL.RawQuery, "authkey=LIVE") {
+			_ = json.NewEncoder(w).Encode(map[string]any{"retcode": 0, "data": map[string]any{"list": []any{}}})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -1, "message": "auth key time out"})
+	}))
+	defer srv.Close()
+	zzz, _ := game.ByID("zzz")
+	cands := []*AuthContext{
+		{APIBase: srv.URL, BaseQuery: "authkey=DEAD1&lang=ko"},
+		{APIBase: srv.URL, BaseQuery: "authkey=DEAD2&lang=ko"},
+		{APIBase: srv.URL, BaseQuery: "authkey=LIVE&lang=ko"},
+	}
+	got, err := SelectValidAuthContext(context.Background(), cands, zzz)
+	if err != nil {
+		t.Fatalf("살아있는 후보가 있는데 실패: %v", err)
+	}
+	if !contains(got.BaseQuery, "authkey=LIVE") {
+		t.Fatalf("살아있는 authkey 를 골라야 함: %s", got.BaseQuery)
+	}
+	if calls != 3 {
+		t.Fatalf("후보마다 1회씩 검증해야 함, calls=%d", calls)
+	}
+}
+
+// 후보가 하나뿐이면 검증 호출 없이 그대로 쓴다 — 헛호출은 레이트 리밋만 부른다.
+// (만료라면 본 조회에서 만료 안내가 나온다.)
+func TestSelectValidAuthContext_SingleCandidateSkipsProbe(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+	}))
+	defer srv.Close()
+	cands := []*AuthContext{{APIBase: srv.URL, BaseQuery: "authkey=ONLY&lang=ko"}}
+	got, err := SelectValidAuthContext(context.Background(), cands, game.Default())
+	if err != nil || got != cands[0] {
+		t.Fatalf("단일 후보는 그대로 반환해야 함: %v %v", got, err)
+	}
+	if calls != 0 {
+		t.Fatalf("검증 호출이 없어야 함, calls=%d", calls)
+	}
+}
+
+// 모든 후보가 만료면 원문 API 오류가 아니라 만료 안내를 준다. 이때 경과 일수는
+// 가장 최신 후보(첫 번째) 기준이어야 한다.
+func TestSelectValidAuthContext_AllExpired(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -1, "message": "auth key time out"})
+	}))
+	defer srv.Close()
+	newest := time.Now().Add(-72 * time.Hour)
+	cands := []*AuthContext{
+		{APIBase: srv.URL, BaseQuery: "authkey=D1", IssuedAt: newest},
+		{APIBase: srv.URL, BaseQuery: "authkey=D2", IssuedAt: newest.Add(-48 * time.Hour)},
+	}
+	_, err := SelectValidAuthContext(context.Background(), cands, game.Default())
+	if err == nil {
+		t.Fatal("만료 에러를 기대")
+	}
+	if !contains(err.Error(), "전언") {
+		t.Fatalf("만료 안내여야 함: %v", err)
+	}
+	if !contains(err.Error(), newest.Format("2006-01-02")) {
+		t.Fatalf("가장 최신 후보의 발급 시각을 써야 함: %v", err)
+	}
+}
+
+// 만료가 아닌 오류(레이트 리밋·서버 장애)는 다음 후보로 넘기지 않고 즉시 표면화한다.
+// 계속 시도하면 -110 을 더 깊게 만들 뿐이다.
+func TestSelectValidAuthContext_NonExpiredErrorStopsImmediately(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		_ = json.NewEncoder(w).Encode(map[string]any{"retcode": -110, "message": "visit too frequently"})
+	}))
+	defer srv.Close()
+	cands := []*AuthContext{
+		{APIBase: srv.URL, BaseQuery: "authkey=A"},
+		{APIBase: srv.URL, BaseQuery: "authkey=B"},
+	}
+	_, err := SelectValidAuthContext(context.Background(), cands, game.Default())
+	if err == nil {
+		t.Fatal("에러를 기대")
+	}
+	if calls != 1 {
+		t.Fatalf("첫 실패에서 멈춰야 함, calls=%d", calls)
+	}
+}
+
+// 만료 안내의 인게임 경로는 게임마다 다르다. HSR 은 [전언] → [기록], ZZZ 는
+// [변조] → [상세] → [변조 기록] 이다 — HSR 용어를 ZZZ 사용자에게 들이밀면
+// 사용자는 없는 메뉴를 찾게 된다.
+func TestExpiredMessage_UsesGameRecordScreen(t *testing.T) {
+	issued := time.Date(2026, 8, 18, 2, 43, 0, 0, time.Local)
+	now := time.Date(2026, 8, 20, 0, 32, 0, 0, time.Local)
+
+	hsr := expiredMessage(game.Default(), issued, now)
+	if !contains(hsr, "전언") {
+		t.Fatalf("HSR 안내는 [전언] 경로여야 함: %s", hsr)
+	}
+
+	zzz, _ := game.ByID("zzz")
+	msg := expiredMessage(zzz, issued, now)
+	if !contains(msg, "변조") {
+		t.Fatalf("ZZZ 안내는 [변조] 경로여야 함: %s", msg)
+	}
+	if contains(msg, "전언") {
+		t.Fatalf("ZZZ 안내에 HSR 용어가 남으면 안 됨: %s", msg)
 	}
 }

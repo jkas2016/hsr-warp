@@ -1,0 +1,81 @@
+/* ============================================================
+   Per-game palette overrides — HSR(은하 실버+골드) / ZZZ(라임+오렌지, 아스팔트 블랙)
+   Base contract: ./colors.css — 여기선 그 토큰만 재정의한다(신규 토큰 금지).
+   <html> 의 data-game 으로 전환하고, data-texture="on" 이면 ZZZ 어반 텍스처를 얹는다.
+   colors.css 보다 뒤에 import 돼야 하고, [data-game][data-theme] 는 특정도가
+   [data-theme] 보다 높아 라이트 테마 위에서도 게임 팔레트가 이긴다.
+   ============================================================ */
+
+/* ===== HSR — 로고의 별빛 실버 + 골드 ===== */
+[data-game="hsr"] {
+  --muted: #95a1c1;
+  --line: #2b334e;
+  --bg-app:
+    radial-gradient(1200px 620px at 12% -8%, rgba(196,210,245,.15), transparent 60%),
+    radial-gradient(1100px 560px at 98% 2%, rgba(245,197,66,.13), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(122,150,214,.10), transparent 60%),
+    var(--bg);
+  --grad-gold: linear-gradient(135deg, #fff3c2 0%, #f5c542 45%, #e0a92e 100%);
+}
+[data-game="hsr"][data-theme="light"] {
+  --muted: #6a7490;
+  --line: #e3e7f0;
+  --bg-app:
+    radial-gradient(1200px 620px at 12% -8%, rgba(150,170,220,.16), transparent 60%),
+    radial-gradient(1100px 560px at 98% 2%, rgba(224,169,46,.16), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(122,150,214,.10), transparent 60%),
+    var(--bg);
+  --grad-gold: linear-gradient(135deg, #ffd964 0%, #f5c542 50%, #e0a92e 100%);
+}
+
+/* ===== ZZZ — 라임 주 액센트 + 오렌지 보조, 아스팔트 블랙 ===== */
+[data-game="zzz"] {
+  --gold: #c6f232; --gold-deep: #9fd400; --gold-ink: #d3ff4d; --on-accent: #131700;
+  --purple: #e070ff; --blue: #58c4ff; --red: #ff5d5d; --orange: #ff8a2a;
+  --bg: #0c0d09; --panel: #171812; --panel-2: #20221a; --line: #2d2f24; --line-2: #3e4130;
+  --txt: #eef2e2; --muted: #9ba189;
+  --gold-fill: rgba(198,242,50,.13); --gold-line: rgba(198,242,50,.42);
+  --red-fill: rgba(255,93,93,.14); --red-line: rgba(255,93,93,.40);
+  --orange-fill: rgba(255,138,42,.15); --purple-fill: rgba(224,112,255,.15);
+  --card-bg: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 40%), rgba(23,24,18,.75);
+  --card-border: rgba(255,255,255,.09);
+  --bg-app:
+    radial-gradient(1200px 620px at 10% -8%, rgba(198,242,50,.13), transparent 60%),
+    radial-gradient(1100px 560px at 98% 2%, rgba(255,138,42,.11), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(88,196,255,.08), transparent 60%),
+    var(--bg);
+  --grad-gold: linear-gradient(135deg, #eaff8a 0%, #c6f232 45%, #9fd400 100%);
+  --glow-gold: 0 0 28px rgba(198,242,50,.32);
+}
+[data-game="zzz"][data-texture="on"] {
+  --bg-app:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.016) 0 2px, rgba(0,0,0,0) 2px 16px),
+    radial-gradient(1200px 620px at 10% -8%, rgba(198,242,50,.13), transparent 60%),
+    radial-gradient(1100px 560px at 98% 2%, rgba(255,138,42,.11), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(88,196,255,.08), transparent 60%),
+    var(--bg);
+}
+[data-game="zzz"][data-theme="light"] {
+  --bg: #eff1e6; --panel: #ffffff; --panel-2: #f4f6ec; --line: #e2e5d4; --line-2: #d0d4bd;
+  --txt: #1c2013; --muted: #6e7660; --gold-ink: #5f7a00; --on-accent: #1c2013;
+  --gold-fill: rgba(159,212,0,.16); --gold-line: rgba(159,212,0,.45);
+  --red-fill: rgba(224,70,70,.13); --red-line: rgba(224,70,70,.38);
+  --orange-fill: rgba(214,120,30,.14); --purple-fill: rgba(200,90,230,.14);
+  --card-bg: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.7)), #ffffff;
+  --card-border: #e6e9d8;
+  --bg-app:
+    radial-gradient(1200px 620px at 10% -8%, rgba(159,212,0,.15), transparent 60%),
+    radial-gradient(1100px 560px at 98% 2%, rgba(255,138,42,.13), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(88,196,255,.08), transparent 60%),
+    var(--bg);
+  --grad-gold: linear-gradient(135deg, #d9f56a 0%, #b7e12e 50%, #93c400 100%);
+  --glow-gold: 0 0 0 rgba(0,0,0,0);
+}
+[data-game="zzz"][data-theme="light"][data-texture="on"] {
+  --bg-app:
+    repeating-linear-gradient(135deg, rgba(28,32,19,.022) 0 2px, rgba(0,0,0,0) 2px 16px),
+    radial-gradient(1200px 620px at 10% -8%, rgba(159,212,0,.15), transparent 60%),
+    radial-gradient(1100px 560px at 98% 2%, rgba(255,138,42,.13), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(88,196,255,.08), transparent 60%),
+    var(--bg);
+}
