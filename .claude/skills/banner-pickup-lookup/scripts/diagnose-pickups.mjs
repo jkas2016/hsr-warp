@@ -80,6 +80,41 @@ console.log(`게임: ${game} · 기록 ${list.length}건 · schedule ${(cfg.list
 console.log(`최고등급 코드: ${cfg.ranks.top} · 중간: ${cfg.ranks.mid}`);
 console.log('');
 
+// C. 채널 커버리지 — 애초에 조회되지 않는 채널이 있는지 본다.
+//
+// 픽업 판정 이전의 실패 모드다. 기간 한정 특별 픽업 배너는 기존 채널과 별개
+// 코드로 배포되며(ZZZ 3인 동시 픽업 = real_gacha_type 102/103), 그 코드가
+// 수집 목록에 없으면 요청 자체가 안 나가 기록이 통째로 없다. 조회는 "성공"하고
+// 에러도 없어, 겉으로는 그냥 안 뽑은 것과 구분되지 않는다.
+//
+// 여기서 확실히 알 수 있는 것은 "설정에 없는 코드가 데이터에 있다"와 "채널별
+// 최신 기록이 언제냐" 두 가지다. 어떤 코드가 더 있는지는 API 를 두드려야 안다.
+const byChannel = new Map();
+for (const r of list) {
+  const t = String(r.gacha_type);
+  const cur = byChannel.get(t) || { n: 0, last: '' };
+  cur.n += 1;
+  if (String(r.time) > cur.last) cur.last = String(r.time);
+  byChannel.set(t, cur);
+}
+console.log('채널별 저장 현황:');
+for (const code of cfg.order) {
+  const c = byChannel.get(code);
+  const label = (cfg.banners[code] || {}).short || code;
+  console.log(`  ${code.padEnd(4)} ${String(label).padEnd(12)} ${c ? `${String(c.n).padStart(5)}건  최신 ${c.last}` : '    0건  (기록 없음)'}`);
+}
+const unconfigured = [...byChannel.keys()].filter((t) => !cfg.banners[t]);
+if (unconfigured.length) {
+  console.log('');
+  console.log(`설정에 없는 채널 코드가 데이터에 있다: ${unconfigured.join(', ')}`);
+  console.log('  → schedule.json 의 banners/order 와 internal/game/game.go 에 추가해야 집계에 들어간다.');
+}
+console.log('');
+console.log('특정 배너 기록이 통째로 없다면 채널 코드부터 의심하라 — 목록에 없는 코드는');
+console.log('요청조차 나가지 않는다. 실측: go run ./tools/channelprobe <game> <path> <코드...>');
+console.log('한 자리 수에서 멈추지 말고 100번대까지 훑고, 그 배너가 진행 중일 때 훑어라.');
+console.log('');
+
 // 확실한 데이터 결함 두 가지를 먼저 본다. 이 둘은 외부 지식 없이 판정할 수 있다.
 //
 //   A. 픽업 배열이 빈 구간 — 소스가 uprate_5 를 못 채운 흔적이다.

@@ -145,7 +145,13 @@ for (const p of schedule) {
 // (analyze.js 의 resolveConfig 가 order 없으면 Object.keys() 로 폴백해
 //  정수 유사 키를 숫자순 재정렬 — 배너 표시 순서가 조용히 뒤집힌다)
 {
-  assert.deepStrictEqual(ORDER, ['2', '3', '1', '5'], '배너 표시 순서');
+  assert.deepStrictEqual(ORDER, ['2', '3', '102', '103', '1', '5'], '배너 표시 순서');
+  // 특별 픽업 채널(102/103)은 독점·W-엔진과 별개 코드다. 목록에서 빠지면 해당
+  // 배너 기록이 조회·표시 양쪽에서 통째로 누락된다.
+  assert.strictEqual(BANNERS['102'].role, 'special-char');
+  assert.strictEqual(BANNERS['102'].cap, 90);
+  assert.strictEqual(BANNERS['103'].role, 'special-weapon');
+  assert.strictEqual(BANNERS['103'].cap, 80);
   assert.deepStrictEqual(RANKS, { top: '4', mid: '3' }, 'B/A/S 랭크 매핑');
   assert.strictEqual(BANNERS['2'].cap, 90);
   assert.strictEqual(BANNERS['2'].rateUp, 0.5);

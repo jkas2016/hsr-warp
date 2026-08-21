@@ -14,7 +14,11 @@ const (
 	RoleLimitedWeapon = "limited-weapon" // 한정 광추/음의 엔진
 	RoleStandard      = "standard"       // 상시
 	RoleBeginner      = "beginner"       // 초보자 전용(HSR 출발 워프)
-	RoleBangboo       = "bangboo"        // ZZZ 본디
+	RoleBangboo       = "bangboo"        // ZZZ 방부
+	// ZZZ 특별 픽업 채널. 한 배너에서 S급 여러 명을 동시에 픽업하는 기간 한정
+	// 채널로, 독점·W-엔진과 별개인 코드로 배포된다(3.1 하반기 실측).
+	RoleSpecialChar   = "special-char"   // ZZZ 특별 픽업(에이전트)
+	RoleSpecialWeapon = "special-weapon" // ZZZ 특별 픽업(W-엔진)
 )
 
 // Banner 는 한 게임의 가챠 채널 하나다.
@@ -80,12 +84,15 @@ var games = []Game{
 		DataDirName: "ZenlessZoneZero_Data",
 		BannerParam: "real_gacha_type",
 		InfoFormat:  "uigf-v4.0",
-		// 실측으로 확정한 채널 코드. 응답 레코드의 gacha_type 도 같은 1자리 값이다.
+		// 실측으로 확정한 채널 코드(tools/channelprobe). 응답 레코드의 gacha_type
+		// 도 같은 값이다. 102/103 은 "3인 동시 특별 픽업" 같은 기간 한정 채널로,
+		// 코드가 1자리가 아니며 독점(2)·W-엔진(3) 과 레코드가 겹치지 않는다.
+		// 상시(1)·방부(5)는 픽업 개념이 없어 조회하지 않는다.
 		Banners: []Banner{
-			{Code: "2", Role: RoleLimitedChar},   // 독점(에이전트)
-			{Code: "3", Role: RoleLimitedWeapon}, // 음의 엔진
-			{Code: "1", Role: RoleStandard},      // 상시
-			{Code: "5", Role: RoleBangboo},       // 본디
+			{Code: "2", Role: RoleLimitedChar},     // 독점(에이전트)
+			{Code: "3", Role: RoleLimitedWeapon},   // W-엔진
+			{Code: "102", Role: RoleSpecialChar},   // 특별 픽업(에이전트)
+			{Code: "103", Role: RoleSpecialWeapon}, // 특별 픽업(W-엔진)
 		},
 		Candidates: []string{
 			`D:\Game\HoYoPlay\games\ZenlessZoneZero Game`,

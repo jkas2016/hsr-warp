@@ -8,6 +8,8 @@ window.I18N_DICTS.ja = {
   'banner.wengine': '音動機',
   'banner.standard': '常設',
   'banner.bangboo': 'ボンプ',
+  'banner.special': '特別ピックアップ',
+  'banner.specialWengine': '特別音動機',
   'game.hsr': '崩壊：スターレイル',
   'game.zzz': 'ゼンレスゾーンゼロ',
   'game.hsr.short': 'スターレイル',

@@ -74,6 +74,18 @@ window.WarpData = (function () {
     const c = conf();
     return c.order.find((code) => c.banners[code] && c.banners[code].role === role) || null;
   }
+
+  /**
+   * 주어진 역할들의 배너 5★/S급 개수를 합한다.
+   * @param {Array<Object>} banners analyze() 산출 배너 목록.
+   * @param {...string} roles 합칠 역할 키.
+   * @returns {number} 합계.
+   */
+  function countByRoles(banners, ...roles) {
+    return (banners || [])
+      .filter((b) => b.meta && roles.includes(b.meta.role))
+      .reduce((s, b) => s + (b.stats.count5 || 0), 0);
+  }
   /**
    * 역할 → 배너 short(= i18n 정규 키). 표시할 땐 I18N.bannerLabel() 로 감싼다.
    * @param {string} role 역할 키.
@@ -96,7 +108,8 @@ window.WarpData = (function () {
   // roleName). 게임 공통이라 배너 short 와 다를 수 있어(HSR 광추 ↔ '무기') 역할로 되돌려 맞춘다.
   const PROGRESS_ROLE = {
     '캐릭터': 'limited-char', '무기': 'limited-weapon',
-    '일반': 'standard', '출발': 'beginner', '본디': 'bangboo',
+    '일반': 'standard', '출발': 'beginner', '방부': 'bangboo',
+    '특별 픽업': 'special-char', '특별 픽업 W-엔진': 'special-weapon',
   };
   /**
    * SSE progress 의 배너 라벨을 역할 키로 되돌린다.
@@ -211,8 +224,10 @@ window.WarpData = (function () {
       },
       limited: {
         ...lim,
-        charCount5: charBnr ? charBnr.stats.count5 : 0,
-        lcCount5: lcBnr ? lcBnr.stats.count5 : 0,
+        // 특별 픽업(ZZZ 102/103)은 각각 에이전트·W-엔진 축에 합산한다 —
+        // 두 축의 합이 limited.count5 와 어긋나면 요약 문구가 자기모순이 된다.
+        charCount5: countByRoles(full.banners, 'limited-char', 'special-char'),
+        lcCount5: countByRoles(full.banners, 'limited-weapon', 'special-weapon'),
         charGuaranteed: !!(charBnr && charBnr.stats.currentGuaranteed),
         lcGuaranteed: !!(lcBnr && lcBnr.stats.currentGuaranteed),
         charOdds: oddsOf(charCode), lcOdds: oddsOf(lcCode),
@@ -230,7 +245,7 @@ window.WarpData = (function () {
     };
   }
 
-  // 대시보드 집계에서 뺄 채널의 역할: 상시·초보자·본디. 픽업(50/50) 개념이 없어
+  // 대시보드 집계에서 뺄 채널의 역할: 상시·초보자·방부. 픽업(50/50) 개념이 없어
   // 한정 배너 지표를 오염시킨다. 두 게임 모두 한정 캐릭터·한정 무기 두 축만
   // 수치화한다(HSR 이 캐릭터 이벤트·광추 이벤트만 보여주는 것과 같은 기준).
   // 채널 코드는 게임마다 다르므로 반드시 역할로 거른다(ZZZ 의 '2' 는 독점 채널이다).

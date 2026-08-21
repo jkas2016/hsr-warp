@@ -13,7 +13,7 @@ const ZZZ = {
     '2': { role: 'limited-char', short: '독점', cap: 90, rateUp: 0.5, expAvg: 62.5 },
     '3': { role: 'limited-weapon', short: 'W-엔진', cap: 80, rateUp: 0.75, expAvg: 50.0 },
     '1': { role: 'standard', short: '상시', cap: 90, rateUp: null, expAvg: 62.5 },
-    '5': { role: 'bangboo', short: '본디', cap: 80, rateUp: null, expAvg: 50.0 },
+    '5': { role: 'bangboo', short: '방부', cap: 80, rateUp: null, expAvg: 50.0 },
   },
   schedule: [{ s: '2026-07-29', e: '2026-08-19', c: ['1501'], l: ['14158'] }],
   versions: [{ v: '2.5', s: '2026-07-29' }],
@@ -63,7 +63,7 @@ const low = (rank, gacha_type = '2', time = T) => ({
   assert.deepStrictEqual(hsrCfg.order, ['11', '12', '1', '2'], 'HSR 배너 표시 순서(캐릭터·광추·일반·출발)');
 
   const zzzCfg = resolveConfig(ZZZ);
-  assert.deepStrictEqual(zzzCfg.order, ['2', '3', '1', '5'], 'ZZZ 배너 표시 순서(독점·W-엔진·상시·본디)');
+  assert.deepStrictEqual(zzzCfg.order, ['2', '3', '1', '5'], 'ZZZ 배너 표시 순서(독점·W-엔진·상시·방부)');
 }
 
 // ---- 구 스키마 호환: 배열이 들어오면 HSR 기본값 ----
@@ -235,3 +235,30 @@ const low = (rank, gacha_type = '2', time = T) => ({
 }
 
 console.log('OK  analyze.zzz tests passed');
+
+// ---- 특별 픽업 채널(102/103)도 '한정 채널' 합산에 들어간다 ----
+// 개요 상단 운 지표·픽승률·평균 뽑기 수는 luck.limited 를 쓴다. 특별 픽업은
+// 독점·W-엔진과 같은 픽업(50/50) 채널이라 여기서 빠지면 S급을 뽑아도 계정
+// 전체 지표에 반영되지 않는다.
+{
+  const cfg = {
+    ...ZZZ,
+    order: ['2', '3', '102', '103', '1', '5'],
+    banners: {
+      ...ZZZ.banners,
+      '102': { role: 'special-char', short: '특별 픽업', cap: 90, rateUp: 0.5, expAvg: 62.5 },
+      '103': { role: 'special-weapon', short: '특별 W-엔진', cap: 80, rateUp: 0.75, expAvg: 50.0 },
+    },
+    schedule: [{ s: '2026-07-29', e: '2026-08-19', c: ['1501', '1481'], l: ['14158', '14148'] }],
+  };
+  const list = [
+    s4(1501, '2'),   // 독점 픽승
+    s4(14158, '3'),  // W-엔진 픽승
+    s4(1481, '102'), // 특별 픽업 픽승 — 다이아린
+    s4(14148, '103'),// 특별 W-엔진 픽승
+  ];
+  const a = analyze({ info: {}, list }, cfg);
+  assert.strictEqual(a.luck.limited.count5, 4, '특별 픽업 채널 S급이 한정 채널 합산에 포함돼야 한다');
+  assert.strictEqual(a.luck.limited.cWins, 4, '특별 픽업 채널 픽승이 합산 승수에 포함돼야 한다');
+  assert.strictEqual(a.luck.limited.cLoss, 0, '픽뚫은 없다');
+}

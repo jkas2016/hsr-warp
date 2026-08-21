@@ -8,6 +8,8 @@ window.I18N_DICTS.zh = {
   'banner.wengine': '音擎',
   'banner.standard': '常驻',
   'banner.bangboo': '邦布',
+  'banner.special': '特别限定',
+  'banner.specialWengine': '特别音擎',
   'game.hsr': '崩坏：星穹铁道',
   'game.zzz': '绝区零',
   'game.hsr.short': '星穹铁道',

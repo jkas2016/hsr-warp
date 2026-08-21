@@ -21,7 +21,7 @@ const POOL_OF = { 2: 'c', 3: 'l', 12: 'c', 13: 'l' };
 // 대시보드가 배너 표시 순서를 이 배열로 강제한다(analyze.js 의 resolveConfig
 // 가 order 없으면 Object.keys() 로 폴백하는데, 정수 유사 키를 숫자순 재정렬해
 // 순서가 뒤집힌다). resolveConfig(schedule.json) 로 직접 확인된 값.
-export const ORDER = ['2', '3', '1', '5'];
+export const ORDER = ['2', '3', '102', '103', '1', '5'];
 
 // 게임 버전 목록은 소스에 없어 별도 관리한다. 신규 패치마다 한 줄 추가한다.
 //
@@ -67,7 +67,11 @@ export const BANNERS = {
   '2': { role: 'limited-char',   name: '독점 채널',   short: '독점',   color: '#ff5a6e', cap: 90, rateUp: 0.5,  expAvg: 62.5 },
   '3': { role: 'limited-weapon', name: 'W-엔진 채널', short: 'W-엔진', color: '#f5a524', cap: 80, rateUp: 0.75, expAvg: 50.0 },
   '1': { role: 'standard',       name: '상시 채널',   short: '상시',   color: '#52d39a', cap: 90, rateUp: null, expAvg: 62.5 },
-  '5': { role: 'bangboo',        name: '본디 채널',   short: '본디',   color: '#7aa2ff', cap: 80, rateUp: null, expAvg: 50.0 },
+  '5': { role: 'bangboo',        name: '방부 채널',   short: '방부',   color: '#7aa2ff', cap: 80, rateUp: null, expAvg: 50.0 },
+  // 특별 픽업 채널(real_gacha_type 102/103). 한 배너에서 S급 여러 명을 동시에
+  // 픽업하는 기간 한정 채널로, 확률 파라미터는 독점·W-엔진과 같다.
+  '102': { role: 'special-char',   name: '특별 픽업 채널',   short: '특별 픽업',   color: '#c084fc', cap: 90, rateUp: 0.5,  expAvg: 62.5 },
+  '103': { role: 'special-weapon', name: '특별 픽업 W-엔진', short: '특별 W-엔진', color: '#38bdf8', cap: 80, rateUp: 0.75, expAvg: 50.0 },
 };
 
 // ZZZ 는 B급=2 / A급=3 / S급=4 다(실측). HSR 의 3/4/5 와 다르다.
@@ -203,7 +207,9 @@ async function main() {
   // 2: VERSIONS 를 1.0~3.1 전 구간으로 채움(버전 비교 탭 활성화).
   // 3: 3.1 후반기(2026-08-19~) 반영 — 신규 독점 1591/14159 와 특별 채널
   //    3중 픽업(banner_type 12/13: 1411·1481·1201 / 14141·14148·14120).
-  const out = { version: 3, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
+  // 4: 특별 픽업 채널(102/103) 을 별도 채널로 분리 — 실측상 독점(2)·W-엔진(3)
+  //    과 레코드가 겹치지 않아, 병합하면 해당 배너 기록이 통째로 누락된다.
+  const out = { version: 4, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
   const dst = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'zzz', 'schedule.json');
   mkdirSync(dirname(dst), { recursive: true });
   writeFileSync(dst, JSON.stringify(out), 'utf8');
