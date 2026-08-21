@@ -60,7 +60,8 @@ for(const b of all.filter(b=>(b.start_time?.time||'')>='2026-07'))
 | 필드명 혼재 | 초기 항목 `rank`, 최신 항목 `rarity` | `uprate_5`는 이미 5성 전용이라 등급 필드를 안 읽는다 |
 | id 타입 혼재 | string과 number가 섞임 | `String()` 정규화 |
 | 타임존 혼재 | `+08:00`/`+01:00` + `is_server_time` 플래그 | 원문 문자열의 `YYYY-MM-DD` 앞부분을 그대로 취한다 |
-| 특별 채널 | `banner_type` 12/13 | 각각 독점·음의 엔진과 확률이 같아 `c`/`l`로 매핑 |
+| 특별 채널 | `banner_type` 12/13 | 확률은 독점·W-엔진과 같아 `c`/`l`로 매핑. **단 조회 채널은 별개다** — 소스의 `banner_type`(배너 분류)과 API의 `real_gacha_type`(조회 코드 `102`/`103`)은 다른 값이다 |
+| 항목 소실 | 있던 배너가 다음 날 사라진다 | 2026-08 실측: 특별 채널(12/13) 항목이 통째로 없어져 37건 전부 `banner_type: 2`. **재생성 전후로 `schedule` 길이·최신 항목을 비교**하고, 사라졌으면 재생성분을 채택하지 말 것 |
 
 **타임존을 UTC로 완전 변환하면 안 된다.** `+08:00`의 `02:00`이 UTC로 가면 전날이 되어 배너 시작일이 하루 밀린다. `analyze.js`의 `wasPickup`은 레코드의 게임 로컬 시각과 비교하므로 일정도 게임 로컬 날짜여야 일관된다. `wasPickup`이 ±60일 여유를 두므로 하루 오차는 판정에 영향이 없다.
 
@@ -70,14 +71,22 @@ for(const b of all.filter(b=>(b.start_time?.time||'')>='2026-07'))
 |---|---|---|---|---|---|
 | `2` | 독점 / 에이전트 (`limited-char`) | 90 | 50% | 1.600% | 62.5 |
 | `3` | 음의 엔진 / W-엔진 (`limited-weapon`) | 80 | 75% | 2.000% | 50.0 |
+| `102` | 특별 픽업 / 에이전트 (`special-char`) | 90 | 50% | 1.600% | 62.5 |
+| `103` | 특별 픽업 / W-엔진 (`special-weapon`) | 80 | 75% | 2.000% | 50.0 |
 | `1` | 상시 (`standard`) | 90 | — | 1.600% | 62.5 |
-| `5` | 본디 (`bangboo`) | 80 | — | 2.000% | 50.0 |
+| `5` | 방부 (`bangboo`) | 80 | — | 2.000% | 50.0 |
 
 `expAvg = 1 / 종합확률`이며 종합확률은 인게임 공시의 `general_prob_star5`다. 추정이 아니다.
 
 **`rank_type`이 HSR과 다르다** — B급=`2`, A급=`3`, **S급=`4`**. `schedule.json`의 `ranks` 블록(`{top:"4", mid:"3"}`)이 이를 주입한다.
 
-대시보드는 `limited-char`와 `limited-weapon` 두 축만 표시한다(`data.js`의 `HIDDEN_ROLES`).
+**`102`/`103`은 기간 한정 특별 픽업 채널이다.** 한 배너에서 S급 여럿을 동시에 픽업하는 채널로, 확률 파라미터는 독점·W-엔진과 같지만 **레코드가 겹치지 않는 별개 채널**이다. 2026-08 실측 확정(3.1 하반기 3인 동시 픽업 = 다이아린 `1481`·유즈하 `1411`·하루마사 `1201`). 이 코드가 `internal/game/game.go`의 `Banners`에 없으면 요청조차 나가지 않아 해당 배너 기록이 통째로 사라진다 — 에러 없이.
+
+**상시(`1`)·방부(`5`)는 조회하지 않는다.** 픽업 개념이 없어 대시보드 집계에서도 빠지는 채널이라 왕복만 늘렸다. 이미 저장된 기록은 그대로 표시해야 하므로 `schedule.json`의 `banners`에는 설정이 남아 있다 — `banner-schedule.test.js`가 "Go가 수집하는 코드는 반드시 설정이 있어야 한다"는 방향만 강제하고 그 반대는 허용하는 이유다.
+
+**새 코드가 있는지는 두드려 봐야 안다.** `go run ./tools/channelprobe zzz '<게임 경로>' <코드...>` — 한 자리 수에서 멈추지 말고 100번대까지, 그 배너가 진행 중일 때 훑는다.
+
+대시보드는 캐릭터 축(`limited-char`+`special-char`)과 무기 축(`limited-weapon`+`special-weapon`) 두 축만 표시한다(`data.js`의 `HIDDEN_ROLES`가 상시·초보자·방부를 뺀다).
 
 ## 반영 후 확인
 
@@ -94,7 +103,13 @@ npm test
 web/zzz/schedule.json 기록 — 일정 36건, 건너뜀 0건, 교정 3건
 ```
 
-`web/zzz/schedule.json`은 생성물이지만 **repo에 커밋한다** — 사용자 앱에 임베드되기 때문이다.
+**재생성 전에 현재 산출물을 백업해 비교한다.** 소스가 항목을 잃으면 재생성이 조용히 데이터를 되돌린다.
+
+```bash
+node -e "const j=require('./web/zzz/schedule.json');console.log(j.version,j.schedule.length,JSON.stringify(j.schedule.at(-1)))"
+```
+
+`web/zzz/schedule.json`은 생성물이지만 **repo에 커밋한다** — 사용자 앱에 임베드되기 때문이다. 산출물이 바뀌면 최상위 `version`(정수)을 올린다 — 업데이터가 이 값을 비교해 배포한다.
 
 ## 게임 버전 목록
 
