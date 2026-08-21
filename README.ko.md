@@ -2,6 +2,12 @@
 
 **한국어** | [English](README.md)
 
+[![Windows 다운로드](https://img.shields.io/github/v/release/jkas2016/hsr-warp?style=for-the-badge&label=Windows%20%EB%8B%A4%EC%9A%B4%EB%A1%9C%EB%93%9C&color=2ea44f)](https://github.com/jkas2016/hsr-warp/releases/latest)
+[![가이드 사이트](https://img.shields.io/badge/%EA%B0%80%EC%9D%B4%EB%93%9C%20%EC%82%AC%EC%9D%B4%ED%8A%B8-jkas2016.github.io-1f6feb?style=for-the-badge)](https://jkas2016.github.io/hsr-warp/)
+
+- **[⬇️ 설치 파일 다운로드](https://github.com/jkas2016/hsr-warp/releases/latest)** — `hsr-warp-setup-X.X.X.exe`, 관리자 권한 불필요.
+- **[📖 가이드 사이트](https://jkas2016.github.io/hsr-warp/)** — 설치·authkey·지표 해설·50/50 판정·문제 해결 (브라우저 언어로 자동 라우팅).
+
 붕괴: 스타레일의 **전언(워프)** 기록과 젠레스 존 제로의 **변조** 기록을 내 PC로 가져와 **천장·운·픽뚫(50/50)·월별 통계**를 보여주는 작은 프로그램입니다. 설치 마법사로 설치하고 실행하면 브라우저에 대시보드가 자동으로 열리고, 위쪽 스위처로 두 게임을 오갑니다. 앱과 가이드는 **한국어·영어·중국어(간체)·일본어**를 지원합니다.
 
 - **간편 설치** — 관리자 권한 없이 설치 마법사 하나로 끝. 새 버전이 나오면 실행할 때 알려줍니다.
