@@ -78,6 +78,26 @@ export function needsShell(cmd, platform = process.platform) {
 }
 
 /**
+ * npm 을 shell 없이 실행하기 위한 [명령, 인자] 를 만든다.
+ *
+ * Windows 에서 npm 은 `npm.cmd` 라 shell 이 필요한데, shell 을 켜고 인자를 넘기면
+ * Node 가 DEP0190 을 경고한다(인자가 이스케이프되지 않고 이어붙기만 하므로).
+ * `npm run` 으로 들어오면 npm 이 `npm_execpath` 로 `npm-cli.js` 절대 경로를 넘겨주므로
+ * (실측: `npm run env`), node 로 그 파일을 직접 부르면 `.cmd` 를 거치지 않아 shell 자체가
+ * 필요 없어진다. `node scripts/release.mjs` 로 직접 부른 경우엔 그 변수가 없으므로
+ * 기존 경로로 폴백한다 — 그때는 경고가 남지만 문서가 안내하는 실행 방법이 아니다.
+ * @param {string[]} args npm 에 넘길 인자(예: ['test']).
+ * @param {Object<string, string>} [env=process.env] 환경 변수.
+ * @param {string} [execPath=process.execPath] npm_node_execpath 가 없을 때 쓸 node 경로.
+ * @returns {[string, string[]]} run() 에 그대로 펼쳐 넣을 [명령, 인자].
+ */
+export function npmCommand(args, env = process.env, execPath = process.execPath) {
+  const cli = env.npm_execpath;
+  if (cli && cli.endsWith('.js')) return [env.npm_node_execpath || execPath, [cli, ...args]];
+  return ['npm', args];
+}
+
+/**
  * 명령을 동기 실행한다. 실패하면 die() 로 즉시 중단한다.
  * @param {string} cmd 실행 파일.
  * @param {string[]} args 인자.
@@ -195,7 +215,7 @@ function main() {
   if (run('git', ['tag', '--list', tag], { capture: true })) die(`태그 ${tag} 가 이미 있습니다.`);
 
   console.log(`\n[1/4] 전체 테스트 — 태그를 밀기 전 마지막 게이트`);
-  run('npm', ['test']);
+  run(...npmCommand(['test']));
 
   console.log(`\n[2/4] CHANGELOG 확정 → [${version}]`);
   writeFileSync(CHANGELOG, after);

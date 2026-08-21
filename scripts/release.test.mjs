@@ -1,7 +1,7 @@
 // promoteChangelog 의 불변식을 고정한다. 이 함수가 조용히 틀리면 잘못된
 // CHANGELOG 가 커밋되고 그 위에서 태그가 밀려 되돌릴 수 없는 릴리스가 나간다.
 import assert from 'assert';
-import { promoteChangelog, needsShell } from './release.mjs';
+import { promoteChangelog, needsShell, npmCommand } from './release.mjs';
 
 const SAMPLE = [
   '# 변경 내역',
@@ -122,6 +122,32 @@ function fails(fn, re, msg) {
   assert.strictEqual(needsShell('npm', 'win32'), true, 'npm 은 Windows 에서 npm.cmd 라 shell 이 필요하다');
   assert.strictEqual(needsShell('npm', 'linux'), false, 'Windows 가 아니면 언제나 shell 없이');
   assert.strictEqual(needsShell('git', 'darwin'), false);
+}
+
+// 9. npm 은 node 로 npm-cli.js 를 직접 불러 shell 을 피한다.
+//    shell 을 켠 채 인자를 넘기면 Node 가 DEP0190 을 경고한다(인자가 이스케이프되지 않고
+//    이어붙기만 하므로). npm run 으로 들어오면 npm 이 npm_execpath 로 npm-cli.js 절대 경로를
+//    넘겨주므로(실측), node 로 그걸 직접 부르면 .cmd 를 거치지 않아 shell 자체가 필요 없다.
+{
+  const ENV = {
+    npm_execpath: 'C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js',
+    npm_node_execpath: 'C:\\Program Files\\nodejs\\node.exe',
+  };
+  assert.deepStrictEqual(npmCommand(['test'], ENV),
+    [ENV.npm_node_execpath, [ENV.npm_execpath, 'test']],
+    'npm run 안에서는 node 로 npm-cli.js 를 직접 부른다');
+  assert.strictEqual(needsShell(npmCommand(['test'], ENV)[0], 'win32'), false,
+    '그 명령에는 shell 이 붙지 않아야 한다 — 붙으면 DEP0190 이 그대로 남는다');
+
+  // npm_node_execpath 가 없으면 현재 node 로 대신한다.
+  assert.deepStrictEqual(npmCommand(['test'], { npm_execpath: ENV.npm_execpath }, '/usr/bin/node'),
+    ['/usr/bin/node', [ENV.npm_execpath, 'test']]);
+
+  // node scripts/release.mjs 로 직접 부른 경우엔 npm 이 없으므로 기존 경로로 폴백한다.
+  assert.deepStrictEqual(npmCommand(['test'], {}), ['npm', ['test']]);
+  // npm_execpath 가 .js 가 아니면(구형 래퍼 등) 믿지 않는다.
+  assert.deepStrictEqual(npmCommand(['test'], { npm_execpath: '/usr/local/bin/npm' }),
+    ['npm', ['test']]);
 }
 
 console.log('release.test.mjs: 모든 검증 통과');

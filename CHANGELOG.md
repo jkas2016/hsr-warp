@@ -7,6 +7,9 @@
 
 ## [Unreleased]
 
+### 수정됨
+- `npm run release` 가 매번 Node 의 `DEP0190` 경고를 찍던 문제 — Windows 에서 npm 을 부르려고 `shell: true` 를 켜 둔 탓이다(shell 을 켜고 인자를 넘기면 인자가 이스케이프되지 않아 Node 가 경고한다). `npm run` 이 넘겨주는 `npm_execpath` 로 `npm-cli.js` 를 node 가 직접 부르게 바꿔 shell 자체를 없앴다
+
 ## [1.1.0] - 2026-08-22
 
 ### 추가됨
