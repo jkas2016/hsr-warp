@@ -96,7 +96,8 @@ window.WarpData = (function () {
   // roleName). 게임 공통이라 배너 short 와 다를 수 있어(HSR 광추 ↔ '무기') 역할로 되돌려 맞춘다.
   const PROGRESS_ROLE = {
     '캐릭터': 'limited-char', '무기': 'limited-weapon',
-    '일반': 'standard', '출발': 'beginner', '본디': 'bangboo',
+    '일반': 'standard', '출발': 'beginner', '방부': 'bangboo',
+    '특별 픽업': 'special-char', '특별 픽업 W-엔진': 'special-weapon',
   };
   /**
    * SSE progress 의 배너 라벨을 역할 키로 되돌린다.

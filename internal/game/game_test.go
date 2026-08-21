@@ -59,6 +59,7 @@ func TestAll_BannersUseKnownRolesAndUniqueCodes(t *testing.T) {
 	known := map[string]bool{
 		RoleLimitedChar: true, RoleLimitedWeapon: true,
 		RoleStandard: true, RoleBeginner: true, RoleBangboo: true,
+		RoleSpecialChar: true, RoleSpecialWeapon: true,
 	}
 	for _, g := range All() {
 		if len(g.Banners) == 0 {
@@ -82,7 +83,7 @@ func TestAll_BannersUseKnownRolesAndUniqueCodes(t *testing.T) {
 func TestCodes_MatchesVerifiedValues(t *testing.T) {
 	want := map[string][]string{
 		"hsr": {"11", "12", "1", "2"},
-		"zzz": {"2", "3", "1", "5"},
+		"zzz": {"2", "3", "102", "103"},
 	}
 	for id, exp := range want {
 		g, ok := ByID(id)
@@ -120,5 +121,27 @@ func TestAll_ReturnsCopy(t *testing.T) {
 	a[0].ID = "tampered"
 	if All()[0].ID == "tampered" {
 		t.Error("All() 이 내부 상태를 노출한다")
+	}
+}
+
+// ZZZ 3.1 하반기 "3인 동시 특별 픽업"(다이아린·유즈하·하루마사) 배너는 API 상
+// 독점(2)·W-엔진(3)과 별개인 real_gacha_type=102/103 으로 배포된다. 실측:
+// 102 는 에이전트, 103 은 W-엔진 레코드를 돌려준다(tools/channelprobe).
+// 이 두 코드가 목록에 없으면 해당 배너 기록은 조회 자체가 되지 않아 대시보드에
+// 통째로 누락된다 — 실제로 그렇게 누락됐다.
+func TestZZZ_IncludesSpecialPickupChannels(t *testing.T) {
+	g, ok := ByID("zzz")
+	if !ok {
+		t.Fatal("zzz 를 찾지 못했다")
+	}
+	want := map[string]string{"102": RoleSpecialChar, "103": RoleSpecialWeapon}
+	got := map[string]string{}
+	for _, b := range g.Banners {
+		got[b.Code] = b.Role
+	}
+	for code, role := range want {
+		if got[code] != role {
+			t.Errorf("zzz: 코드 %s 의 역할 = %q, want %q", code, got[code], role)
+		}
 	}
 }

@@ -13,7 +13,7 @@ const ZZZ = {
     '2': { role: 'limited-char', short: '독점', cap: 90, rateUp: 0.5, expAvg: 62.5 },
     '3': { role: 'limited-weapon', short: 'W-엔진', cap: 80, rateUp: 0.75, expAvg: 50.0 },
     '1': { role: 'standard', short: '상시', cap: 90, rateUp: null, expAvg: 62.5 },
-    '5': { role: 'bangboo', short: '본디', cap: 80, rateUp: null, expAvg: 50.0 },
+    '5': { role: 'bangboo', short: '방부', cap: 80, rateUp: null, expAvg: 50.0 },
   },
   schedule: [{ s: '2026-07-29', e: '2026-08-19', c: ['1501'], l: ['14158'] }],
   versions: [{ v: '2.5', s: '2026-07-29' }],
@@ -63,7 +63,7 @@ const low = (rank, gacha_type = '2', time = T) => ({
   assert.deepStrictEqual(hsrCfg.order, ['11', '12', '1', '2'], 'HSR 배너 표시 순서(캐릭터·광추·일반·출발)');
 
   const zzzCfg = resolveConfig(ZZZ);
-  assert.deepStrictEqual(zzzCfg.order, ['2', '3', '1', '5'], 'ZZZ 배너 표시 순서(독점·W-엔진·상시·본디)');
+  assert.deepStrictEqual(zzzCfg.order, ['2', '3', '1', '5'], 'ZZZ 배너 표시 순서(독점·W-엔진·상시·방부)');
 }
 
 // ---- 구 스키마 호환: 배열이 들어오면 HSR 기본값 ----

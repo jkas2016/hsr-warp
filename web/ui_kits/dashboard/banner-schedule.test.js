@@ -36,14 +36,24 @@ for (const gameID of Object.keys(goGames)) {
   assert.ok(Array.isArray(schedule.order) && schedule.order.length, `${SCHEDULE_PATH[gameID]} 에 order 배열이 비어있다`);
 
   const goCodes = goGames[gameID];
+  // Go 가 수집하는 채널은 반드시 analyze 설정이 있어야 한다 — 없으면 저장은 되는데
+  // analyze.js 가 그 채널을 못 찾아 통계에서 조용히 사라진다.
+  //
+  // 반대 방향(설정에만 있고 Go 가 안 씀)은 허용한다. 조회를 중단한 채널도 과거
+  // 기록은 그대로 보여줘야 하므로 설정을 남긴다(ZZZ 상시·방부).
+  for (const code of goCodes) {
+    assert.ok(
+      bannerKeys.includes(code),
+      `${gameID}: game.go 가 수집하는 채널 ${code} 의 설정이 ${SCHEDULE_PATH[gameID]} banners 에 없다.`,
+    );
+    assert.ok(
+      schedule.order.includes(code),
+      `${gameID}: game.go 가 수집하는 채널 ${code} 가 ${SCHEDULE_PATH[gameID]} order 에 없다.`,
+    );
+  }
   assert.deepStrictEqual(
-    [...bannerKeys].sort(), [...goCodes].sort(),
-    `${gameID}: internal/game/game.go 의 Banners[].Code 집합과 ${SCHEDULE_PATH[gameID]} 의 banners 키 집합이 다르다 —\n` +
-    '  Go 는 수집·저장하는데 analyze.js 는 그 채널을 못 찾아 통계에서 조용히 사라진다. 양쪽을 맞춰라.',
-  );
-  assert.deepStrictEqual(
-    [...schedule.order].sort(), [...goCodes].sort(),
-    `${gameID}: internal/game/game.go 의 Banners[].Code 집합과 ${SCHEDULE_PATH[gameID]} 의 order 배열이 다르다.`,
+    [...schedule.order].sort(), [...bannerKeys].sort(),
+    `${gameID}: ${SCHEDULE_PATH[gameID]} 의 order 배열과 banners 키 집합이 다르다.`,
   );
 }
 

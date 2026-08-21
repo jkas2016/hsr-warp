@@ -84,6 +84,10 @@
     'standard':       { kind: 'standard', pool: null },
     'beginner':       { kind: 'beginner', pool: null },
     'bangboo':        { kind: 'standard', pool: null },
+    // ZZZ 특별 픽업 채널(예: 3인 동시 픽업). 독점·W-엔진과 별개 코드로 오지만
+    // 픽업 판정 규칙은 같아 같은 pool 을 본다.
+    'special-char':   { kind: 'limited',  pool: 'char' },
+    'special-weapon': { kind: 'limited',  pool: 'lc' },
   };
 
   /**

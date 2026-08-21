@@ -84,7 +84,7 @@ assert.strictEqual(I.itemName('9999', undefined), undefined, 'raw 없으면 raw 
 
 // 8) 배너 short → i18n 코드 매핑이 두 게임을 모두 덮어야 한다.
 {
-  for (const short of ['캐릭터', '광추', '일반', '출발', '독점', 'W-엔진', '상시', '본디']) {
+  for (const short of ['캐릭터', '광추', '일반', '출발', '독점', 'W-엔진', '상시', '방부', '특별 픽업', '특별 W-엔진']) {
     assert.ok(I.BANNER_CODE[short], `BANNER_CODE 에 ${short} 가 없다`);
     assert.ok(DICTS.ko['banner.' + I.BANNER_CODE[short]], `ko 에 banner.${I.BANNER_CODE[short]} 누락`);
   }

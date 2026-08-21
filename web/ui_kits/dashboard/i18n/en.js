@@ -8,6 +8,8 @@ window.I18N_DICTS.en = {
   'banner.wengine': 'W-Engine',
   'banner.standard': 'Stable',
   'banner.bangboo': 'Bangboo',
+  'banner.special': 'Special Pickup',
+  'banner.specialWengine': 'Special W-Engine',
   'game.hsr': 'Honkai: Star Rail',
   'game.zzz': 'Zenless Zone Zero',
   'game.hsr.short': 'Star Rail',

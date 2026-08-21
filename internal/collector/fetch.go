@@ -23,7 +23,9 @@ var roleName = map[string]string{
 	game.RoleLimitedWeapon: "무기",
 	game.RoleStandard:      "일반",
 	game.RoleBeginner:      "출발",
-	game.RoleBangboo:       "본디",
+	game.RoleBangboo:       "방부",
+	game.RoleSpecialChar:   "특별 픽업",
+	game.RoleSpecialWeapon: "특별 픽업 W-엔진",
 }
 
 // BannerLabel 은 배너 코드의 사람이 읽는 이름을 반환한다.
