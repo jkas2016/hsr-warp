@@ -117,10 +117,9 @@ function fails(fn, re, msg) {
 //    git 이 'v1.1.0' 을 경로로 읽어 실패한다(v1.1.0 릴리스에서 실제로 걸렸다).
 //    반대로 npm 은 Windows 에서 npm.cmd 라 shell 없이는 실행되지 않는다.
 {
-  const win = (cmd) => needsShell(cmd, 'win32');
-  assert.strictEqual(win('git'), false, 'git 에 shell 을 켜면 커밋 메시지가 쪼개진다');
-  assert.strictEqual(win('gh'), false, 'gh 는 exe 라 shell 이 필요 없다');
-  assert.strictEqual(win('npm'), true, 'npm 은 Windows 에서 npm.cmd 라 shell 이 필요하다');
+  assert.strictEqual(needsShell('git', 'win32'), false, 'git 에 shell 을 켜면 커밋 메시지가 쪼개진다');
+  assert.strictEqual(needsShell('gh', 'win32'), false, 'gh 는 exe 라 shell 이 필요 없다');
+  assert.strictEqual(needsShell('npm', 'win32'), true, 'npm 은 Windows 에서 npm.cmd 라 shell 이 필요하다');
   assert.strictEqual(needsShell('npm', 'linux'), false, 'Windows 가 아니면 언제나 shell 없이');
   assert.strictEqual(needsShell('git', 'darwin'), false);
 }
