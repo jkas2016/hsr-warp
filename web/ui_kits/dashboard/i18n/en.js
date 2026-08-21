@@ -162,7 +162,7 @@ window.I18N_DICTS.en = {
   'foot.line1Hsr': '1 pull = 160 Stellar Jade · Unofficial tool, not affiliated with HoYoverse · Data format SRGF v1.0',
   'foot.line1Zzz': '1 pull = 160 Polychrome · Unofficial tool, not affiliated with HoYoverse · Data format UIGF v4.0',
   'foot.line2': "50/50 rule: if the 5★ is the banner's rate-up when obtained, it's 'Won'; otherwise 'Lost'.",
-  'warn.unknown5': '⚠ {n} unidentified 5★ — obtained outside known banner schedules (new patch not reflected). Latest banners are applied at startup (retry shortly if not reflected).',
+  'warn.unknown5': '⚠ {n} unidentified 5★ — no rate-up info yet for when they were obtained (new patch not reflected). Latest banners are applied at startup (retry shortly if not reflected).',
   'update.newVersion': 'A new version {v} is available —',
   'update.download': 'Download installer',
   'update.schedule': 'Banner data updated to {v}.',

@@ -2,7 +2,9 @@
 // Unit-tested via web/analyze.test.js. 50/50 판정은 픽업 일정(schedule) 기반이다: 5★ 획득 시각의
 // 픽업(rate-up) 5★이면 픽승(win), 아니면 픽뚫(loss). '그 시점 픽업이었나'로 판정하므로
 // 상시풀 편입·Celestial Invitation·콜라보·리런을 모두 올바르게 처리한다(풀 소속 방식은 구조적으로 불가).
-// 일정에 없는 시각의 5★는 unidentified(미확인)로 표시. 일정은 /schedule.json 에서 주입된다.
+// 판정을 확신할 수 없는 5★는 unidentified(미확인)로 표시한다 — 일정 범위 밖(신규 패치 미반영),
+// 픽업 목록을 아직 모르는 구간(일정 항목의 p), 그리고 그 이후(확정 체인 상태를 알 수 없다).
+// 일정은 /schedule.json 에서 주입된다.
 (function (root) {
   /**
    * SRGF v1.0 워프 기록 한 건.
@@ -37,6 +39,8 @@
    * @property {string} e 종료일('YYYY-MM-DD').
    * @property {string[]} c 픽업 캐릭터 item_id 목록.
    * @property {string[]} l 픽업 광추/W-엔진 item_id 목록.
+   * @property {string[]} [p] 픽업 목록을 모르는 pool 키 목록('c'/'l'). 일정 소스가 신규
+   *   배너의 픽업을 아직 안 채운 구간에 붙는다. 해당 pool 의 판정은 보류한다(구 스키마엔 없음).
    */
 
   /**
@@ -60,7 +64,7 @@
    * @property {'win'|'loss'|'guaranteed'|null} result 픽승/픽뚫/확정. limited 아닌 배너는 null.
    * @property {boolean|null} isPickup 그 시점 픽업 대상이었는지.
    * @property {boolean} fromGuarantee 확정(천장 보증)으로 나왔는지.
-   * @property {boolean} unidentified 일정 범위 밖이라 판정 보류인지.
+   * @property {boolean} unidentified 판정 보류인지(일정 범위 밖 / 픽업 목록 미상 구간 / 그 이후).
    */
 
   // ---- config (verified constants) ----
@@ -179,6 +183,23 @@
   }
 
   /**
+   * 시각 t 가 '그 pool 의 픽업 목록을 모르는' 구간 안인지.
+   * wasPickup 과 달리 MATCH_TOL 을 쓰지 않는다 — 허용오차(60일)를 여기 적용하면
+   * 미상 배너 하나가 앞뒤 4개월을 통째로 판정 불가로 만든다.
+   * @param {number} t 뽑은 시각(ms, 날짜 단위).
+   * @param {'c'|'l'|null} poolKey 볼 픽업 키.
+   * @param {SchedulePeriod[]} schedule 픽업 일정.
+   * @returns {boolean} 미상 구간 안이면 true.
+   */
+  function inPartial(t, poolKey, schedule) {
+    for (const p of schedule) {
+      if (!p.p || !p.p.includes(poolKey)) continue;
+      if (t >= Date.parse(p.s) && t < Date.parse(p.e)) return true;
+    }
+    return false;
+  }
+
+  /**
    * 이미 분류된 5★ 배열에서 요약치를 재계산한다(천장·result·isPickup은 입력값 그대로 사용 — 재분류 금지).
    * @param {FiveStar[]} fives 분류가 끝난 5★ 목록.
    * @param {BannerMeta} meta 해당 배너 메타(기준선 expAvg 사용).
@@ -253,11 +274,14 @@
   function analyzeBanner(records, meta, schedule, ranks) {
     schedule = schedule || [];
     ranks = ranks || DEFAULT_RANKS;
-    const schedEnd = schedule.length ? Date.parse(schedule[schedule.length - 1].e) : 0;
+    // 항목은 시작일 오름차순이라 마지막 항목이 가장 늦게 끝난다는 보장이 없다
+    // (늦게 시작해 먼저 끝나는 짧은 병행 배너). 최대 종료일을 커버 경계로 쓴다.
+    const schedEnd = schedule.reduce((m, p) => Math.max(m, Date.parse(p.e)), 0);
     const list = records.slice().sort(byId);
     const poolKey = { char: 'c', lc: 'l' }[meta.pool] || null; // schedule 픽업 키
     let p5 = 0, p4 = 0, c4 = 0, c3 = 0;
     let guaranteed = false;
+    let held = false;   // 판정 보류가 한 번 나오면 이후 확정 체인 상태를 알 수 없다
     const fives = [];
     for (const r of list) {
       p5++; p4++;
@@ -267,9 +291,13 @@
         const f = { id: String(r.id), name: r.name, item_id: id, item_type: r.item_type, time: r.time, pity: p5, result: null, isPickup: null, fromGuarantee: false, unidentified: false };
         if (meta.kind === 'limited') {
           const t = Date.parse(String(r.time).slice(0, 10));
-          if (!(t < schedEnd)) { f.unidentified = true; }              // 일정 범위 밖(신규 패치 미반영) — 판정 보류
+          const hit = (held || !(t < schedEnd)) ? null : wasPickup(id, t, poolKey, schedule);
+          // 판정 보류 3종: 이미 보류된 뒤 / 일정 범위 밖(신규 패치 미반영) /
+          // 픽업 목록이 비어 픽뚫이라 단정할 수 없는 구간. 보류가 한 번 나오면
+          // 확정(천장 보증) 소비 여부를 알 수 없으므로 이후 5★도 함께 보류한다.
+          if (hit === null || (!hit && inPartial(t, poolKey, schedule))) { f.unidentified = true; held = true; }
           else {
-            f.isPickup = wasPickup(id, t, poolKey, schedule);          // 그 시점 픽업이면 픽승, 아니면 픽뚫
+            f.isPickup = hit;                                         // 그 시점 픽업이면 픽승, 아니면 픽뚫
             if (guaranteed) { f.result = 'guaranteed'; f.fromGuarantee = true; guaranteed = false; }
             else { if (f.isPickup) { f.result = 'win'; } else { f.result = 'loss'; guaranteed = true; } }
           }

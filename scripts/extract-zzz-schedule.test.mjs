@@ -40,12 +40,17 @@ const RAW = {
     { name: 'Paradise Regained', banner_type: 2, uprate_5: [{}],
       start_time: { time: '2026-07-29 02:00:00+08:00', is_server_time: false },
       end_time: { time: '2026-09-08 14:59:59+01:00', is_server_time: true } },
-    // 폴백 테이블에 없는 빈 배너는 여전히 skipped 여야 한다.
+    // 폴백 테이블에 없는 빈 배너. 버리면 그 기간 S급이 픽뚫로 오판되므로
+    // 픽업 미상(p) 항목으로 남긴다.
     { name: 'Unknown Empty Banner', banner_type: 2, uprate_5: [{}],
       start_time: { time: '2026-10-01 02:00:00+08:00', is_server_time: false },
       end_time: { time: '2026-10-21 11:59:59+01:00', is_server_time: true } },
   ],
   '3': [
+    // 같은 시작일에 정상 배너와 빈 배너가 섞인다 — ids 는 유지하고 빈 쪽 pool 만 p 에.
+    { name: 'Unnamed Engine Rerun', banner_type: 3, uprate_5: [{}],
+      start_time: { time: '2026-07-29 02:00:00+08:00', is_server_time: false },
+      end_time: { time: '2026-08-19 11:59:59+01:00', is_server_time: true } },
     {
       name: 'Dissonant Sonata', banner_type: 3,
       uprate_5: [{ id: '14158', name: 'Returning Wings', rank: 5, item_type: 'weapon' }],
@@ -73,7 +78,7 @@ const RAW = {
   }],
 };
 
-const { schedule, skipped, warnings } = buildSchedule(RAW);
+const { schedule, skipped, warnings, partials } = buildSchedule(RAW);
 
 // ---- 같은 기간은 한 항목으로 병합된다 ----
 {
@@ -114,12 +119,28 @@ for (const p of schedule) {
   }
 }
 
-// ---- 폴백 테이블에 없는 빈 uprate_5 항목은 여전히 보고된다 ----
+// ---- 폴백 테이블에 없는 빈 uprate_5 항목은 버리지 않고 '픽업 미상'으로 남긴다 ----
+// 버리면 그 기간이 일정에서 사라져 analyze.js 가 그 기간 S급을 전부 픽뚫로
+// 오판한다(이슈 #52). p 에 pool 을 담아 판정 보류 신호를 넘긴다.
 {
-  assert.strictEqual(skipped.length, 1, '건너뛴 항목 수');
-  assert.strictEqual(skipped[0].name, 'Unknown Empty Banner');
-  // 폴백으로 보완된 배너는 건너뛰지 않는다.
-  assert.ok(!skipped.some((s) => s.name === 'Paradise Regained'), '보완된 배너는 skipped 가 아니다');
+  assert.strictEqual(skipped.length, 0, 'uprate_5 가 비었다고 버리지 않는다');
+  const oct = schedule.find((x) => x.s === '2026-10-01');
+  assert.ok(oct, '빈 배너도 일정 항목으로 남는다');
+  assert.deepStrictEqual(oct.c, [], '픽업 목록은 비어 있다');
+  assert.deepStrictEqual(oct.p, ['c'], '독점 채널 픽업 미상');
+  assert.strictEqual(oct.e, '2026-10-21', '기간은 소스 그대로');
+  // 미상 사실은 조용히 삼키지 않는다.
+  assert.ok(partials.some((x) => x.name === 'Unknown Empty Banner'), '미상 배너가 보고돼야 한다');
+}
+
+// ---- 같은 시작일에 정상 배너와 빈 배너가 섞이면 ids 는 유지하고 p 만 붙는다 ----
+{
+  const aug = schedule.find((x) => x.s === '2026-07-29');
+  assert.deepStrictEqual(aug.l, ['14158'], '정상 배너의 픽업은 그대로 남는다');
+  assert.deepStrictEqual(aug.p, ['l'], '빈 쪽 pool 만 픽업 미상');
+  // 폴백으로 보완된 배너는 미상이 아니다.
+  assert.ok(!aug.p.includes('c'), '폴백이 채운 pool 은 미상이 아니다');
+  assert.ok(!partials.some((x) => x.name === 'Paradise Regained'), '보완된 배너는 미상이 아니다');
 }
 
 // ---- 날짜는 UTC 정규화 후 YYYY-MM-DD ----

@@ -292,4 +292,76 @@ assert.strictEqual(whole.luck.limited.count5, full.luck.limited.count5, '전체�
 assert.strictEqual(mixFull.luck.limited.avgPity5, 7.5, '합산 평균 (5+10)/2');
 assert.strictEqual(mixFull.luck.limited.base, 58, '합산 기준선 (62.5+53.5)/2');
 
+// ---- 픽업 정보가 불완전한 구간(p): 픽뚫로 오판하지 않고 판정 보류 ----
+// 배너 일정 소스가 신규 배너의 픽업 목록을 늦게 채우면, 그 기간의 5★이 전부
+// '픽뚫'로 오판되고 다음 5★까지 '확정'으로 잘못 소비된다(이슈 #52). 일정 항목의
+// p(픽업 정보가 불완전한 pool 키) 를 보고 판정을 보류한다.
+{
+  id = 7000n;
+  // 캐릭터 픽업이 불완전한 구간 + 같은 기간에 겹치는 완전한 구간.
+  const sched = [
+    { s: '2026-01-01', e: '2026-02-01', c: ['1001'], l: [] },
+    { s: '2026-03-01', e: '2026-04-01', c: [], l: ['20001'], p: ['c'] },
+    { s: '2026-03-10', e: '2026-04-01', c: ['1002'], l: [] },
+  ];
+  const inP = '2026-03-15 00:00:00';
+
+  // 1) 불완전 구간의 목록 밖 5★ → 픽뚫이 아니라 판정 보류.
+  const held = analyzeBanner([r5(1999, inP)], BANNERS['11'], sched);
+  assert.strictEqual(held.fives[0].unidentified, true, 'p 구간의 미상 5★은 판정 보류');
+  assert.strictEqual(held.fives[0].result, null, '보류는 승패로 세지 않는다');
+  assert.strictEqual(held.fives[0].isPickup, null);
+  assert.strictEqual(held.contested, 0, '50/50 모수에서 제외');
+  assert.strictEqual(held.unknown5, 1);
+  assert.strictEqual(held.currentGuaranteed, false, '보류는 확정을 켜지 않는다');
+
+  // 2) 겹치는 완전한 구간의 픽업이면 그대로 픽승 — p 하나가 옆 배너를 죽이면 안 된다.
+  const win = analyzeBanner([r5(1002, inP)], BANNERS['11'], sched);
+  assert.strictEqual(win.fives[0].result, 'win', '겹친 완전 구간의 픽업은 픽승');
+  assert.strictEqual(win.fives[0].unidentified, false);
+
+  // 3) p 에 없는 pool 은 영향받지 않는다 — 광추 배너는 그대로 판정한다.
+  const lc = { id: '7500', rank_type: '5', item_id: '29999', name: 'z', item_type: 'L', time: inP, gacha_type: '12' };
+  const lcRes = analyzeBanner([lc], BANNERS['12'], sched);
+  assert.strictEqual(lcRes.fives[0].result, 'loss', "p:['c'] 는 광추 판정을 막지 않는다");
+
+  // 4) 구간 밖이면 보류하지 않는다 — wasPickup 의 ±60일 허용오차를 p 에 쓰면
+  //    배너 하나가 앞뒤 4개월을 통째로 판정 불가로 만든다.
+  const near = analyzeBanner([r5(1999, '2026-01-15 00:00:00')], BANNERS['11'], sched);
+  assert.strictEqual(near.fives[0].unidentified, false, 'p 구간 밖(허용오차 안)은 정상 판정');
+  assert.strictEqual(near.fives[0].result, 'loss');
+
+  // 5) 보류 이후 같은 배너의 후속 5★도 보류 — 확정 체인 상태를 알 수 없다.
+  id = 7600n;
+  const chain = analyzeBanner(
+    [r5(1999, inP), r5(1002, '2026-03-20 00:00:00')], BANNERS['11'], sched);
+  assert.deepStrictEqual(chain.fives.map(f => f.unidentified), [true, true],
+    '보류 뒤 후속 5★은 확정 여부를 알 수 없어 함께 보류');
+  assert.strictEqual(chain.contested, 0);
+  assert.strictEqual(chain.unknown5, 2);
+}
+
+// ---- 구 스키마 호환: p 없는 일정은 동작이 바뀌지 않는다 ----
+{
+  id = 7800n;
+  const old = [{ s: '2026-01-01', e: '2026-02-01', c: ['1001'], l: [] }];
+  const res = analyzeBanner([r5(1001, '2026-01-15 00:00:00'), r5(1999, '2026-01-16 00:00:00')], BANNERS['11'], old);
+  assert.deepStrictEqual(res.fives.map(f => f.result), ['win', 'loss'], 'p 없는 일정은 기존 그대로');
+  assert.strictEqual(res.unknown5, 0);
+}
+
+// ---- 일정 커버 종료일은 마지막 항목이 아니라 최대 종료일이다 ----
+// 항목은 시작일 오름차순이라, 늦게 시작해 먼저 끝나는 짧은 배너가 마지막에 오면
+// 마지막 항목의 e 만 보는 순간 그 뒤 구간이 통째로 '일정 밖'으로 빠진다.
+{
+  id = 7900n;
+  const sched = [
+    { s: '2026-01-01', e: '2026-04-01', c: ['1001'], l: [] },
+    { s: '2026-01-10', e: '2026-01-20', c: ['1002'], l: [] },
+  ];
+  const res = analyzeBanner([r5(1001, '2026-03-01 00:00:00')], BANNERS['11'], sched);
+  assert.strictEqual(res.fives[0].unidentified, false, '최대 종료일까지는 일정 커버');
+  assert.strictEqual(res.fives[0].result, 'win');
+}
+
 console.log('OK  all analyze tests passed');
