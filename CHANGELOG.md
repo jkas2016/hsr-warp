@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-08-22
+
 ### 변경됨
 - 두 README 최상단에 다운로드·가이드 사이트 링크를 노출한다 — 그동안 설치 파일 링크는 "빠른 시작" 2번 안에, 가이드 사이트는 그 아래 문단에 묻혀 있어 처음 온 사람이 바로 찾기 어려웠다. 제목 바로 아래에 배지 두 개(다운로드 배지는 최신 릴리스 버전을 자동 표시)와 한 줄 설명을 둔다
 
@@ -145,6 +147,7 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[1.1.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.1
 [1.1.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.0
 [1.0.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.1
 [1.0.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.0
