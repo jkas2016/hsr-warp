@@ -76,7 +76,7 @@ window.I18N_GAME_DICTS.zzz = {
     'query.placeholder': '게임 경로 (…\\ZenlessZoneZero Game)',
     'query.recordScreen': '변조 기록',
     'empty.recordScreen': '변조 → 상세 → 변조 기록',
-    'warn.unknown5': '⚠ 미확인 S급 {n}개 — 획득 시점이 픽업 일정에 없어요(신규 패치 미반영). 최신 채널은 시작 시 자동 반영됩니다(미반영 시 잠시 후 재실행).',
+    'warn.unknown5': '⚠ 미확인 S급 {n}개 — 획득 시점의 픽업 정보가 아직 없어요(신규 패치 미반영). 최신 채널은 시작 시 자동 반영됩니다(미반영 시 잠시 후 재실행).',
     'foot.line2': "50/50 판정: S급 획득 시점의 채널 픽업(rate-up) 대상이면 '픽승', 아니면 '픽뚫'.",
   },
   en: {
@@ -130,7 +130,7 @@ window.I18N_GAME_DICTS.zzz = {
     'query.placeholder': 'Game path (…\\ZenlessZoneZero Game)',
     'query.recordScreen': 'Signal Search History',
     'empty.recordScreen': 'Signal Search → Details → Signal Search History',
-    'warn.unknown5': '⚠ {n} unidentified S-Rank(s) — obtained outside the known rate-up schedule (new patch not yet applied). The latest channels are fetched at start-up; retry shortly if missing.',
+    'warn.unknown5': '⚠ {n} unidentified S-Rank(s) — no rate-up info yet for when they were obtained (new patch not yet applied). The latest channels are fetched at start-up; retry shortly if missing.',
     'foot.line2': 'The 50/50 call: an S-Rank that was a rate-up unit at the time counts as a win, otherwise a loss.',
   },
   zh: {
@@ -184,7 +184,7 @@ window.I18N_GAME_DICTS.zzz = {
     'query.placeholder': '游戏路径 (…\\ZenlessZoneZero Game)',
     'query.recordScreen': '调频记录',
     'empty.recordScreen': '调频 → 详情 → 调频记录',
-    'warn.unknown5': '⚠ {n}个未识别S级 — 获取时间不在已知频段日程中（新版本未反映）。最新频段启动时自动更新（如未更新，稍后重试）。',
+    'warn.unknown5': '⚠ {n}个未识别S级 — 尚无获取时间对应的UP信息（新版本未反映）。最新频段启动时自动更新（如未更新，稍后重试）。',
     'foot.line2': '50/50判定：获得S级时，若为当期频段概率UP对象则为「没歪」，否则为「歪了」。',
   },
   ja: {
@@ -238,7 +238,7 @@ window.I18N_GAME_DICTS.zzz = {
     'query.placeholder': 'ゲームパス (…\\ZenlessZoneZero Game)',
     'query.recordScreen': '変調履歴',
     'empty.recordScreen': '変調 → 詳細 → 変調履歴',
-    'warn.unknown5': '⚠ 未確認のS級 {n}個 — 取得時点が既知のチャンネル日程にありません（新パッチ未反映）。最新チャンネルは起動時に自動反映されます（未反映の場合はしばらくしてから再実行してください）。',
+    'warn.unknown5': '⚠ 未確認のS級 {n}個 — 取得時点のピックアップ情報がまだありません（新パッチ未反映）。最新チャンネルは起動時に自動反映されます（未反映の場合はしばらくしてから再実行してください）。',
     'foot.line2': '50/50判定：S級取得時点のチャンネルのピックアップ対象なら「すり抜けなし」、そうでなければ「すり抜け」。',
   },
 };

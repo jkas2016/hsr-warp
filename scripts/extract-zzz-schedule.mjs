@@ -127,13 +127,14 @@ const UPRATE_FALLBACK = {
 /**
  * 원본 응답을 schedule 배열로 변환한다. 순수 함수라 테스트가 네트워크 없이 돈다.
  * @param {Object} raw 소스 JSON 원본.
- * @returns {{schedule: Array<{s: string, e: string, c: string[], l: string[]}>, skipped: Array<{name: string, reason: string}>, warnings: Array<{name: string, id: string, reason: string}>}}
- *   시작일 오름차순 일정, 건너뛴 배너, 자릿수로 교정한 항목.
+ * @returns {{schedule: Array<{s: string, e: string, c: string[], l: string[], p?: string[]}>, skipped: Array<{name: string, reason: string}>, warnings: Array<{name: string, id: string, reason: string}>, partials: Array<{name: string, reason: string}>}}
+ *   시작일 오름차순 일정, 건너뛴 배너, 자릿수로 교정한 항목, 픽업 미상으로 남긴 배너.
  */
 export function buildSchedule(raw) {
   const byStart = new Map();
   const skipped = [];
   const warnings = [];
+  const partials = [];
 
   // top-level 키는 신뢰하지 않는다 — 키 "3" 배열에 banner_type 2 가 섞여 있다.
   const all = [];
@@ -163,14 +164,18 @@ export function buildSchedule(raw) {
         reason: `소스가 uprate_5 를 비워 폴백 테이블로 보완(공식 배너 안내 + 실측 item_id 근거)`,
       });
     }
-    if (ids.length === 0) {
-      skipped.push({ name: b.name, reason: 'uprate_5 에 id 가 없다' });
-      continue;
-    }
     if (!byStart.has(s)) byStart.set(s, { s, e, c: [], l: [] });
     const slot = byStart.get(s);
     // 같은 기간 안에서 종료일이 다르면 늦은 쪽을 취한다(동시 병행 배너).
     if (e > slot.e) slot.e = e;
+    // 폴백으로도 못 채운 배너. 버리면 그 기간이 일정에서 사라져 analyze.js 가
+    // 그 기간 S급을 전부 픽뚫로 오판한다. p 에 pool 을 담아 판정을 보류시킨다.
+    if (ids.length === 0) {
+      partials.push({ name: b.name, reason: 'uprate_5 에 id 가 없다 — 픽업 미상으로 남긴다' });
+      if (!slot.p) slot.p = [];
+      if (!slot.p.includes(pool)) slot.p.push(pool);
+      continue;
+    }
     for (const id of ids) {
       const actual = poolFor(pool, id);
       if (actual !== pool) {
@@ -184,7 +189,7 @@ export function buildSchedule(raw) {
   }
 
   const schedule = [...byStart.values()].sort((a, b) => (a.s < b.s ? -1 : a.s > b.s ? 1 : 0));
-  return { schedule, skipped, warnings };
+  return { schedule, skipped, warnings, partials };
 }
 
 /**
@@ -195,9 +200,12 @@ export function buildSchedule(raw) {
 async function main() {
   const res = await fetch(SRC, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`소스 응답 ${res.status}`);
-  const { schedule, skipped, warnings } = buildSchedule(await res.json());
+  const { schedule, skipped, warnings, partials } = buildSchedule(await res.json());
 
   for (const s of skipped) console.warn(`건너뜀: ${s.name} — ${s.reason}`);
+  // 픽업 미상 구간이 생기면 그 기간 통계가 '판정 보류'로 빠진다. 폴백 테이블에
+  // 근거를 채워 넣으면 즉시 정상 판정으로 돌아오므로 눈에 띄게 남긴다.
+  for (const p of partials) console.warn(`픽업 미상: ${p.name} — ${p.reason}`);
   // 교정은 조용히 삼키지 않는다 — 소스가 매일 갱신되는 외부 데이터라 같은
   // banner_type 오표기가 재발할 수 있다. 다음에 사람이 알아챌 수 있게 표면화한다.
   for (const w of warnings) console.warn(`교정: ${w.name} (id ${w.id}) — ${w.reason}`);
@@ -213,7 +221,7 @@ async function main() {
   const dst = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'zzz', 'schedule.json');
   mkdirSync(dirname(dst), { recursive: true });
   writeFileSync(dst, JSON.stringify(out), 'utf8');
-  console.log(`${dst} 기록 — 일정 ${schedule.length}건, 건너뜀 ${skipped.length}건, 교정 ${warnings.length}건`);
+  console.log(`${dst} 기록 — 일정 ${schedule.length}건, 건너뜀 ${skipped.length}건, 교정 ${warnings.length}건, 픽업 미상 ${partials.length}건`);
 }
 
 // 테스트에서 import 할 때는 실행하지 않는다.
