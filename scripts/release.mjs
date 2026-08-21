@@ -62,6 +62,22 @@ export function promoteChangelog(text, version, date) {
 }
 
 /**
+ * 이 명령에 shell 을 켜야 하는가.
+ *
+ * Windows 에서 npm 은 `npm.cmd` 라 shell 없이는 ENOENT 로 죽는다. 그래서 예전엔 모든 명령에
+ * shell 을 켰는데, spawnSync 는 shell 을 켜면 인자를 인용 없이 이어붙인다 — 공백이 든
+ * 커밋 메시지가 여러 인자로 쪼개져 `git commit -am chore(release): v1.1.0 준비 …` 가 되고,
+ * git 이 'v1.1.0' 을 경로로 읽어 릴리스가 [2/4] 에서 멈췄다(v1.1.0 에서 실제로 걸렸다).
+ * 그래서 shell 은 .cmd 러너에만 켠다. git·gh 는 exe 라 shell 이 필요 없다.
+ * @param {string} cmd 실행 파일 이름.
+ * @param {string} [platform=process.platform] 대상 플랫폼.
+ * @returns {boolean} shell 을 켜야 하면 true.
+ */
+export function needsShell(cmd, platform = process.platform) {
+  return platform === 'win32' && /^(npm|npx|yarn|pnpm)$/.test(cmd);
+}
+
+/**
  * 명령을 동기 실행한다. 실패하면 die() 로 즉시 중단한다.
  * @param {string} cmd 실행 파일.
  * @param {string[]} args 인자.
@@ -74,7 +90,7 @@ function run(cmd, args, { capture = false } = {}) {
     cwd: ROOT,
     encoding: 'utf8',
     stdio: capture ? 'pipe' : 'inherit',
-    shell: process.platform === 'win32',
+    shell: needsShell(cmd),
   });
   if (r.error) die(`${cmd} 실행 실패: ${r.error.message}`);
   if (r.status !== 0) die(`실패한 명령: ${cmd} ${args.join(' ')}`);
@@ -105,7 +121,7 @@ function findRunId(tag) {
   for (let i = 0; i < 20; i++) {
     const r = spawnSync('gh', ['run', 'list', '--workflow=release.yml', '--limit', '10',
       '--json', 'databaseId,headBranch'], {
-      cwd: ROOT, encoding: 'utf8', stdio: 'pipe', shell: process.platform === 'win32',
+      cwd: ROOT, encoding: 'utf8', stdio: 'pipe', shell: needsShell('gh'),
     });
     if (r.error) return null; // gh 자체가 없음 — 폴링해봐야 소용없다.
     if (r.status === 0) {
@@ -193,7 +209,7 @@ function main() {
   console.log(`\n[4/4] GitHub Actions 관찰`);
   const runId = findRunId(tag);
   const gh = runId && spawnSync('gh', ['run', 'watch', runId, '--exit-status'], {
-    cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32',
+    cwd: ROOT, stdio: 'inherit', shell: needsShell('gh'),
   });
   if (!gh || gh.error || gh.status !== 0) {
     // 여기서 실패해도 태그는 이미 밀렸다 — 관찰만 못 한 것이므로 안내하고 끝낸다.

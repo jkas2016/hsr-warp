@@ -1,7 +1,7 @@
 // promoteChangelog 의 불변식을 고정한다. 이 함수가 조용히 틀리면 잘못된
 // CHANGELOG 가 커밋되고 그 위에서 태그가 밀려 되돌릴 수 없는 릴리스가 나간다.
 import assert from 'assert';
-import { promoteChangelog } from './release.mjs';
+import { promoteChangelog, needsShell } from './release.mjs';
 
 const SAMPLE = [
   '# 변경 내역',
@@ -109,6 +109,20 @@ function fails(fn, re, msg) {
   const noLinks = SAMPLE.split('\n').filter((l) => !/^\[\d/.test(l)).join('\n');
   fails(() => promoteChangelog(noLinks, '1.0.2', '2026-08-20'), /링크/,
     '하단 링크 목록이 없으면 거부');
+}
+
+// 8. shell 은 .cmd 러너에만 켠다.
+//    Windows 에서 spawnSync 의 shell:true 는 인자를 인용 없이 이어붙인다. 그래서 공백이 든
+//    커밋 메시지가 여러 인자로 쪼개져 `git commit -am chore(release): v1.1.0 준비 …` 가 되고,
+//    git 이 'v1.1.0' 을 경로로 읽어 실패한다(v1.1.0 릴리스에서 실제로 걸렸다).
+//    반대로 npm 은 Windows 에서 npm.cmd 라 shell 없이는 실행되지 않는다.
+{
+  const win = (cmd) => needsShell(cmd, 'win32');
+  assert.strictEqual(win('git'), false, 'git 에 shell 을 켜면 커밋 메시지가 쪼개진다');
+  assert.strictEqual(win('gh'), false, 'gh 는 exe 라 shell 이 필요 없다');
+  assert.strictEqual(win('npm'), true, 'npm 은 Windows 에서 npm.cmd 라 shell 이 필요하다');
+  assert.strictEqual(needsShell('npm', 'linux'), false, 'Windows 가 아니면 언제나 shell 없이');
+  assert.strictEqual(needsShell('git', 'darwin'), false);
 }
 
 console.log('release.test.mjs: 모든 검증 통과');
