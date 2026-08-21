@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-22
+
 ### 추가됨
 - **공유하기** — 대시보드 섹션을 골라 PNG 한 장으로 내보낸다. 헤더의 공유 버튼을 누르고 현재 탭의 섹션을 체크하면, 화면 폭·스크롤 위치와 무관하게 720px 고정 폭으로 합성해 저장한다. 합성·캡처·저장이 전부 브라우저 안에서 끝나며 기록이 어디로도 나가지 않는다. UID 마스킹이 기본 ON 이고, 클론에만 적용돼 화면의 UID 는 그대로다. 저장이 막히는 환경(iOS Safari 등)에서는 모달 안에 미리보기를 띄워 길게 눌러 저장하게 한다 (#54)
 - 모든 JS/JSX 함수에 JSDoc 을 달고, 누락되면 `npm test` 가 실패하도록 가드(`scripts/jsdoc.test.mjs`)를 추가했다. Go 쪽은 `.golangci.yml` 로 같은 검사를 건다(`npm run lint:go`). 무의존 스캐너라 문서 누락만 잡고 `@param` 이름 정합성은 보지 않는다 (#62)
@@ -135,6 +137,7 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[1.1.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.0
 [1.0.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.1
 [1.0.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.0
 [0.5.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v0.5.0
