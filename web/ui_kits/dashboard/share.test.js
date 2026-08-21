@@ -236,13 +236,14 @@ assert.strictEqual((inlined.match(/data:font\/woff2;base64,AAA/g) || []).length,
 assert.ok(inlined.includes('https://fonts.gstatic.com/l/font?kit=BBB&v=v22'),
   '맵에 없는 URL 은 건드리지 않는다 — 일부 실패해도 나머지는 살아야 한다');
 
-// 32) 헤더는 캡처 박스 안에서 한 줄로 고정돼야 한다.
-//     shrink-to-fit 상자 폭이 굳은 채로 SVG 안에서 텍스트가 몇 px 넓어지면 마지막 글자가
-//     다음 줄로 밀렸다가 1행 높이에 잘려 사라진다. UID 마스킹으로 서브타이틀이 짧아지면
-//     여유가 0 이 돼 매번 재현된다(실측: 302.8px → 283px).
+// 32) 캡처 박스 안에서는 줄바꿈을 막아야 한다.
+//     shrink-to-fit 상자 폭이 굳은 채로 SVG 안에서 텍스트가 몇 px 넓어지면 마지막 토큰이
+//     다음 줄로 밀렸다가 1행 높이에서 잘리거나 상자 밖으로 삐져나온다.
+//     실측 피해: 헤더 제목 마지막 글자 소실, 배지 "행운" → "행"/"운", LuckBar "적게" → "적"/"게".
+//     헤더 한정으로 좁히면 배지·라벨이 다시 깨지므로 박스 전체여야 한다.
 assert.ok(
-  /\[data-share-header\]\{white-space:nowrap\}/.test(shareSrc),
-  '캡처 박스의 헤더 nowrap 규칙이 사라졌다 — 제목 마지막 글자가 다시 잘린다',
+  /\] \*\{white-space:nowrap\}/.test(shareSrc),
+  '캡처 박스 전체의 nowrap 규칙이 사라졌다 — 배지·라벨·제목이 다시 줄바꿈으로 깨진다',
 );
 
 // 33) 이미지 로드 대기에 decode() 를 쓰면 안 된다. document.hidden 이면 영영 resolve 되지 않아

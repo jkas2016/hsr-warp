@@ -74,22 +74,25 @@
   // 오프스크린 캡처 박스에만 붙는 표식. 주입 CSS 의 스코프이자 실화면 격리 수단이다.
   const BOX_ATTR = 'data-share-box';
 
-  // 헤더 텍스트를 캡처 안에서만 한 줄로 고정한다.
+  // 캡처 박스 안에서는 줄바꿈을 막는다.
   //
-  // 헤더의 제목/서브타이틀 블록은 shrink-to-fit 이라 상자 폭이 내용 폭과 정확히 같아진다.
-  // modern-screenshot 은 그 폭을 인라인으로 굳혀 SVG 에 넣는데, foreignObject 안의 텍스트가
-  // 몇 px 더 넓게 잡히면(letter-spacing 재현 차이) 마지막 글자가 다음 줄로 밀리고
-  // 높이도 1행으로 굳어 있어 통째로 잘려 사라진다.
+  // 화면의 텍스트 상자는 대부분 shrink-to-fit 이라 폭이 내용 폭과 정확히 같다.
+  // modern-screenshot 은 그 폭을 인라인으로 굳혀 SVG 에 넣는데, foreignObject 안의
+  // 텍스트가 몇 px 더 넓게 잡히면 마지막 토큰이 다음 줄로 밀리고, 높이도 1행으로
+  // 굳어 있어 그 줄이 상자 밖으로 삐져나오거나 통째로 잘려 사라진다.
   //
-  // 평소엔 서브타이틀("UID 1302338932 · …")이 제목보다 넓어 여유가 있어 안 드러나다가,
-  // UID 마스킹으로 서브타이틀이 짧아지는 순간 여유가 사라져 재현된다
-  // (실측: 마스킹 전 302.8px → 후 283px, 제목이 필요한 폭과 같아진다).
-  // "젠레스 존 제로 변조 대시보드" → "…대시보" 로 잘리던 것, 서브타이틀 "UID" 가
-  // 뭉개져 보이던 것이 둘 다 이 현상이다.
+  // 실측으로 확인된 피해:
+  //   - 헤더 제목 "젠레스 존 제로 변조 대시보드" → "…대시보" (마지막 글자 소실)
+  //   - 서브타이틀 "UID" 가 뭉개져 보이던 것(잘린 글자였다)
+  //   - 운 카드 배지 "평균 53.0회 · 행운" → "행" / "운" 이 배지 밖으로
+  //   - LuckBar 라벨 "적게" → "적" / "게", "불운" → "불" / "운"
+  // 헤더는 서브타이틀이 제목보다 넓어 평소엔 여유가 있다가 UID 마스킹으로 짧아지면
+  // (실측 302.8px → 283px) 여유가 사라져 드러났다. 여백(padding-right)으로는
+  // 안 고쳐진다 — 줄바꿈 자체를 막아야 한다.
   //
-  // 여백(padding-right)으로는 안 고쳐진다 — 줄바꿈 자체를 막아야 한다.
-  // 헤더는 로고+텍스트 한 줄이라 nowrap 이 레이아웃을 바꾸지 않는다.
-  const HEADER_NOWRAP_CSS = '[' + BOX_ATTR + '] [data-share-header]{white-space:nowrap}';
+  // 전역 규칙이지만 진짜로 여러 줄이 필요한 곳은 인라인 style 로 white-space 를
+  // 이미 지정하고 있어(예: 운 카드 설명문의 pre-line) 그쪽이 우선한다.
+  const NOWRAP_CSS = '[' + BOX_ATTR + '] *{white-space:nowrap}';
 
   /**
    * 현재 화면에 실재하는 섹션 id 를 DOM 순서로 모은다. 탭이 바뀌면 결과도 바뀐다.
@@ -431,7 +434,7 @@
 
     // 뷰포트와 무관하게 720px 기준 그리드로 캡처되도록. style 을 박스 안에 두면
     // finally 의 box.remove() 로 함께 사라져 문서에 잔재가 남지 않는다.
-    const css = [narrowGridCss(), HEADER_NOWRAP_CSS].filter(Boolean).join('\n');
+    const css = [narrowGridCss(), NOWRAP_CSS].filter(Boolean).join('\n');
     if (css) {
       const style = document.createElement('style');
       style.textContent = css;
