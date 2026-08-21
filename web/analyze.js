@@ -129,6 +129,21 @@
   }
 
   /**
+   * 대표 캐릭터·무기 배너 외의 한정 채널을 combineLimited 의 extras 형태로 뽑는다.
+   * ZZZ 특별 픽업(102/103)처럼 픽업 규칙은 같은데 코드가 더 있는 채널을 계정
+   * 전체 지표에서 빠뜨리지 않기 위한 것이다.
+   * @param {Array<Object>} banners analyze() 가 만든 배너 목록.
+   * @param {Object|undefined} lim 대표 limited-char 배너.
+   * @param {Object|undefined} lc 대표 limited-weapon 배너.
+   * @returns {Array<{stats: Object, expAvg: number|null}>} 나머지 한정 채널.
+   */
+  function extraLimited(banners, lim, lc) {
+    return banners
+      .filter(b => b.meta && b.meta.kind === 'limited' && b !== lim && b !== lc)
+      .map(b => ({ stats: b.stats, expAvg: b.meta.expAvg }));
+  }
+
+  /**
    * 기록 ID 오름차순 비교자. ID는 거대 정수라 BigInt 로 비교한다(Number 금지).
    * @param {WarpRecord} a
    * @param {WarpRecord} b
@@ -195,22 +210,28 @@
    * @param {Object|null} charStats 캐릭터 이벤트 배너의 aggregateFives 산출물.
    * @param {Object|null} lcStats 광추/W-엔진 이벤트 배너의 aggregateFives 산출물.
    * @param {AnalyzeConfig} [cfg] 분석 설정. 생략하면 HSR 기본 테이블로 폴백(하위 호환).
+   * @param {Array<{stats: Object|null, expAvg: number|null}>} [extras] 추가로 합산할 한정 채널(ZZZ 특별 픽업 등).
    * @returns {Object} 합산된 count5·avgPity5·base·luckPct·승패·win5050Rate·bestPity·worstPity.
    */
-  function combineLimited(charStats, lcStats, cfg) {
+  function combineLimited(charStats, lcStats, cfg, extras) {
     cfg = cfg || resolveConfig(null);
     const charCode = codesByRole(cfg, 'limited-char')[0];
     const lcCode = codesByRole(cfg, 'limited-weapon')[0];
     const charExp = charCode ? cfg.banners[charCode].expAvg : null;
     const lcExp = lcCode ? cfg.banners[lcCode].expAvg : null;
-    const c = charStats || {}, l = lcStats || {};
-    const n1 = c.count5 || 0, n2 = l.count5 || 0, tot = n1 + n2;
-    const avg = tot ? ((c.avgPity5 || 0) * n1 + (l.avgPity5 || 0) * n2) / tot : 0;
-    const base = tot ? (charExp * n1 + lcExp * n2) / tot : charExp;
-    const cWins = (c.cWins || 0) + (l.cWins || 0), cLoss = (c.cLoss || 0) + (l.cLoss || 0);
-    const gWins = (c.gWins || 0) + (l.gWins || 0), contested = cWins + cLoss;
-    const bests = [c.bestPity, l.bestPity].filter(v => v != null);
-    const worsts = [c.worstPity, l.worstPity].filter(v => v != null);
+    // [통계, 기준선] 쌍의 목록으로 접는다. extras 는 특별 픽업처럼 코드가 더 있는
+    // 한정 채널용이며, 없으면 기존 두 채널 합산과 완전히 같은 값이 나온다.
+    const parts = [{ st: charStats || {}, exp: charExp }, { st: lcStats || {}, exp: lcExp }]
+      .concat((extras || []).map(e => ({ st: e.stats || {}, exp: e.expAvg })));
+    /** @param {function(Object): number|undefined} f 통계에서 값을 꺼내는 함수. @returns {number} 전 채널 합. */
+    const sum = (f) => parts.reduce((s, p) => s + (f(p.st) || 0), 0);
+    const tot = sum(st => st.count5);
+    const avg = tot ? parts.reduce((s, p) => s + (p.st.avgPity5 || 0) * (p.st.count5 || 0), 0) / tot : 0;
+    const base = tot ? parts.reduce((s, p) => s + p.exp * (p.st.count5 || 0), 0) / tot : charExp;
+    const cWins = sum(st => st.cWins), cLoss = sum(st => st.cLoss);
+    const gWins = sum(st => st.gWins), contested = cWins + cLoss;
+    const bests = parts.map(p => p.st.bestPity).filter(v => v != null);
+    const worsts = parts.map(p => p.st.worstPity).filter(v => v != null);
     return {
       count5: tot, avgPity5: avg, base,
       luckPct: tot ? (base - avg) / base * 100 : null,
@@ -369,7 +390,7 @@
         charLuckPct: charFives.length ? (charExp - mean(charFives)) / charExp * 100 : null,
         charBanner: lim ? lim.stats : null,
         lcBanner: lc ? lc.stats : null,
-        limited: combineLimited(lim ? lim.stats : null, lc ? lc.stats : null, cfg),
+        limited: combineLimited(lim ? lim.stats : null, lc ? lc.stats : null, cfg, extraLimited(banners, lim, lc)),
       },
     };
   }
@@ -446,7 +467,7 @@
         charLuckPct: charFives.length ? (charExp - mean(charFives)) / charExp * 100 : null,
         charBanner: lim ? lim.stats : null,
         lcBanner: lc ? lc.stats : null,
-        limited: combineLimited(lim ? lim.stats : null, lc ? lc.stats : null, cfg),
+        limited: combineLimited(lim ? lim.stats : null, lc ? lc.stats : null, cfg, extraLimited(banners, lim, lc)),
       },
       // filterAnalysis/analyzeVersions 가 cfg 인자 없이 이 결과를 재사용할 때 쓰는 폴백.
       // 열거는 되지만(테스트 편의) 대시보드 렌더 로직은 이 필드를 소비하지 않는다.
@@ -454,7 +475,7 @@
     };
   }
 
-  const api = { analyze, analyzeBanner, aggregateFives, combineLimited, filterAnalysis, versionWindows, analyzeVersions, monthly, resolveConfig, ROLE_SPEC, BANNERS, ORDER };
+  const api = { analyze, analyzeBanner, aggregateFives, combineLimited, extraLimited, filterAnalysis, versionWindows, analyzeVersions, monthly, resolveConfig, ROLE_SPEC, BANNERS, ORDER };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.WarpAnalyze = api;
 })(typeof window !== 'undefined' ? window : globalThis);
