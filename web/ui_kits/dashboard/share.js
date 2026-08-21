@@ -74,6 +74,23 @@
   // 오프스크린 캡처 박스에만 붙는 표식. 주입 CSS 의 스코프이자 실화면 격리 수단이다.
   const BOX_ATTR = 'data-share-box';
 
+  // 헤더 텍스트를 캡처 안에서만 한 줄로 고정한다.
+  //
+  // 헤더의 제목/서브타이틀 블록은 shrink-to-fit 이라 상자 폭이 내용 폭과 정확히 같아진다.
+  // modern-screenshot 은 그 폭을 인라인으로 굳혀 SVG 에 넣는데, foreignObject 안의 텍스트가
+  // 몇 px 더 넓게 잡히면(letter-spacing 재현 차이) 마지막 글자가 다음 줄로 밀리고
+  // 높이도 1행으로 굳어 있어 통째로 잘려 사라진다.
+  //
+  // 평소엔 서브타이틀("UID 1302338932 · …")이 제목보다 넓어 여유가 있어 안 드러나다가,
+  // UID 마스킹으로 서브타이틀이 짧아지는 순간 여유가 사라져 재현된다
+  // (실측: 마스킹 전 302.8px → 후 283px, 제목이 필요한 폭과 같아진다).
+  // "젠레스 존 제로 변조 대시보드" → "…대시보" 로 잘리던 것, 서브타이틀 "UID" 가
+  // 뭉개져 보이던 것이 둘 다 이 현상이다.
+  //
+  // 여백(padding-right)으로는 안 고쳐진다 — 줄바꿈 자체를 막아야 한다.
+  // 헤더는 로고+텍스트 한 줄이라 nowrap 이 레이아웃을 바꾸지 않는다.
+  const HEADER_NOWRAP_CSS = '[' + BOX_ATTR + '] [data-share-header]{white-space:nowrap}';
+
   /**
    * 현재 화면에 실재하는 섹션 id 를 DOM 순서로 모은다. 탭이 바뀌면 결과도 바뀐다.
    * @returns {string[]} data-share 마커가 붙은 요소의 id 목록.
@@ -238,6 +255,144 @@
     return out.join('\n');
   }
 
+  // 웹폰트를 캡처 SVG 안으로 굽는다.
+  //
+  // 왜 필요한가: 폰트는 tokens/fonts.css 가 Google Fonts 를 @import 로 끌어온다 —
+  // 교차 출처라 cssRules 접근이 막혀 있고(narrowGridCss 가 조용히 건너뛰는 그 상황),
+  // modern-screenshot 도 같은 이유로 @font-face 를 수집하지 못한다. 결과적으로 캡처는
+  // 화면과 다른 폴백 폰트로 래스터화된다. 폴백은 한글 폭이 넓어서(실측, 700 24px:
+  // Noto Sans KR 289.3px vs system-ui 321.8px) 헤더 텍스트 박스(302.8px)를 넘치고,
+  // 넘친 마지막 글자가 다음 줄로 밀린 뒤 확정된 1행 높이에 잘려 통째로 사라진다
+  // ("젠레스 존 제로 변조 대시보드" → "…대시보"). 서브타이틀 "UID" 가 뭉개져 보이던 것도 같은 원인이다.
+  //
+  // 대응: 박스에 실제로 쓰인 글자만 Google Fonts 에 서브셋(text=)으로 요청하고,
+  // 받은 woff2 를 data URI 로 구워 같은 출처 <style> 로 박스에 넣는다. 그러면
+  // modern-screenshot 이 읽을 수 있는 @font-face 가 생기고, 자기완결적이라 SVG 안에서도 산다.
+  // 전체 폰트를 굽지 않는 이유는 크기다 — Noto Sans KR 한글 전체는 웨이트당 수 MB 다.
+  //
+  // 같은 family 이름으로 다시 선언하지만 레이아웃은 바뀌지 않는다. 서브셋은 원본과 같은
+  // 폰트에서 잘라낸 것이라 글자 폭이 동일하고, unicode-range 도 쓰인 글자만 덮는다.
+
+  /**
+   * 문자열에서 중복과 공백류를 뺀 글자들을 정렬해 돌려준다.
+   * 정렬해야 같은 화면이 항상 같은 URL 이 되고(캐시), 공백을 빼야 URL 이 짧아진다.
+   * @param {string} text 원본 문자열.
+   * @returns {string} 정렬된 고유 글자들.
+   */
+  function uniqueChars(text) {
+    if (!text) return '';
+    return [...new Set(String(text))].filter((c) => !/\s/.test(c)).sort().join('');
+  }
+
+  /**
+   * @import 로 걸린 Google Fonts URL 에 text= 서브셋을 붙인 요청 URL 을 만든다.
+   * URLSearchParams 로 재직렬화하지 않는다 — 'Noto+Sans+KR:wght@400;700' 의 +, :, @, ; 가
+   * 퍼센트 인코딩으로 바뀌어 버린다. family 원문은 그대로 두고 문자열로만 손댄다.
+   * @param {string} importHref 원본 Google Fonts CSS URL.
+   * @param {string} chars 서브셋에 넣을 글자들.
+   * @returns {string|null} 요청 URL. 둘 중 하나라도 비면 null(네트워크를 건드리지 않는다).
+   */
+  function fontSubsetUrl(importHref, chars) {
+    if (!importHref || !chars) return null;
+    const base = String(importHref).split('#')[0]
+      .replace(/&display=[^&]*/g, '')  // 서브셋 응답엔 의미 없다
+      .replace(/&text=[^&]*/g, '');    // 이미 붙어 있으면 갈아 끼운다(누적 방지)
+    return base + '&text=' + encodeURIComponent(chars);
+  }
+
+  /**
+   * 문서에서 Google Fonts 스타일시트 URL 을 찾는다. @import 는 중첩될 수 있어 재귀로 훑는다.
+   * 값의 단일 소스는 tokens/fonts.css 다 — family 목록을 여기에 베끼지 않는다.
+   * @returns {string|null} 찾은 URL. 없으면 null.
+   */
+  function googleFontsHref() {
+    /**
+     * 스타일시트 하나를 훑어 Google Fonts URL 을 수집한다.
+     * @param {CSSStyleSheet} sheet 대상 스타일시트.
+     * @param {string[]} out 누적 배열.
+     * @returns {void}
+     */
+    function walk(sheet, out) {
+      let rules = null;
+      // 교차 출처 스타일시트는 cssRules 접근이 예외를 던진다. 조용히 건너뛴다.
+      try { rules = sheet.cssRules; } catch (e) { /* cross-origin */ }
+      if (!rules) return;
+      for (let i = 0; i < rules.length; i++) {
+        const r = rules[i];
+        if (r.href && String(r.href).includes('fonts.googleapis.com')) out.push(r.href);
+        if (r.styleSheet) walk(r.styleSheet, out);
+      }
+    }
+    const out = [];
+    for (let i = 0; i < document.styleSheets.length; i++) {
+      const s = document.styleSheets[i];
+      if (s.href && s.href.includes('fonts.googleapis.com')) out.push(s.href);
+      walk(s, out);
+    }
+    return out[0] || null;
+  }
+
+  /**
+   * CSS 에서 @font-face 가 참조하는 https URL 을 중복 없이 뽑는다.
+   * Google 은 한 family 의 여러 weight 에 같은 kit URL 을 주므로(실측) 중복 제거가 필수다.
+   * @param {string} css 대상 CSS 텍스트.
+   * @returns {string[]} 폰트 파일 URL 목록.
+   */
+  function fontUrlsIn(css) {
+    const out = [];
+    const re = /url\((https:\/\/[^)'"]+)\)/g;
+    let m;
+    while ((m = re.exec(String(css)))) {
+      if (!out.includes(m[1])) out.push(m[1]);
+    }
+    return out;
+  }
+
+  /**
+   * CSS 의 폰트 URL 을 data URI 로 치환한다. 맵에 없는 URL 은 원문 그대로 둔다 —
+   * 일부 파일만 실패해도 나머지는 살아야 한다.
+   * @param {string} css 대상 CSS 텍스트.
+   * @param {Object<string, string>} map URL → data URI.
+   * @returns {string} 치환된 CSS.
+   */
+  function inlineFontUrls(css, map) {
+    return String(css).replace(/url\((https:\/\/[^)'"]+)\)/g,
+      (all, u) => (map[u] ? 'url(' + map[u] + ')' : all));
+  }
+
+  /**
+   * blob 을 data URI 문자열로 읽는다.
+   * @param {Blob} blob 대상 blob.
+   * @returns {Promise<string>} data URI.
+   */
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result));
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  /**
+   * 박스에 쓰인 글자만 서브셋으로 받아 폰트를 data URI 로 구운 CSS 를 만든다.
+   * @param {Element} box 캡처 박스(텍스트가 모두 채워진 뒤여야 한다).
+   * @returns {Promise<string>} 박스에 넣을 @font-face CSS. 대상이 없으면 빈 문자열.
+   */
+  async function fontFaceCss(box) {
+    const url = fontSubsetUrl(googleFontsHref(), uniqueChars(box.textContent));
+    if (!url) return '';
+    const res = await fetch(url);
+    if (!res.ok) return '';
+    const css = await res.text();
+    const map = {};
+    await Promise.all(fontUrlsIn(css).map(async (u) => {
+      const r = await fetch(u);
+      if (r.ok) map[u] = await blobToDataUrl(await r.blob());
+    }));
+    return inlineFontUrls(css, map);
+  }
+
   /**
    * 선택 섹션을 오프스크린 고정 폭 컨테이너에 쌓아 PNG blob 을 만든다.
    * 화면 폭·스크롤 위치와 무관한 결과물이 나온다.
@@ -276,7 +431,7 @@
 
     // 뷰포트와 무관하게 720px 기준 그리드로 캡처되도록. style 을 박스 안에 두면
     // finally 의 box.remove() 로 함께 사라져 문서에 잔재가 남지 않는다.
-    const css = narrowGridCss();
+    const css = [narrowGridCss(), HEADER_NOWRAP_CSS].filter(Boolean).join('\n');
     if (css) {
       const style = document.createElement('style');
       style.textContent = css;
@@ -297,6 +452,19 @@
       }
 
       if (mask && uid) maskUidIn(box, uid);
+
+      // 폰트 서브셋은 박스의 최종 텍스트를 기준으로 만든다 — 마스킹 뒤여야 • 도 포함된다.
+      // 베스트에포트다: 오프라인·CDN 차단이면 폴백 폰트로라도 내보낸다.
+      try {
+        const faceCss = await fontFaceCss(box);
+        if (faceCss) {
+          const fontStyle = document.createElement('style');
+          fontStyle.textContent = faceCss;
+          box.appendChild(fontStyle);
+        }
+      } catch (e) {
+        console.warn('[share] web font embedding failed, capturing with fallback fonts', e);
+      }
 
       // 웹폰트가 로드되기 전에 캡처하면 폰트가 폴백으로 굳는다.
       if (document.fonts && document.fonts.ready) await document.fonts.ready;
@@ -341,5 +509,6 @@
   window.WarpShare = {
     SECTIONS, selectSections, maskUid, shareFileName,
     presentSections, exportPng, saveBlob,
+    uniqueChars, fontSubsetUrl, fontUrlsIn, inlineFontUrls,
   };
 })();

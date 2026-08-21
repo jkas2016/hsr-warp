@@ -12,7 +12,8 @@ const { SECTIONS, selectSections, maskUid, shareFileName } = window.WarpShare;
 //    jsdom 이 없어 호출은 못 하지만, 이름이 바뀌면 ShareModal.jsx 가 런타임에 터진다.
 //    이 단언이 없으면 오타 rename 을 npm test 가 통째로 놓친다.
 for (const k of ['SECTIONS', 'selectSections', 'maskUid', 'shareFileName',
-                 'presentSections', 'exportPng', 'saveBlob']) {
+                 'presentSections', 'exportPng', 'saveBlob',
+                 'uniqueChars', 'fontSubsetUrl', 'fontUrlsIn', 'inlineFontUrls']) {
   assert.ok(window.WarpShare[k], 'window.WarpShare.' + k + ' 가 없다 — ShareModal.jsx 가 이 이름으로 호출한다');
 }
 
@@ -166,6 +167,95 @@ assert.strictEqual(widthCondMatches('print'), false, '폭 조건이 없으면 �
 assert.ok(
   !/widthMediaOverrideCss/.test(shareSrc),
   'share.js 가 다시 데스크톱 그리드를 720px 박스에 강제하고 있다 — 카드 내용 잘림이 재발한다',
+);
+
+// --- 웹폰트 서브셋 임베드 ---
+// 왜 필요한가: Google Fonts 는 @import(교차 출처)라 cssRules 접근이 막혀 있고,
+// 그래서 modern-screenshot 이 @font-face 를 수집하지 못해 캡처가 폴백 폰트로 그려진다.
+// 폴백은 한글 폭이 넓어(실측: 제목 289.3px → 321.8px) 헤더 박스(302.8px)를 넘치고,
+// 넘친 마지막 글자가 다음 줄로 밀린 뒤 확정된 1행 높이에 잘려 사라진다
+// ("젠레스 존 제로 변조 대시보드" → "…대시보", 서브타이틀의 "UID" 뭉갬도 같은 원인).
+// 대응: 캡처 직전에 박스에 실제로 쓰인 글자만 Google Fonts 에 서브셋으로 요청해
+// woff2 를 data URI 로 굽고, 같은 출처 <style> 로 박스에 넣는다.
+const { uniqueChars, fontSubsetUrl, fontUrlsIn, inlineFontUrls } = window.WarpShare;
+
+// 23) uniqueChars: 중복·공백류를 빼고 정렬한다. URL 길이를 줄이고 요청을 결정적으로 만든다.
+assert.strictEqual(uniqueChars('나가 나\n다\t가'), '가나다');
+assert.strictEqual(uniqueChars('abc abc'), 'abc');
+assert.strictEqual(uniqueChars('  \n\t '), '', '공백만 있으면 요청할 글자가 없다');
+assert.strictEqual(uniqueChars(null), '');
+
+// 24) fontSubsetUrl: family 파라미터를 원문 그대로 보존한다.
+//     URLSearchParams 로 재직렬화하면 'Noto+Sans+KR:wght@400' 가 퍼센트 인코딩으로 바뀌므로
+//     문자열 조작으로만 다룬다.
+const IMPORT_HREF = 'https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700'
+  + '&family=Space+Grotesk:wght@400&display=swap';
+const subsetUrl = fontSubsetUrl(IMPORT_HREF, '가나');
+assert.ok(subsetUrl.startsWith('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700'
+  + '&family=Space+Grotesk:wght@400'), 'family 파라미터가 원문 그대로 남아야 한다: ' + subsetUrl);
+
+// 25) display=swap 은 뺀다 — 서브셋 응답엔 의미가 없고 URL 만 길어진다.
+assert.ok(!/display=/.test(subsetUrl), 'display 파라미터가 남아 있다: ' + subsetUrl);
+
+// 26) text 는 퍼센트 인코딩해서 붙인다.
+assert.ok(subsetUrl.endsWith('&text=' + encodeURIComponent('가나')), 'text 파라미터가 끝에 붙어야 한다');
+
+// 27) 이미 text 가 붙어 있으면 갈아 끼운다(두 번 호출해도 누적되지 않는다).
+assert.strictEqual(fontSubsetUrl(subsetUrl, '다'),
+  fontSubsetUrl(IMPORT_HREF, '다'), 'text 가 누적되면 URL 이 무한히 길어진다');
+
+// 28) 요청할 글자가 없거나 @import 를 못 찾으면 null — 네트워크를 아예 건드리지 않는다.
+assert.strictEqual(fontSubsetUrl(IMPORT_HREF, ''), null);
+assert.strictEqual(fontSubsetUrl(null, '가'), null);
+
+// 29) fontUrlsIn: @font-face src 의 https URL 만, 중복 없이.
+//     Google 은 같은 family 의 여러 weight 에 같은 kit URL 을 주므로(실측) 중복 제거가 필수다.
+const FACE_CSS = [
+  "@font-face{font-family:'Noto Sans KR';font-weight:400;",
+  "src:url(https://fonts.gstatic.com/l/font?kit=AAA&v=v39) format('woff2');}",
+  "@font-face{font-family:'Noto Sans KR';font-weight:700;",
+  "src:url(https://fonts.gstatic.com/l/font?kit=AAA&v=v39) format('woff2');}",
+  "@font-face{font-family:'Space Grotesk';font-weight:400;",
+  "src:url(https://fonts.gstatic.com/l/font?kit=BBB&v=v22) format('woff2');}",
+].join('');
+assert.deepStrictEqual(fontUrlsIn(FACE_CSS), [
+  'https://fonts.gstatic.com/l/font?kit=AAA&v=v39',
+  'https://fonts.gstatic.com/l/font?kit=BBB&v=v22',
+]);
+
+// 30) 이미 data URI 인 것은 잡지 않는다(두 번 굽지 않는다).
+assert.deepStrictEqual(fontUrlsIn("src:url(data:font/woff2;base64,AAAA) format('woff2');"), []);
+
+// 31) inlineFontUrls: 맵에 있는 URL 만 data URI 로 바꾸고 나머지는 원문 그대로 둔다.
+//     한 URL 이 여러 @font-face 에 걸쳐 있어도 전부 바뀌어야 한다.
+const inlined = inlineFontUrls(FACE_CSS, {
+  'https://fonts.gstatic.com/l/font?kit=AAA&v=v39': 'data:font/woff2;base64,AAA',
+});
+assert.strictEqual((inlined.match(/data:font\/woff2;base64,AAA/g) || []).length, 2,
+  '같은 URL 이 여러 번 나오면 전부 치환해야 한다');
+assert.ok(inlined.includes('https://fonts.gstatic.com/l/font?kit=BBB&v=v22'),
+  '맵에 없는 URL 은 건드리지 않는다 — 일부 실패해도 나머지는 살아야 한다');
+
+// 32) 헤더는 캡처 박스 안에서 한 줄로 고정돼야 한다.
+//     shrink-to-fit 상자 폭이 굳은 채로 SVG 안에서 텍스트가 몇 px 넓어지면 마지막 글자가
+//     다음 줄로 밀렸다가 1행 높이에 잘려 사라진다. UID 마스킹으로 서브타이틀이 짧아지면
+//     여유가 0 이 돼 매번 재현된다(실측: 302.8px → 283px).
+assert.ok(
+  /\[data-share-header\]\{white-space:nowrap\}/.test(shareSrc),
+  '캡처 박스의 헤더 nowrap 규칙이 사라졌다 — 제목 마지막 글자가 다시 잘린다',
+);
+
+// 33) 이미지 로드 대기에 decode() 를 쓰면 안 된다. document.hidden 이면 영영 resolve 되지 않아
+//     공유가 통째로 멈춘다(실측: load 는 즉시 오는데 decode() 만 pending).
+assert.ok(
+  !/\.decode\(\)/.test(shareSrc),
+  'share.js 가 img.decode() 를 쓰고 있다 — 백그라운드 탭에서 내보내기가 영원히 끝나지 않는다',
+);
+
+// 34) 폰트 임베드 실패가 내보내기를 죽이면 안 된다(베스트에포트 규약).
+assert.ok(
+  /catch[\s\S]{0,400}?font/i.test(shareSrc),
+  'share.js 의 폰트 임베드에 실패 흡수(catch)가 없다 — 오프라인이면 공유가 통째로 실패한다',
 );
 
 console.log('share.test.js OK');
