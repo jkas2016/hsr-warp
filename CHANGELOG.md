@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-08-24
+
 ### 변경됨
 - 공유하기 모달의 기본 체크가 **전체 선택 → 첫 섹션과 마지막 섹션**으로 바뀐다. 전체를 켜 두면 내보낸 PNG 가 지나치게 길어져, 흐름의 처음과 끝만 미리 켜 두고 가운데 섹션은 필요할 때 직접 고르게 한다. 현재 탭에 섹션이 둘 이하면 그대로 전부 선택된다 (#68)
 
@@ -150,6 +152,7 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[1.1.2]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.2
 [1.1.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.1
 [1.1.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.0
 [1.0.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.0.1
