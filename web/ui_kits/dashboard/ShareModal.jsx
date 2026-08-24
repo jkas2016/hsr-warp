@@ -27,12 +27,12 @@ function ShareModal({ open, onClose, uid, lang }) {
     return m;
   }, [lang]);
 
-  // 모달을 열 때마다 현재 탭의 섹션을 다시 읽는다. 기본은 전체 선택.
+  // 모달을 열 때마다 현재 탭의 섹션을 다시 읽는다. 기본은 첫 섹션과 마지막 섹션.
   React.useEffect(() => {
     if (!open) return;
     const ids = S.presentSections();
     setPresent(ids);
-    setChecked(ids);
+    setChecked(S.defaultChecked(ids));
     setErr('');
     setPreview('');
   }, [open]);

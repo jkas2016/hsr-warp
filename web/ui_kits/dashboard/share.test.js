@@ -4,7 +4,7 @@ const assert = require('assert');
 // (실기기·브라우저 육안 검증에 의존한다 — 설계 문서 8장).
 global.window = global;
 require('./share.js');
-const { SECTIONS, selectSections, maskUid, shareFileName } = window.WarpShare;
+const { SECTIONS, selectSections, defaultChecked, maskUid, shareFileName } = window.WarpShare;
 
 // --- 공개 API 표면 ---
 
@@ -13,6 +13,7 @@ const { SECTIONS, selectSections, maskUid, shareFileName } = window.WarpShare;
 //    이 단언이 없으면 오타 rename 을 npm test 가 통째로 놓친다.
 for (const k of ['SECTIONS', 'selectSections', 'maskUid', 'shareFileName',
                  'presentSections', 'exportPng', 'saveBlob',
+                 'defaultChecked',
                  'uniqueChars', 'fontSubsetUrl', 'fontUrlsIn', 'inlineFontUrls']) {
   assert.ok(window.WarpShare[k], 'window.WarpShare.' + k + ' 가 없다 — ShareModal.jsx 가 이 이름으로 호출한다');
 }
@@ -45,6 +46,24 @@ assert.deepStrictEqual(selectSections(['hero', 'bogus'], ['hero', 'bogus']), ['h
 
 // 6) 아무것도 체크하지 않으면 빈 배열 — 내보내기 버튼 비활성화의 근거다.
 assert.deepStrictEqual(selectSections(['hero', 'charts'], []), []);
+
+// --- defaultChecked: 모달을 열 때의 기본 선택 = 첫 섹션과 마지막 섹션 ---
+
+// 6-1) 섹션이 3개 이상이면 처음과 끝만 켠다(가운데는 사용자가 직접 고른다).
+assert.deepStrictEqual(
+  defaultChecked(['hero', 'banners', 'charts', 'monthly']),
+  ['hero', 'monthly'],
+);
+
+// 6-2) 2개면 둘 다 = 처음과 끝.
+assert.deepStrictEqual(defaultChecked(['hero', 'charts']), ['hero', 'charts']);
+
+// 6-3) 1개면 그 하나만 — 중복으로 두 번 들어가지 않는다.
+assert.deepStrictEqual(defaultChecked(['hero']), ['hero']);
+
+// 6-4) 빈 목록·null 은 빈 배열(내보내기 버튼 비활성).
+assert.deepStrictEqual(defaultChecked([]), []);
+assert.deepStrictEqual(defaultChecked(null), []);
 
 // --- maskUid: 순수 문자열 치환 ---
 
