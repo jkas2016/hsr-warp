@@ -40,6 +40,19 @@
   }
 
   /**
+   * 모달을 열 때의 기본 선택을 만든다 — 첫 섹션과 마지막 섹션만.
+   * 전체 선택은 결과 PNG 가 지나치게 길어져, 흐름의 처음과 끝만 켜 두고
+   * 가운데는 사용자가 직접 고르게 한다.
+   * @param {string[]} present 화면에 실재하는 섹션 id 목록(DOM 순서).
+   * @returns {string[]} 기본으로 체크할 섹션 id (0~2개, present 순서).
+   */
+  function defaultChecked(present) {
+    const ids = present || [];
+    if (ids.length <= 2) return ids.slice();
+    return [ids[0], ids[ids.length - 1]];
+  }
+
+  /**
    * 문자열에서 uid 를 같은 길이의 • 로 치환한다. uid 가 비면 원본 그대로.
    * @param {string} text 원본 문자열.
    * @param {string} [uid] 가릴 UID. 비면 치환하지 않는다.
@@ -510,7 +523,7 @@
   }
 
   window.WarpShare = {
-    SECTIONS, selectSections, maskUid, shareFileName,
+    SECTIONS, selectSections, defaultChecked, maskUid, shareFileName,
     presentSections, exportPng, saveBlob,
     uniqueChars, fontSubsetUrl, fontUrlsIn, inlineFontUrls,
   };
