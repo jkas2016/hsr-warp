@@ -13,14 +13,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: stable
+          cache: false   # 외부 의존성 없음 — go.sum 이 없어 캐시 복원이 늘 실패한다
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
@@ -35,12 +36,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: stable
+          cache: false   # 외부 의존성 없음 — go.sum 이 없어 캐시 복원이 늘 실패한다
 
       - name: Build exe
         shell: pwsh
