@@ -234,7 +234,38 @@ const low = (rank, gacha_type = '2', time = T) => ({
   }, 'order 의 미등록 코드가 codesByRole 에서 TypeError를 던지면 안 된다');
 }
 
-console.log('OK  analyze.zzz tests passed');
+// ---- 실제 배포 일정: 3.2 전·후반 캐릭터/W-엔진과 확정 연쇄 ----
+// 공식 라인업·기간: https://zenless.hoyoverse.com/en-us/news/165979
+//                  https://zenless.hoyoverse.com/en-us/news/166475
+{
+  const current = require('./zzz/schedule.json');
+  const before = { ...current, schedule: current.schedule.filter((p) => p.s < '2026-09-09') };
+  const cases = [
+    ['2', ['1511', '1611'], '2026-09-10 12:00:00'],
+    ['3', ['14151', '14161'], '2026-09-10 12:00:00'],
+    ['2', ['1541', '1621'], '2026-09-30 12:00:00'],
+    ['3', ['14154', '14162'], '2026-09-30 12:00:00'],
+  ];
+  id = 90071992547409930n;
+  for (const [channel, featured, time] of cases) {
+    for (const item of featured) {
+      const nonFeatured = channel === '2' ? '1021' : '14102';
+      const list = [s4(item, channel, time), s4(nonFeatured, channel, time), s4(item, channel, time)];
+      /** 해당 채널의 분석 결과. @param {Object} cfg 일정 설정. @returns {Object} 배너 통계. */
+      const stats = (cfg) => analyze({ info: {}, list }, cfg).banners.find((b) => b.type === channel).stats;
+      assert.deepStrictEqual(stats(before).fives.map((f) => f.result), [null, null, null],
+        `${item}: 3.2 미반영 일정에서는 판정 보류`);
+      const after = stats(current);
+      assert.deepStrictEqual(after.fives.map((f) => f.result), ['win', 'loss', 'guaranteed'],
+        `${item}: 픽승 이후 비픽업은 픽뚫, 다음 픽업은 확정`);
+      assert.strictEqual(after.cWins, 1);
+      assert.strictEqual(after.cLoss, 1);
+      assert.strictEqual(after.gWins, 1);
+      assert.strictEqual(after.win5050Rate, 0.5);
+      assert.strictEqual(after.unknown5, 0);
+    }
+  }
+}
 
 // ---- 특별 픽업 채널(102/103)도 '한정 채널' 합산에 들어간다 ----
 // 개요 상단 운 지표·픽승률·평균 뽑기 수는 luck.limited 를 쓴다. 특별 픽업은
@@ -262,3 +293,5 @@ console.log('OK  analyze.zzz tests passed');
   assert.strictEqual(a.luck.limited.cWins, 4, '특별 픽업 채널 픽승이 합산 승수에 포함돼야 한다');
   assert.strictEqual(a.luck.limited.cLoss, 0, '픽뚫은 없다');
 }
+
+console.log('OK  analyze.zzz tests passed');
