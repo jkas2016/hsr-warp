@@ -60,6 +60,8 @@ const VERSIONS = [
   { v: '2.8', s: '2026-05-06' },
   { v: '3.0', s: '2026-06-17' },
   { v: '3.1', s: '2026-07-29' },
+  // 공식 3.2 업데이트 공지: https://zenless.hoyoverse.com/en-us/news/166000
+  { v: '3.2', s: '2026-09-09' },
 ];
 
 // 공시 원문(general_prob_star5) 기준. 값은 32개 배너 표본에서 채널별로 일정했다.
@@ -217,7 +219,10 @@ async function main() {
   //    3중 픽업(banner_type 12/13: 1411·1481·1201 / 14141·14148·14120).
   // 4: 특별 픽업 채널(102/103) 을 별도 채널로 분리 — 실측상 독점(2)·W-엔진(3)
   //    과 레코드가 겹치지 않아, 병합하면 해당 배너 기록이 통째로 누락된다.
-  const out = { version: 4, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
+  // 5: 3.2 전·후반(09-09~10-20) 반영. 공식 라인업·기간:
+  //    https://zenless.hoyoverse.com/en-us/news/165979
+  //    https://zenless.hoyoverse.com/en-us/news/166475
+  const out = { version: 5, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
   const dst = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'zzz', 'schedule.json');
   mkdirSync(dirname(dst), { recursive: true });
   writeFileSync(dst, JSON.stringify(out), 'utf8');
