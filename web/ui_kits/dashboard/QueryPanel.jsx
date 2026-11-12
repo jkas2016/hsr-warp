@@ -1,19 +1,18 @@
 /**
  * 첫 실행 조회 카드 — 게임 경로 입력 + 조회 버튼.
- * SSE 로 실제 증분 조회를 돌리며(runFetch prop = window.WarpData.runFetch),
- * progress 이벤트가 올 때마다 배너별 누적 건수를 보이고 끝나면 onLoaded(data) 를 호출한다.
+ * Dashboard가 소유하는 게임별 조회 상태로 배너별 누적 건수를 표시한다.
  * @param {Object} props
- * @param {function(string, function(string, number): void): Promise<Object>} props.runFetch 증분 조회 실행 함수.
- * @param {function(Object): void} props.onLoaded 조회 성공 시 받은 데이터 콜백.
+ * @param {function(string): Promise<void>} props.runFetch 증분 조회 실행 함수.
+ * @param {Object} props.fetchState 게임별로 유지되는 조회 진행 상태.
  * @returns {JSX.Element}
  */
-function QueryPanel({ runFetch, onLoaded }) {
+function QueryPanel({ runFetch, fetchState = {} }) {
   const { Input, Button, Card } = window.HSRWarpDesignSystem_4a0d44;
   const t = window.I18N.t;
   const [path, setPath] = React.useState('');
-  const [busy, setBusy] = React.useState(false);
-  const [prog, setProg] = React.useState(null); // { banner_code: accumulated_new_count } | null
-  const [err, setErr] = React.useState('');
+  const [pathErr, setErr] = React.useState('');
+  const { busy = false, prog = null, startedAt } = fetchState;
+  const err = pathErr || fetchState.err || '';
 
   // 경로 자동 채움: 저장된 config 우선, 없으면 자동 탐지.
   React.useEffect(() => { window.WarpData.configPath().then((p) => { if (p) setPath(p); }); }, []);
@@ -26,15 +25,8 @@ function QueryPanel({ runFetch, onLoaded }) {
     if (busy) return;
     const p = (path || '').trim();
     if (!p) { setErr(t('query.needPath')); return; }
-    setBusy(true); setErr(''); setProg({});
-    try {
-      const data = await runFetch(p, (banner, added) => setProg((cur) => ({ ...(cur || {}), [banner]: added })));
-      setBusy(false);
-      onLoaded(data);
-    } catch (e) {
-      setBusy(false);
-      setErr(e.message || t('query.failed'));
-    }
+    setErr('');
+    await runFetch(p);
   }
 
   return (
@@ -51,7 +43,7 @@ function QueryPanel({ runFetch, onLoaded }) {
         </div>
       )}
       {err && <div style={{ color: 'var(--red)', fontSize: 13, marginTop: 10 }}>{err}</div>}
-      <FetchProgress prog={prog} busy={busy} />
+      <FetchProgress prog={prog} busy={busy} startedAt={startedAt} />
     </Card>
   );
 }

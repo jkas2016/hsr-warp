@@ -15,17 +15,14 @@ assert.ok(fs.existsSync(path.join(dir, 'FetchProgress.jsx')), 'FetchProgress.jsx
 const fp = read('FetchProgress.jsx');
 assert.ok(/window\.FetchProgress = FetchProgress/.test(fp), 'FetchProgress 를 전역에 노출해야 한다');
 
-// 2) 두 패널 모두 onProgress 를 실제 상태 갱신에 연결한다 — no-op 콜백 금지.
+// 2) 조회 상태는 패널 언마운트와 무관하게 Dashboard에서 게임별로 소유한다.
+const dashboard = read('Dashboard.jsx');
+assert.ok(/setFetches/.test(dashboard) && /\[id\]: state/.test(dashboard));
 for (const f of ['QueryPanel.jsx', 'RefreshBar.jsx']) {
   const src = read(f);
-  const call = src.match(/runFetch\(([^)]*\)?[^;]*?)\)\s*;?\s*$/m) || src.match(/runFetch\([\s\S]*?\n/);
-  assert.ok(call, `${f}: runFetch 호출을 못 찾았다`);
-  assert.ok(
-    !/runFetch\(\s*\w+\s*,\s*\(\s*\)\s*=>\s*\{\s*\}\s*\)/.test(src),
-    `${f}: runFetch 의 onProgress 가 빈 함수다 — 진행 상황이 사용자에게 전달되지 않는다`,
-  );
-  assert.ok(/setProg\(/.test(src), `${f}: progress 이벤트를 상태(setProg)로 반영해야 한다`);
-  assert.ok(/<FetchProgress/.test(src), `${f}: FetchProgress 로 진행 상황을 그려야 한다`);
+  assert.ok(/await runFetch\(p\)/.test(src));
+  assert.ok(/fetchState/.test(src) && !/\[busy, setBusy\]/.test(src));
+  assert.ok(/<FetchProgress[^>]*startedAt=/.test(src));
 }
 
 // 3) 새로고침 칩은 헤더 안에 있어, 진행 표시가 흐름에 끼어들면 헤더가 늘어나며
@@ -60,3 +57,86 @@ for (const lang of ['ko', 'en', 'ja', 'zh']) {
 }
 
 console.log('fetch-progress.test.js OK');
+
+// 실제 SSE 콜백을 실행해 백그라운드 완료가 현재 게임 분석을 건드리지 않는지 확인한다.
+(async () => {
+  const vm = require('vm');
+  const streams = [];
+  const context = { window: { I18N: { t: (key) => key } }, localStorage: { getItem: () => null, setItem: () => {} },
+    EventSource: class {
+      constructor(url) { this.url = url; this.handlers = {}; streams.push(this); }
+      addEventListener(name, callback) { this.handlers[name] = callback; }
+      close() { this.closed = true; }
+    },
+  };
+  vm.runInNewContext(read('data.js'), context);
+  const api = context.window.WarpData;
+  const progress = [];
+  const pending = api.runFetch('test-path', (banner, added) => progress.push([banner, added]));
+  assert.ok(streams[0].url.includes('game=hsr'));
+  api.setGame('zzz');
+  streams[0].handlers.progress({ data: JSON.stringify({ banner: '캐릭터', added: 12 }) });
+  assert.deepStrictEqual(progress, [['캐릭터', 12]]);
+  await streams[0].handlers.done({ data: JSON.stringify({ data: { list: [] }, summary: {} }) });
+  assert.strictEqual(await pending, null, '다른 게임의 설정으로 분석하지 않아야 한다');
+  assert.ok(streams[0].closed);
+  const failed = api.runFetch('zzz-path');
+  api.setGame('hsr');
+  streams[1].handlers.error({ data: JSON.stringify({ message: 'expired' }) });
+  await assert.rejects(failed, /expired/);
+  assert.strictEqual(api.game(), 'hsr');
+  // Dashboard의 실제 조회 핸들러: 게임 전환 후 진행 업데이트, 동시 조회, 오류를 분리한다.
+  const jobs = {};
+  const states = {};
+  const displayed = [];
+  const running = { current: new Set() };
+  const handler = dashboard.match(/async function runFetch\(path\) \{[\s\S]*?\n  \}/)[0];
+  const run = vm.runInNewContext('(' + handler + ')', {
+    window: { WarpData: {
+      game: () => api.game(),
+      runFetch: (path, progress) => new Promise((resolve, reject) => { jobs[api.game()] = { progress, resolve, reject }; }),
+    } }, running, Date, t: (key) => key,
+    setFetchState: (id, state) => { states[id] = state; },
+    setData: (data) => displayed.push(data),
+  });
+  const hsrJob = run('hsr-path');
+  const start = states.hsr.startedAt;
+  api.setGame('zzz');
+  jobs.hsr.progress('캐릭터', 25);
+  assert.strictEqual(states.hsr.prog['캐릭터'], 25);
+  assert.strictEqual(states.hsr.startedAt, start);
+  assert.strictEqual(states.zzz, undefined);
+  const zzzJob = run('zzz-path');
+  api.setGame('hsr');
+  assert.strictEqual(states.hsr.busy, true, '복귀해도 조회 중 상태를 유지해야 한다');
+  await run('duplicate');
+  assert.strictEqual(running.current.size, 2, '게임별 중복 조회를 막아야 한다');
+  jobs.zzz.resolve({ game: 'zzz' });
+  await zzzJob;
+  assert.strictEqual(displayed.length, 0, '백그라운드 결과가 현재 화면을 덮으면 안 된다');
+  jobs.hsr.reject(new Error('expired'));
+  await hsrJob;
+  assert.strictEqual(states.hsr.err, 'expired');
+  assert.strictEqual(running.current.size, 0);
+  // 전환 전 일정 응답이 늦게 와도 새 게임의 설정을 덮지 않는다.
+  const requests = [];
+  const raceContext = { window: { WarpAnalyze: { resolveConfig: (value) => value } },
+    localStorage: { getItem: () => null, setItem: () => {} },
+    fetch: (url) => new Promise((resolve) => requests.push({ url, resolve })),
+  };
+  vm.runInNewContext(read('data.js'), raceContext);
+  const raceApi = raceContext.window.WarpData;
+  const oldLoad = raceApi.loadStored();
+  raceApi.setGame('zzz');
+  const newLoad = raceApi.loadStored();
+  requests[1].resolve({ json: async () => ({ order: ['2'], banners: { '2': { role: 'limited-char', short: 'ZZZ' } } }) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.strictEqual(requests[2].url, '/api/data?game=zzz');
+  requests[2].resolve({ json: async () => ({ list: [] }) });
+  await newLoad;
+  requests[0].resolve({ json: async () => ({ order: ['11'], banners: { '11': { short: 'HSR' } } }) });
+  await oldLoad;
+  assert.strictEqual(raceApi.banners()[0].short, 'ZZZ');
+  assert.strictEqual(requests.length, 3, '전환 전 요청이 새 게임 데이터를 추가 요청하면 안 된다');
+  console.log('background fetch isolation, game-switch progress and schedule races OK');
+})().catch((error) => { console.error(error); process.exitCode = 1; });

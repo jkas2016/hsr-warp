@@ -47,6 +47,12 @@ function Dashboard() {
 
   // 현재 게임. WarpData 싱글턴이 localStorage 로 유지하고, 여기선 prop/렌더용 상태로만 둔다.
   const [gameID, setGameID] = React.useState(() => window.WarpData.game());
+  // 패널이 언마운트되어도 게임별 진행 상태와 시작 시각을 보존한다.
+  const [fetches, setFetches] = React.useState({});
+  const running = React.useRef(new Set());
+  const fetchState = fetches[gameID] || {};
+  /** 게임별 조회 상태를 보존한다. @param {string} id 게임 id. @param {Object} state 조회 상태. @returns {void} */
+  const setFetchState = (id, state) => setFetches((all) => ({ ...all, [id]: state }));
   /**
    * 저장된 기록을 다시 읽어 화면을 갱신한다.
    * 새 게임에 기록이 없을 수 있어 결과가 없으면 빈 화면(QueryPanel)으로 돌아간다.
@@ -92,12 +98,30 @@ function Dashboard() {
   );
 
   /**
-   * QueryPanel/RefreshBar 공용: 실 조회. 데이터 세팅은 호출부(onLoaded)가 한다.
+   * QueryPanel/RefreshBar 공용: 게임별 조회 상태를 유지하고 현재 게임의 결과만 표시한다.
    * @param {string} path 게임 설치 경로.
-   * @param {function(string, number): void} onProgress 배너별 진행 콜백.
-   * @returns {Promise<Object>} 어댑트된 WARP_DATA(+summary).
+   * @returns {Promise<void>} 조회 완료.
    */
-  function runFetch(path, onProgress) { return window.WarpData.runFetch(path, onProgress); }
+  async function runFetch(path) {
+    const id = window.WarpData.game();
+    if (running.current.has(id)) return;
+    running.current.add(id);
+    const startedAt = Date.now();
+    let prog = {};
+    setFetchState(id, { busy: true, prog, startedAt });
+    try {
+      const result = await window.WarpData.runFetch(path, (banner, added) => {
+        prog = { ...prog, [banner]: added };
+        setFetchState(id, { busy: true, prog, startedAt });
+      });
+      setFetchState(id, {});
+      if (window.WarpData.game() === id && result) setData(result);
+    } catch (e) {
+      setFetchState(id, { err: e.message || t('query.failed') });
+    } finally {
+      running.current.delete(id);
+    }
+  }
 
   const tabs = loaded ? [
     { id: 'overview', label: t('tabs.overview') },
@@ -127,7 +151,7 @@ function Dashboard() {
         <div data-share-omit style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {/* 게임 전환. key 로 RefreshBar/QueryPanel 을 다시 마운트해 경로 자동 채움을 새 게임 기준으로 돌린다. */}
           <GameSwitcher game={gameID} onChange={changeGame} />
-          {loaded && <RefreshBar key={gameID} runFetch={runFetch} onLoaded={setData} lastUpdated={lastUpdated} onShare={() => setShare(true)} />}
+          {loaded && <RefreshBar key={gameID} runFetch={runFetch} fetchState={fetchState} lastUpdated={lastUpdated} onShare={() => setShare(true)} />}
           <Select value={lang} onChange={(e) => changeLang(e.target.value)} aria-label="Language">
             <option value="ko">한국어</option>
             <option value="en">English</option>
@@ -142,7 +166,7 @@ function Dashboard() {
 
       {!loaded ? (
         <>
-          <QueryPanel key={gameID} runFetch={runFetch} onLoaded={setData} />
+          <QueryPanel key={gameID} runFetch={runFetch} fetchState={fetchState} />
           <div className="empty">
             <div className="empty-glyph"><img src={window.WarpData.logo(gameID)} alt="" width="64" height="64" style={{ borderRadius: 16 }} /></div>
             <div style={{ fontFamily: 'var(--font-display)', fontSize: 19, fontWeight: 600, marginTop: 18 }}>{t('empty.noData')}</div>
