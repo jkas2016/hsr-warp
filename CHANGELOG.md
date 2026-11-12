@@ -7,6 +7,10 @@
 
 ## [Unreleased]
 
+### 추가됨
+- 스타레일 4.6 후반 복각과 4.7 아하·전용 광추 및 전반 복각 배너, 4.7 버전 경계를 반영한다. 기간·라인업 근거: [공식 4.7 워프 공지](https://www.hoyolab.com/article/47385253), [배너 원본](https://github.com/FuriaPaladins/Hoyoverse-Data/blob/main/banners/hsr_formatted.json). 아하 1511·광추 23065는 StarRailRes 아이템 사전으로 확인했다.
+- 젠레스 존 제로 3.3 전·후반 에이전트·W-엔진 배너와 버전 경계를 반영한다.
+
 ## [1.1.4] - 2026-10-02
 
 ### 추가됨
