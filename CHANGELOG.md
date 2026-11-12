@@ -8,8 +8,8 @@
 ## [Unreleased]
 
 ### 추가됨
-- 스타레일 4.6 후반 복각과 4.7 아하·전용 광추 및 전반 복각 배너, 4.7 버전 경계를 반영한다. 기간·라인업 근거: [공식 4.7 워프 공지](https://www.hoyolab.com/article/47385253), [배너 원본](https://github.com/FuriaPaladins/Hoyoverse-Data/blob/main/banners/hsr_formatted.json). 아하 1511·광추 23065는 StarRailRes 아이템 사전으로 확인했다.
-- 젠레스 존 제로 3.3 전·후반 에이전트·W-엔진 배너와 버전 경계를 반영한다.
+- 스타레일 **4.6 후반·4.7 픽업 배너**를 반영한다 — 빠져 있던 모르테낙스•블레이드 복각과 에이언즈★아하·전용 광추 및 4.7 전반 복각을 추가해 픽업 누락으로 인한 픽뚫 오판을 막는다. 4.7 버전 경계와 신규 아이템 이름 4개 언어도 갱신했다. 기간·라인업은 [공식 워프 공지](https://www.hoyolab.com/article/47385253)와 [배너 원본](https://github.com/FuriaPaladins/Hoyoverse-Data/blob/main/banners/hsr_formatted.json), 아이템 ID는 StarRailRes 사전으로 확인했다 (#72)
+- 젠레스 존 제로 **3.3 픽업 배너**를 반영한다 — 전·후반 에이전트와 W-엔진 및 버전 경계를 추가해 기존 일정이 10월 20일에서 끊겨 있던 구간을 메운다 (#72)
 
 ## [1.1.4] - 2026-10-02
 
