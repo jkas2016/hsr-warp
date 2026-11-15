@@ -47,7 +47,7 @@ func TestHandleFetch_MissingPath(t *testing.T) {
 // 이미 수집 중이면 두 번째 /api/fetch 는 즉시 거절되어야 한다(외부 API 중복 호출 방지).
 func TestHandleFetch_RejectsWhenBusy(t *testing.T) {
 	s := New(Paths{DataDir: t.TempDir(), ConfigFile: filepath.Join(t.TempDir(), "config.json")})
-	s.fetching.Store(true) // 수집 진행 중 상태 시뮬레이션
+	s.fetching.Store("hsr", true) // 스타레일 수집 진행 중 상태 시뮬레이션
 	req := httptest.NewRequest(http.MethodGet, "/api/fetch?path=C:\\fake", nil)
 	rec := httptest.NewRecorder()
 	s.handleFetch(rec, req)
@@ -55,8 +55,36 @@ func TestHandleFetch_RejectsWhenBusy(t *testing.T) {
 		t.Fatalf("busy 상태에서 거절 이벤트가 없음: %q", body)
 	}
 	// 거절 경로는 진행 중 플래그를 건드리면 안 된다(승자의 가드를 해제하지 않음).
-	if !s.fetching.Load() {
+	if _, busy := s.fetching.Load("hsr"); !busy {
 		t.Fatal("거절 후에도 fetching 플래그는 true 여야 함")
+	}
+}
+
+func TestHandleFetch_AllowsOtherGameAndReleasesOnFailure(t *testing.T) {
+	for _, active := range []string{"hsr", "zzz"} {
+		t.Run(active, func(t *testing.T) {
+			dir := t.TempDir()
+			s := New(Paths{DataDir: dir, ConfigFile: filepath.Join(dir, "config.json")})
+			other := "zzz"
+			if active == "zzz" {
+				other = "hsr"
+			}
+			s.fetching.Store(active, true)
+			// 없는 경로로 실제 핸들러를 실행해 다른 게임의 수집 진입과 오류 후 해제를 확인한다.
+			req := httptest.NewRequest(http.MethodGet, "/api/fetch?game="+other+"&path="+filepath.Join(dir, "missing"), nil)
+			rec := httptest.NewRecorder()
+			s.handleFetch(rec, req)
+			body := rec.Body.String()
+			if strings.Contains(body, "이미 수집") || !strings.Contains(body, "event: error") {
+				t.Fatalf("다른 게임은 수집에 진입해 경로 오류를 반환해야 함: %s", body)
+			}
+			if _, busy := s.fetching.Load(other); busy {
+				t.Fatal("실패한 게임의 수집 잠금이 남음")
+			}
+			if _, busy := s.fetching.Load(active); !busy {
+				t.Fatal("다른 게임의 수집 잠금을 해제함")
+			}
+		})
 	}
 }
 

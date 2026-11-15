@@ -4,10 +4,46 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"hsr-warp/internal/game"
 )
+
+func TestSaveGamePath_ConcurrentGamesPreserveConfig(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "config.json")
+	s := New(Paths{ConfigFile: p})
+	if err := SaveConfig(p, Config{ActiveGame: "zzz"}); err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	for _, id := range []string{"hsr", "zzz"} {
+		wg.Go(func() {
+			<-start
+			for range 30 {
+				if err := s.saveGamePath(id, "path-"+id); err != nil {
+					t.Errorf("게임 경로 저장 실패: %v", err)
+					return
+				}
+			}
+		})
+	}
+	close(start)
+	wg.Wait()
+	c := LoadConfig(p)
+	for _, id := range []string{"hsr", "zzz"} {
+		if c.PathFor(id) != "path-"+id {
+			t.Errorf("%s 경로 유실: %+v", id, c)
+		}
+	}
+	if c.ActiveGame != "zzz" {
+		t.Fatalf("기존 설정 유실: %+v", c)
+	}
+	if _, err := os.Stat(p + ".tmp"); !os.IsNotExist(err) {
+		t.Fatalf("임시 파일이 남음: %v", err)
+	}
+}
 
 func TestConfigRoundTrip(t *testing.T) {
 	dir := t.TempDir()
