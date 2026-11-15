@@ -50,6 +50,7 @@ function Dashboard() {
   // 패널이 언마운트되어도 게임별 진행 상태와 시작 시각을 보존한다.
   const [fetches, setFetches] = React.useState({});
   const running = React.useRef(new Set());
+  const reloadVersion = React.useRef(0);
   const fetchState = fetches[gameID] || {};
   /** 게임별 조회 상태를 보존한다. @param {string} id 게임 id. @param {Object} state 조회 상태. @returns {void} */
   const setFetchState = (id, state) => setFetches((all) => ({ ...all, [id]: state }));
@@ -61,8 +62,11 @@ function Dashboard() {
    * @returns {void}
    */
   const reload = (id) => {
+    const version = ++reloadVersion.current;
     setData(null);
-    window.WarpData.loadStored().then((d) => { if (window.WarpData.game() === id) setData(d || null); });
+    window.WarpData.loadStored().then((d) => {
+      if (reloadVersion.current === version && window.WarpData.game() === id) setData(d || null);
+    });
   };
   /**
    * 게임을 전환한다. setGame 이 일정·분석 캐시를 비우므로 곧바로 다시 읽는다.

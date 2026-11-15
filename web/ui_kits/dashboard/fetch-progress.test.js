@@ -118,6 +118,31 @@ console.log('fetch-progress.test.js OK');
   await hsrJob;
   assert.strictEqual(states.hsr.err, 'expired');
   assert.strictEqual(running.current.size, 0);
+  // 같은 게임으로 복귀해도 이전 전환의 늦은 null 응답은 새 화면을 비우면 안 된다.
+  const loads = [];
+  const reloaded = [];
+  const reloadHandler = dashboard.match(/const reload = \(id\) => \{[\s\S]*?\n  \};/)[0];
+  const reload = vm.runInNewContext(reloadHandler + '\nreload;', {
+    reloadVersion: { current: 0 },
+    window: { WarpData: {
+      game: () => api.game(),
+      loadStored: () => new Promise((resolve) => loads.push(resolve)),
+    } },
+    setData: (data) => reloaded.push(data),
+  });
+  reload('hsr');
+  api.setGame('zzz');
+  reload('zzz');
+  api.setGame('hsr');
+  reload('hsr');
+  const latest = { game: 'hsr', count: 25 };
+  loads[2](latest);
+  await new Promise((resolve) => setImmediate(resolve));
+  loads[0](null);
+  loads[1](null);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.strictEqual(reloaded[reloaded.length - 1], latest);
+  assert.strictEqual(reloaded.length, 4, '최신 재로드만 화면을 갱신해야 한다');
   // 전환 전 일정 응답이 늦게 와도 새 게임의 설정을 덮지 않는다.
   const requests = [];
   const raceContext = { window: { WarpAnalyze: { resolveConfig: (value) => value } },
