@@ -58,3 +58,42 @@ for (const gameID of Object.keys(goGames)) {
 }
 
 console.log('banner-schedule.test.js OK');
+
+// 실제 어댑터를 실행해 서버 수집 목록과 코드·순서가 같은지 검사한다.
+(async () => {
+  const vm = require('vm');
+  const context = {
+    window: { WarpAnalyze: require('../../analyze.js') },
+    localStorage: { getItem: () => null, setItem: () => {} },
+    fetch: async (url) => ({ json: async () => url.startsWith('/api/') ? { list: [] }
+      : JSON.parse(fs.readFileSync(path.join(ROOT, url === '/schedule.json' ? SCHEDULE_PATH.hsr : SCHEDULE_PATH.zzz), 'utf8')) }),
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, 'data.js'), 'utf8'), context);
+  const api = context.window.WarpData;
+  for (const id of Object.keys(goGames)) {
+    api.setGame(id);
+    assert.strictEqual(api.fetchBanners().length, 0, '로드 전 다른 게임의 기본 설정을 쓰면 안 된다');
+    await api.loadStored();
+    assert.deepStrictEqual(Array.from(api.fetchBanners(), (b) => b.code), goGames[id]);
+    assert.ok(api.fetchBanners().every((b) => b.role && b.short));
+    if (id === 'hsr') assert.ok(api.fetchBanners().some((b) => b.role === 'standard'));
+    if (id === 'zzz') {
+      assert.ok(!api.fetchBanners().some((b) => ['standard', 'bangboo'].includes(b.role)));
+      assert.ok(['standard', 'bangboo'].every((role) => api.banners().some((b) => b.role === role)),
+        '과거 기록용 분석 메타데이터는 보존해야 한다');
+    }
+  }
+  const source = fs.readFileSync(path.join(__dirname, 'FetchProgress.jsx'), 'utf8');
+  // 컴포넌트가 실제로 쓰는 선택식을 실행: 최초·새로고침 공용 표시의 초보자 조건도 보존한다.
+  const expression = source.match(/const shown = (.*);/)[1];
+  api.setGame('hsr');
+  await api.loadStored();
+  /** @param {Object} addedByRole 역할별 진행 건수. @returns {Object[]} 실제 표시 배너. */
+  const shown = (addedByRole) => vm.runInNewContext(expression, { window: context.window, addedByRole });
+  assert.deepStrictEqual(Array.from(shown({}), (b) => b.code), ['11', '12', '1']);
+  assert.deepStrictEqual(Array.from(shown({ beginner: 0 }), (b) => b.code), goGames.hsr);
+  api.setGame('zzz');
+  await api.loadStored();
+  assert.deepStrictEqual(Array.from(shown({ standard: 99, bangboo: 99 }), (b) => b.code), goGames.zzz);
+  console.log('fetch channel selection OK');
+})().catch((error) => { console.error(error); process.exitCode = 1; });

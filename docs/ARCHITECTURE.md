@@ -122,10 +122,12 @@ go run ./tools/channelprobe zzz 'D:\Game\HoYoPlay\games\ZenlessZoneZero Game' 1 
 | `web/analyze.js` | `ROLE_SPEC`에 `{kind, pool}` — 픽업 판정 대상이면 `kind: 'limited'` |
 | `web/<game>/schedule.json` | `banners`에 `{role,name,short,color,cap,rateUp,expAvg}` + `order`에 코드 + `version` +1 |
 | `scripts/extract-*.mjs` | 위와 같은 값(재생성 시 산출물이 되돌아가지 않게) |
-| `web/ui_kits/dashboard/data.js` | `PROGRESS_ROLE`(SSE 라벨 → 역할) |
+| `web/ui_kits/dashboard/data.js` | `FETCH_CODES`(게임별 수집 코드·순서) + `PROGRESS_ROLE`(SSE 라벨 → 역할) |
 | `web/ui_kits/dashboard/i18n.js` + `i18n/{ko,en,ja,zh}.js` | `BANNER_CODE`(short → 키) + 4개 언어 문구 |
 
 **계정 전체 지표에도 넣을지 판단한다.** 픽업 채널이라면 `analyze.js`의 `combineLimited`가 접는 대상(`kind === 'limited'`)에 들어가야 개요 상단 운 지표·픽승률·평균 뽑기 수에 반영된다. `data.js`의 요약 문구는 두 축(캐릭터+무기)으로 나눠 표시하므로 새 채널을 어느 축에 더할지도 함께 정해야 합계가 어긋나지 않는다.
+
+조회 인디케이터는 `WarpData.fetchBanners()`로 실제 수집 대상만 표시한다. `FETCH_CODES`는 서버 `Game.Banners`와 같은 코드·순서를 유지하며 `banner-schedule.test.js`가 일치를 검사한다. 전체 분석 메타데이터는 `banners()`에 보존한다. HSR 상시는 진행 표시에 포함하고, 초보자 채널은 진행 이벤트가 있을 때만 표시한다. 게임 전환 후 설정 로드 전에는 다른 게임의 기본 배너를 표시하지 않는다.
 
 ## Gotchas
 

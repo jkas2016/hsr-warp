@@ -34,7 +34,7 @@ function FetchProgress({ prog, busy, popover, startedAt }) {
     if (role) addedByRole[role] = prog[k];
   }
   // 초보자 채널은 신규가 잡힐 때만 표시(대부분 계정에서 늘 0이라 자리만 차지한다).
-  const shown = window.WarpData.banners().filter((b) => b.role !== 'beginner' || addedByRole.beginner !== undefined);
+  const shown = window.WarpData.fetchBanners().filter((b) => b.role !== 'beginner' || addedByRole.beginner !== undefined);
   if (shown.length === 0) return null;
 
   // 팝오버는 칩 아래 오른쪽 정렬로 겹쳐 띄우고, 인라인은 카드 흐름에 그대로 놓는다.

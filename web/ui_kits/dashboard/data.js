@@ -7,6 +7,8 @@ window.WarpData = (function () {
   // 지원 게임 목록(표시 순서). 서버 internal/game 의 목록과 같아야 한다 — 알 수 없는 id 는
   // /api/* 가 400 을 주므로 여기서 걸러 저장된 값이 오염돼도 hsr 로 되돌아간다.
   const GAMES = ['hsr', 'zzz'];
+  // 분석용 전체 배너와 별개다. game.go Banners와의 일치는 테스트가 보장한다.
+  const FETCH_CODES = { hsr: ['11', '12', '1', '2'], zzz: ['2', '3', '102', '103'] };
   // 게임 로고(대시보드 기준 상대 경로). 헤더·게임 스위처·빈 상태 글리프가 함께 쓴다.
   const LOGOS = { hsr: '../../assets/logo-train.svg', zzz: '../../assets/logo-zzz.svg' };
   // 현재 게임. localStorage 에 저장해 새로고침에도 유지한다.
@@ -98,12 +100,24 @@ window.WarpData = (function () {
     return code ? conf().banners[code].short : '';
   }
   /**
-   * 현재 게임의 배너 목록(표시 순서). QueryPanel 진행 표시가 쓴다.
+   * 현재 게임의 전체 분석용 배너 목록(표시 순서). 과거 기록용 채널도 포함한다.
    * @returns {Array<{code: string, role: string, short: string}>} 배너 목록.
    */
   function banners() {
     const c = conf();
     return c.order.filter((code) => c.banners[code]).map((code) => ({ code, role: c.banners[code].role, short: c.banners[code].short }));
+  }
+
+  /**
+   * 실제 수집 채널의 진행 표시 메타데이터. 설정 로드 전에는 빈 목록을 반환한다.
+   * 게임 전환 직후 HSR 기본 설정이 ZZZ 코드로 잘못 해석되는 것도 막는다.
+   * @returns {Array<{code: string, role: string, short: string}>} 수집 순서의 배너 목록.
+   */
+  function fetchBanners() {
+    if (!cfg) return [];
+    return FETCH_CODES[gameID].filter((code) => cfg.banners[code]).map((code) => ({
+      code, role: cfg.banners[code].role, short: cfg.banners[code].short,
+    }));
   }
 
   // SSE progress 의 banner 키는 서버가 역할에서 유도한 이름이다(internal/collector/fetch.go
@@ -373,5 +387,5 @@ window.WarpData = (function () {
     try { return await fetch('/api/updates').then((r) => r.json()); } catch (e) { return null; }
   }
 
-  return { loadStored, runFetch, configPath, checkUpdates, scopeTo, setGame, game, games, logo, roleShort, banners, roleOfProgress };
+  return { loadStored, runFetch, configPath, checkUpdates, scopeTo, setGame, game, games, logo, roleShort, banners, fetchBanners, roleOfProgress };
 })();
