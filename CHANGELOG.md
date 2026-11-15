@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-16
+
 ### 추가됨
 - **스타레일·젠레스 동시 수집**을 지원한다 — 이전에는 한 게임을 조회하는 동안 다른 게임의 조회도 거절됐다. 같은 게임의 중복 요청만 차단하고, 공유 설정 저장을 동기화해 게임별 설치 경로를 보존한다 (#73)
 
@@ -175,6 +177,7 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[1.2.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.2.0
 [1.1.5]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.5
 [1.1.4]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.4
 [1.1.3]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.3
