@@ -22,6 +22,15 @@ type Config struct {
 	GamePath   string                `json:"game_path,omitempty"`
 }
 
+// saveGamePath 는 다른 게임의 경로를 보존하며 공유 설정을 갱신한다.
+func (s *Server) saveGamePath(gameID, path string) error {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+	c := LoadConfig(s.paths.ConfigFile)
+	c.SetPath(gameID, path)
+	return SaveConfig(s.paths.ConfigFile, c)
+}
+
 // PathFor 는 게임의 설치 경로를 반환한다(미설정이면 빈 문자열).
 func (c Config) PathFor(gameID string) string {
 	return c.Games[gameID].GamePath

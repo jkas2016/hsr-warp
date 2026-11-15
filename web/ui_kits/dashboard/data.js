@@ -16,6 +16,7 @@ window.WarpData = (function () {
   let cfg = null;        // resolveConfig 결과 {list,ranks,banners,order} — 역할 조회에 쓴다
   let versions = [];     // schedule.json -> versions[] (버전 시작일, 비교/버전라벨용)
   let inited = false;
+  let generation = 0;
   // 마지막 전체 분석 결과(버전 구간 스코프용 — 재조회 없이 filterAnalysis 재계산).
   let _full = null, _list = [], _fullData = null;
 
@@ -48,6 +49,7 @@ window.WarpData = (function () {
   function setGame(id) {
     if (id === gameID || !GAMES.includes(id)) return;
     gameID = id;
+    generation++;
     try { localStorage.setItem('hsrwarp-game', id); } catch (e) {}
     // 캐시 무효화 — 다음 loadStored()가 새 게임의 일정과 기록을 다시 읽는다.
     inited = false;
@@ -125,9 +127,13 @@ window.WarpData = (function () {
    */
   async function init() {
     if (inited) return;
+    const requestedGeneration = generation;
+    let loadedSchedule = null;
     try {
-      sched = await fetch(scheduleURL()).then((r) => r.json());
-    } catch (e) { sched = null; }
+      loadedSchedule = await fetch(scheduleURL()).then((r) => r.json());
+    } catch (e) {}
+    if (generation !== requestedGeneration) return;
+    sched = loadedSchedule;
     cfg = window.WarpAnalyze.resolveConfig(sched);
     versions = (sched && sched.versions) || [];
     inited = true;
@@ -292,9 +298,13 @@ window.WarpData = (function () {
    * @returns {Promise<Object|null>} WARP_DATA. 첫 실행이거나 기록이 없으면 null.
    */
   async function loadStored() {
+    const requestedGeneration = generation;
+    const query = q();
     await init();
+    if (generation !== requestedGeneration) return null;
     try {
-      const d = await fetch(`/api/data?${q()}`).then((r) => r.json());
+      const d = await fetch(`/api/data?${query}`).then((r) => r.json());
+      if (generation !== requestedGeneration) return null;
       if (d && Array.isArray(d.list) && d.list.length) return analyzeAndAdapt(d);
     } catch (e) {} // first run or no data yet
     return null;
@@ -304,9 +314,10 @@ window.WarpData = (function () {
    * 게임에서 증분 조회한다(SSE).
    * @param {string} path 게임 설치 경로.
    * @param {function(string, number): void} [onProgress] (배너 이름, 누적 신규 건수) 콜백.
-   * @returns {Promise<Object>} 성공 시 adapt 된 데이터(+summary), 실패 시 Error 로 reject.
+   * @returns {Promise<Object|null>} 현재 게임이면 adapt 된 데이터(+summary), 백그라운드 완료면 null, 실패 시 Error 로 reject.
    */
   function runFetch(path, onProgress) {
+    const requestedGame = gameID;
     return new Promise((resolve, reject) => {
       const es = new EventSource(`/api/fetch?${q('path=' + encodeURIComponent(path))}`);
       es.addEventListener('progress', (e) => {
@@ -318,10 +329,16 @@ window.WarpData = (function () {
         if (e && e.data) { try { msg = window.I18N.t('err.fetchPrefix') + JSON.parse(e.data).message; } catch (x) { msg = window.I18N.t('err.fetch'); } }
         reject(new Error(msg));
       });
-      es.addEventListener('done', (e) => {
+      es.addEventListener('done', async (e) => {
         es.close();
         try {
           const d = JSON.parse(e.data);
+          // 다른 게임으로 전환했으면 그 게임의 설정으로 분석하거나 캐시를 덮지 않는다.
+          // 서버 저장은 완료됐으므로 복귀 시 loadStored()가 해당 기록을 읽는다.
+          if (gameID !== requestedGame) { resolve(null); return; }
+          const requestedGeneration = generation;
+          await init();
+          if (generation !== requestedGeneration || gameID !== requestedGame) { resolve(null); return; }
           const adapted = analyzeAndAdapt(d.data);
           adapted.summary = d.summary;
           resolve(adapted);

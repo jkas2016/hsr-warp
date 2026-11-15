@@ -4,20 +4,20 @@
  * 조회가 오래 걸릴 수 있으므로 최초 조회와 같은 FetchProgress 로 진행 상황을 보인다 —
  * 버튼 라벨만 바뀌면 사용자에게는 멈춘 것처럼 보인다.
  * @param {Object} props
- * @param {function(string, function(string, number): void): Promise<Object>} props.runFetch 증분 조회 실행 함수.
- * @param {function(Object): void} [props.onLoaded] 조회 성공 시 받은 데이터 콜백.
+ * @param {function(string): Promise<void>} props.runFetch 증분 조회 실행 함수.
+ * @param {Object} props.fetchState 게임별로 유지되는 조회 진행 상태.
  * @param {string} [props.lastUpdated] 마지막 갱신 시각 표시 문자열.
  * @param {function(): void} props.onShare 공유 버튼을 눌렀을 때 공유 모달을 여는 콜백.
  * @returns {JSX.Element}
  */
-function RefreshBar({ runFetch, onLoaded, lastUpdated, onShare }) {
+function RefreshBar({ runFetch, fetchState = {}, lastUpdated, onShare }) {
   const { Input, Button } = window.HSRWarpDesignSystem_4a0d44;
   const t = window.I18N.t;
   const [open, setOpen] = React.useState(false);
-  const [busy, setBusy] = React.useState(false);
-  const [prog, setProg] = React.useState(null);
   const [path, setPath] = React.useState('');
-  const [err, setErr] = React.useState('');
+  const [pathErr, setErr] = React.useState('');
+  const { busy = false, prog = null, startedAt } = fetchState;
+  const err = pathErr || fetchState.err || '';
 
   React.useEffect(() => { window.WarpData.configPath().then((p) => { if (p) setPath(p); }); }, []);
 
@@ -29,15 +29,8 @@ function RefreshBar({ runFetch, onLoaded, lastUpdated, onShare }) {
     if (busy) return;
     const p = (path || '').trim();
     if (!p) { setErr(t('refresh.needPath')); setOpen(true); return; }
-    setBusy(true); setErr(''); setProg({});
-    try {
-      const data = await runFetch(p, (banner, added) => setProg((cur) => ({ ...(cur || {}), [banner]: added })));
-      setBusy(false); setOpen(false); setProg(null);
-      if (onLoaded) onLoaded(data);
-    } catch (e) {
-      setBusy(false); setOpen(true); setProg(null);
-      setErr(e.message || t('refresh.fetchFailed'));
-    }
+    setErr('');
+    await runFetch(p);
   }
 
   return (
@@ -62,7 +55,7 @@ function RefreshBar({ runFetch, onLoaded, lastUpdated, onShare }) {
         <Button variant="ghost" size="sm" onClick={() => setOpen((o) => !o)}>{open ? t('refresh.closePath') : t('refresh.path')}</Button>
         <Button size="sm" onClick={run} disabled={busy}>{busy ? t('refresh.running') : t('refresh.refresh')}</Button>
       </div>
-      <FetchProgress prog={prog} busy={busy} popover />
+      <FetchProgress prog={prog} busy={busy} startedAt={startedAt} popover />
     </div>
   );
 }

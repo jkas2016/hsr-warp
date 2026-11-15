@@ -5,24 +5,25 @@
  * 세 가지로 "살아 있음"을 보인다 — 오래 걸릴 때 멈춘 것처럼 보이던 문제(#1)의 해법.
  * @param {Object} props
  * @param {Object<string, number>|null} props.prog 서버 progress 키 → 누적 건수. null 이면 아무것도 렌더하지 않는다.
+ * @param {number} [props.startedAt] 조회 시작 시각. 게임 복귀 시에도 경과 시간을 유지한다.
  * @param {boolean} props.busy 조회 중 여부(진행 애니메이션·경과 시간 표시를 결정).
  * @param {boolean} [props.popover] 헤더의 새로고침 칩에 매달아 띄우는 모드. 켜면 흐름에서
  *   빠져(absolute) 칩 아래에 겹쳐 뜬다 — 문서 흐름에 끼면 헤더가 늘어나며 본문 전체를
  *   아래로 밀어내기 때문이다. 부모가 position:relative 여야 한다.
  * @returns {JSX.Element|null}
  */
-function FetchProgress({ prog, busy, popover }) {
+function FetchProgress({ prog, busy, popover, startedAt }) {
   const t = window.I18N.t, bl = window.I18N.bannerLabel;
   const [elapsed, setElapsed] = React.useState(0);
 
-  // 경과 시간은 busy 가 켜질 때 0 부터 다시 센다. 타이머는 busy 동안만 돈다.
+  // 저장된 조회 시작 시각으로 복원한다. 타이머는 busy 동안만 돈다.
   React.useEffect(() => {
     if (!busy) return undefined;
-    setElapsed(0);
-    const started = Date.now();
+    const started = startedAt || Date.now();
+    setElapsed(Math.floor((Date.now() - started) / 1000));
     const id = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
     return () => clearInterval(id);
-  }, [busy]);
+  }, [busy, startedAt]);
 
   if (!prog) return null;
 

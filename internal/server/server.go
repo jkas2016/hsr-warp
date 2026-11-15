@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"hsr-warp/internal/collector"
@@ -42,7 +41,8 @@ type Server struct {
 	client      *http.Client
 	once        sync.Once
 	cached      updater.Updates
-	fetching    atomic.Bool // 수집 진행 중이면 true — 겹치는 /api/fetch 를 거절
+	fetching    sync.Map   // 게임 ID → 수집 중 표시. 같은 게임의 중복 요청만 거절한다.
+	configMu    sync.Mutex // 공유 설정의 읽기·수정·저장을 직렬화한다.
 }
 
 // New 는 자산 없이 Server 를 만든다(API 테스트용).
@@ -148,6 +148,8 @@ func (s *Server) handleData(w http.ResponseWriter, r *http.Request) {
 // handleConfig 는 /api/config — POST 면 설정을 저장하고 {"ok":true}, 그 외에는
 // 현재 설정을 반환한다. 설정 파일이 없으면 LoadConfig 가 기본값을 준다.
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
 	if r.Method == http.MethodPost {
 		var c Config
 		if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
@@ -209,11 +211,11 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 		fail("게임 경로가 비어 있습니다.")
 		return
 	}
-	if !s.fetching.CompareAndSwap(false, true) {
+	if _, busy := s.fetching.LoadOrStore(g.ID, true); busy {
 		fail("이미 수집이 진행 중입니다. 완료 후 다시 시도하세요.")
 		return
 	}
-	defer s.fetching.Store(false)
+	defer s.fetching.Delete(g.ID)
 	slog.Info("조회 시작", "path", gamePath, "game", g.ID)
 
 	// 캐시에는 여러 세션의 authkey 가 쌓여 있고 순서 추정이 어긋날 수 있어,
@@ -237,9 +239,9 @@ func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
 			"candidates", len(cands))
 	}
 	// config 에 경로 저장(다음 실행 자동 채움). 게임별로 병합해 다른 게임 경로를 지우지 않는다.
-	cfg := LoadConfig(s.paths.ConfigFile)
-	cfg.SetPath(g.ID, gamePath)
-	_ = SaveConfig(s.paths.ConfigFile, cfg)
+	if err := s.saveGamePath(g.ID, gamePath); err != nil {
+		slog.Error("게임 경로 저장 실패", "game", g.ID, "err", err)
+	}
 
 	dataDir := s.dataDirFor(g)
 	existing, prevInfo, err := store.LoadAll(dataDir)
