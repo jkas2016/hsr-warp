@@ -64,6 +64,17 @@ const VERSIONS = [
   { v: '3.2', s: '2026-09-09' },
   // 공식 3.3 업데이트 공지: https://zenless.hoyoverse.com/en-us/news/166963
   { v: '3.3', s: '2026-10-21' },
+  // 공식 3.4 출시일: https://zenless.hoyoverse.com/en-us/news/167400
+  { v: '3.4', s: '2026-12-02' },
+];
+
+// 3.4 특별 방송에서 공개된 일정. 종료일은 마지막 검색일을 포함하도록 다음 날로 둔다.
+// https://zenless.hoyoverse.com/en-us/news/167399
+// 신규 아이템 ID는 Gachabase 3.4 베타 데이터 기준이다.
+const EARLY_34_SCHEDULE = [
+  { s: '2026-12-02', e: '2027-01-13', c: ['1601', '1661'], l: ['14160', '14166'] },
+  { s: '2027-01-01', e: '2027-01-13', c: ['1401'], l: ['14140'] },
+  { s: '2027-01-01', e: '2027-01-22', c: ['1651'], l: ['14165'] },
 ];
 
 // 공시 원문(general_prob_star5) 기준. 값은 32개 배너 표본에서 채널별로 일정했다.
@@ -227,7 +238,12 @@ async function main() {
   // 6: 3.3 전·후반(10-21~12-01). 공식 채널 공지:
   //    https://www.hoyolab.com/article/47131668
   //    https://www.hoyolab.com/article/47375931
-  const out = { version: 6, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
+  // 7: 상류가 3.4 배너를 수록하기 전에는 특별 방송 일정을 사용한다.
+  if (!schedule.some(({ s }) => s >= '2026-12-02' && s <= '2027-01-01')) {
+    schedule.push(...EARLY_34_SCHEDULE);
+    schedule.sort((a, b) => a.s.localeCompare(b.s));
+  }
+  const out = { version: 7, order: ORDER, ranks: RANKS, banners: BANNERS, schedule, versions: VERSIONS };
   const dst = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'zzz', 'schedule.json');
   mkdirSync(dirname(dst), { recursive: true });
   writeFileSync(dst, JSON.stringify(out), 'utf8');

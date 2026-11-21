@@ -96,6 +96,25 @@ const low = (rank, gacha_type = '2', time = T) => ({
   assert.strictEqual(b.stats.fives[1].fromGuarantee, true);
 }
 
+// ---- 배포용 3.4 일정으로 S급 분류 ----
+{
+  const embedded = require('./zzz/schedule.json');
+  const launch = '2026-12-02 13:00:00';
+  const rerun = '2027-01-01 13:00:00';
+  const kafkaLastDay = '2027-01-21 13:00:00';
+  const list = [
+    s4(1601, '2', launch), s4(1011, '2', launch), s4(1661, '2', launch),
+    s4(1401, '2', rerun), s4(1651, '2', kafkaLastDay),
+    s4(14160, '3', launch), s4(14166, '3', launch),
+    s4(14140, '3', rerun), s4(14165, '3', kafkaLastDay),
+    s4(1651, '2', '2027-01-22 13:00:00'),
+  ];
+  const out = analyze({ info: {}, list }, embedded);
+  const results = Object.fromEntries(out.banners.map((b) => [b.type, b.stats.fives.map((f) => f.result)]));
+  assert.deepStrictEqual(results['2'], ['win', 'loss', 'guaranteed', 'win', 'win', null]);
+  assert.deepStrictEqual(results['3'], ['win', 'win', 'win', 'win']);
+}
+
 // ---- 음의 엔진 채널 75/25 ----
 {
   id = 4000n;
