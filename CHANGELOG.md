@@ -7,6 +7,8 @@
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-21
+
 ### 추가됨
 - 젠레스 존 제로 **3.4 픽업 일정**을 내장한다. 12월 2일부터 선브링어·로빈, 1월 1일부터 카프카·앨리스와 각 전용 W-엔진의 픽업을 S급 통계에 반영한다. [3.4 특별 방송](https://zenless.hoyoverse.com/en-us/news/167399)
 
@@ -180,6 +182,7 @@
 ### 추가됨
 - 단일 실행파일화: 게임 캐시에서 authkey 추출 → 로컬 서버 + 라이브 증분 조회 (#1)
 
+[1.2.1]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.2.1
 [1.2.0]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.2.0
 [1.1.5]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.5
 [1.1.4]: https://github.com/jkas2016/hsr-warp/releases/tag/v1.1.4
